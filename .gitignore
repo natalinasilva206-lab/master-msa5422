@@ -1,6 +1,8 @@
 node_modules/
 .next/
 .env
+.env.local
 dev.db
 dev.db-journal
 *.db
+next-env.d.ts
