@@ -93,3 +93,41 @@ export async function updateMerchant(id: string, formData: FormData) {
   revalidatePath('/admin/clientes')
   redirect(`/admin/clientes/${id}`)
 }
+
+export async function toggleMerchantStatus(id: string) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') {
+    redirect('/login')
+  }
+
+  const merchant = await prisma.merchant.findUnique({ where: { id } })
+  if (!merchant) redirect('/admin/clientes')
+
+  // Only toggle between ACTIVE ↔ BLOCKED; REVIEW is unchanged by this action
+  if (merchant.status === 'REVIEW') {
+    redirect(`/admin/clientes/${id}`)
+  }
+
+  const previousStatus = merchant.status
+  const newStatus = merchant.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE'
+  const action = newStatus === 'BLOCKED' ? 'BLOCK_MERCHANT' : 'ACTIVATE_MERCHANT'
+
+  await prisma.merchant.update({
+    where: { id },
+    data: { status: newStatus },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action,
+      entity: 'Merchant',
+      entityId: id,
+      metadata: JSON.stringify({ previousStatus, newStatus }),
+    },
+  })
+
+  revalidatePath(`/admin/clientes/${id}`)
+  revalidatePath('/admin/clientes')
+  redirect(`/admin/clientes/${id}`)
+}

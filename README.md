@@ -221,6 +221,15 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 - [x] Breadcrumb de três níveis: Clientes / Nome / Editar
 - [x] Botão Cancelar retorna para `/admin/clientes/[id]`
 - [x] Botão "Editar" na página de detalhes agora funcional
+
+### Etapa 6 — Bloquear / Ativar Cliente
+- [x] Server Action `toggleMerchantStatus`: alterna ACTIVE ↔ BLOCKED, ignora REVIEW
+- [x] AuditLog `BLOCK_MERCHANT` / `ACTIVATE_MERCHANT` com status anterior e novo
+- [x] Botão vermelho "Bloquear cliente" para merchants ACTIVE
+- [x] Botão verde "Ativar cliente" para merchants BLOCKED
+- [x] Texto informativo para merchants em REVIEW (sem ação automática)
+- [x] Spinner de loading durante a transição via `useTransition`
+- [x] `revalidatePath` na listagem e na página de detalhes
 - [x] Breadcrumb de navegação no formulário
 - [x] Botão "Cancelar" que volta para `/admin/clientes`
 - [x] Estado de loading no botão durante envio

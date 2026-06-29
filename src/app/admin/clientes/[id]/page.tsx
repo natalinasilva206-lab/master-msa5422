@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { Topbar } from '@/components/layout/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
+import { ToggleStatusButton } from './ToggleStatusButton'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -124,16 +124,7 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             </svg>
             Editar
           </Link>
-          <button
-            disabled
-            title="Disponível em breve"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-500 bg-slate-800 border border-slate-700/50 rounded-lg cursor-not-allowed opacity-50"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            {merchant.status === 'BLOCKED' ? 'Ativar' : 'Bloquear'}
-          </button>
+          <ToggleStatusButton id={merchant.id} status={merchant.status} />
         </div>
 
         {/* Main info card */}
