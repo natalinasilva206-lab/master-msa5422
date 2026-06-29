@@ -115,16 +115,15 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             </svg>
             Voltar
           </Link>
-          <button
-            disabled
-            title="Disponível em breve"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-500 bg-slate-800 border border-slate-700/50 rounded-lg cursor-not-allowed opacity-50"
+          <Link
+            href={`/admin/clientes/${merchant.id}/editar`}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Editar
-          </button>
+          </Link>
           <button
             disabled
             title="Disponível em breve"

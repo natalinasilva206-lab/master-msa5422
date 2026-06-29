@@ -46,3 +46,50 @@ export async function createMerchant(formData: FormData) {
   revalidatePath('/admin/clientes')
   redirect('/admin/clientes')
 }
+
+export async function updateMerchant(id: string, formData: FormData) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') {
+    redirect('/login')
+  }
+
+  const name = formData.get('name')?.toString().trim() ?? ''
+  const email = formData.get('email')?.toString().trim() ?? ''
+  const document = formData.get('document')?.toString().trim() ?? ''
+  const type = formData.get('type')?.toString() ?? ''
+  const status = formData.get('status')?.toString() ?? ''
+  const plan = formData.get('plan')?.toString() ?? ''
+
+  const base = `/admin/clientes/${id}/editar`
+
+  if (!name || !email || !document || !type || !status || !plan) {
+    redirect(`${base}?error=campos_obrigatorios`)
+  }
+
+  // Allow merchant to keep its own email; block if email belongs to a different merchant
+  const conflict = await prisma.merchant.findFirst({
+    where: { email, NOT: { id } },
+  })
+  if (conflict) {
+    redirect(`${base}?error=email_duplicado`)
+  }
+
+  await prisma.merchant.update({
+    where: { id },
+    data: { name, email, document, type, status, plan },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: 'UPDATE_MERCHANT',
+      entity: 'Merchant',
+      entityId: id,
+      metadata: JSON.stringify({ name, email, type, status, plan }),
+    },
+  })
+
+  revalidatePath(`/admin/clientes/${id}`)
+  revalidatePath('/admin/clientes')
+  redirect(`/admin/clientes/${id}`)
+}

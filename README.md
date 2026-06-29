@@ -88,6 +88,7 @@ npm run prisma:studio  # Abrir Prisma Studio (interface visual do banco)
 | `/admin/clientes` | Somente Admin | Listagem de merchants com busca e filtros |
 | `/admin/clientes/novo` | Somente Admin | Formulário de criação de novo merchant |
 | `/admin/clientes/[id]` | Somente Admin | Detalhes do merchant com dados, placeholders financeiros e módulos futuros |
+| `/admin/clientes/[id]/editar` | Somente Admin | Formulário de edição de dados do merchant |
 | `/cliente/dashboard` | Somente Cliente | Dashboard do cliente com cards e tabela de transações |
 
 Rotas protegidas: Admin que tentar acessar `/cliente/*` é redirecionado para `/admin/dashboard` e vice-versa.
@@ -209,6 +210,17 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 - [x] Botões Editar e Bloquear/Ativar presentes mas desabilitados (funcionalidade futura)
 - [x] Breadcrumb de navegação
 - [x] Coluna "Ações" com link "Ver detalhes" adicionada à tabela de listagem
+
+### Etapa 5 — Edição de Cliente
+- [x] Rota `/admin/clientes/[id]/editar` com formulário pré-preenchido
+- [x] Server Action `updateMerchant` — valida, atualiza no banco, grava AuditLog `UPDATE_MERCHANT`
+- [x] Validação client-side campo a campo (erros inline que somem ao corrigir)
+- [x] Verificação de e-mail duplicado respeitando o próprio e-mail do merchant
+- [x] Redirecionamento para `/admin/clientes/[id]` após salvar
+- [x] Página "Cliente não encontrado" para IDs inválidos
+- [x] Breadcrumb de três níveis: Clientes / Nome / Editar
+- [x] Botão Cancelar retorna para `/admin/clientes/[id]`
+- [x] Botão "Editar" na página de detalhes agora funcional
 - [x] Breadcrumb de navegação no formulário
 - [x] Botão "Cancelar" que volta para `/admin/clientes`
 - [x] Estado de loading no botão durante envio
