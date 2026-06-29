@@ -1,4 +1,4 @@
-const vars = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL']
+const vars = ['POSTGRES_PRISMA_URL', 'POSTGRES_URL_NON_POOLING', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL']
 
 console.log('\n=== Environment Check ===')
 console.log(`NODE_ENV:   ${process.env.NODE_ENV || 'undefined'}`)
