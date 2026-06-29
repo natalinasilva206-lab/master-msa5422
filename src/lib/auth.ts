@@ -54,5 +54,5 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  secret: process.env.NEXTAUTH_SECRET ?? 'mp-fallback-secret-set-NEXTAUTH_SECRET-in-vercel',
+  secret: process.env.NEXTAUTH_SECRET,
 }
