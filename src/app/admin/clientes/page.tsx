@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
