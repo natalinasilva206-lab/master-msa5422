@@ -1,3 +1,5 @@
+type AccentKey = 'blue' | 'green' | 'amber' | 'red' | 'purple'
+
 interface StatCardProps {
   title: string
   value: string
@@ -7,30 +9,30 @@ interface StatCardProps {
   accent?: string
 }
 
+const accentConfig: Record<AccentKey, { icon: string; dot: string }> = {
+  blue:   { icon: 'bg-blue-500/10 text-blue-400',     dot: 'bg-blue-400' },
+  green:  { icon: 'bg-emerald-500/10 text-emerald-400', dot: 'bg-emerald-400' },
+  amber:  { icon: 'bg-amber-500/10 text-amber-400',   dot: 'bg-amber-400' },
+  red:    { icon: 'bg-red-500/10 text-red-400',       dot: 'bg-red-400' },
+  purple: { icon: 'bg-purple-500/10 text-purple-400', dot: 'bg-purple-400' },
+}
+
 export function StatCard({ title, value, subtitle, trend, icon, accent = 'blue' }: StatCardProps) {
-  const accentMap: Record<string, string> = {
-    blue: 'bg-blue-500/10 text-blue-400',
-    green: 'bg-emerald-500/10 text-emerald-400',
-    purple: 'bg-purple-500/10 text-purple-400',
-    amber: 'bg-amber-500/10 text-amber-400',
-    red: 'bg-red-500/10 text-red-400',
-  }
+  const cfg = accentConfig[accent as AccentKey] ?? accentConfig.blue
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 hover:border-slate-600/50 transition-colors">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentMap[accent] ?? accentMap.blue}`}>
-          {icon}
-        </div>
-        {trend && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${trend.positive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-            {trend.positive ? '↑' : '↓'} {trend.value}
-          </span>
-        )}
+    <div className="relative bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 hover:bg-slate-800/40 hover:border-slate-700/70 transition-all duration-200 overflow-hidden">
+      <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center ${cfg.icon}`}>
+        {icon}
       </div>
-      <p className="text-slate-400 text-sm mb-1">{title}</p>
-      <p className="text-white text-2xl font-bold">{value}</p>
-      {subtitle && <p className="text-slate-500 text-xs mt-1">{subtitle}</p>}
+      <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mb-3 pr-12">{title}</p>
+      <p className="text-[28px] font-bold text-white leading-none tabular-nums">{value}</p>
+      {subtitle && <p className="text-[11px] text-slate-600 mt-2">{subtitle}</p>}
+      {trend && (
+        <div className={`inline-flex items-center gap-1 mt-3 text-[11px] font-semibold ${trend.positive ? 'text-emerald-400' : 'text-red-400'}`}>
+          {trend.positive ? '↑' : '↓'} {trend.value}
+        </div>
+      )}
     </div>
   )
 }
