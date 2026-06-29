@@ -5,90 +5,52 @@ const prisma = new PrismaClient()
 
 async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10)
-  const clientePassword = await bcrypt.hash('cliente123', 10)
+  const clientePassword = await bcrypt.hash('teste123', 10)
 
-  // --- Merchants ---
-  const merchantsData = [
-    {
-      name: 'Loja Alpha',
-      email: 'lojalpha@teste.com',
+  // --- Único merchant de teste ---
+  const merchant = await prisma.merchant.upsert({
+    where: { email: 'loja@teste.com' },
+    update: {},
+    create: {
+      name: 'Loja Teste',
+      email: 'loja@teste.com',
       document: '11.111.111/0001-11',
       type: 'ECOMMERCE',
       status: 'ACTIVE',
       plan: 'Prime',
+      balance: 1250.75,
+      pendingBalance: 340.00,
     },
-    {
-      name: 'Digital Pro',
-      email: 'digitalpro@teste.com',
-      document: '22.222.222/0001-22',
-      type: 'INFOPRODUTOR',
-      status: 'ACTIVE',
-      plan: 'Black',
-    },
-    {
-      name: 'Market Fit Store',
-      email: 'marketfit@teste.com',
-      document: '33.333.333/0001-33',
-      type: 'ECOMMERCE',
-      status: 'REVIEW',
-      plan: 'Growth',
-    },
-    {
-      name: 'Curso Elite',
-      email: 'cursoelite@teste.com',
-      document: '44.444.444/0001-44',
-      type: 'INFOPRODUTOR',
-      status: 'BLOCKED',
-      plan: 'Start',
-    },
-    {
-      name: 'Oferta Max',
-      email: 'ofertamax@teste.com',
-      document: '55.555.555/0001-55',
-      type: 'ECOMMERCE',
-      status: 'ACTIVE',
-      plan: 'Growth',
-    },
-  ]
+  })
 
-  const createdMerchants: Record<string, string> = {}
-  for (const m of merchantsData) {
-    const merchant = await prisma.merchant.upsert({
-      where: { email: m.email },
-      update: {},
-      create: m,
-    })
-    createdMerchants[m.email] = merchant.id
-  }
-
-  // --- Fee Plans ---
+  // --- Planos de taxa ---
   await prisma.feePlan.upsert({
-    where: { id: 'plan-basic' },
+    where: { id: 'plan-start' },
     update: {},
     create: {
-      id: 'plan-basic',
-      name: 'Básico',
-      chargedPercent: 2.99,
+      id: 'plan-start',
+      name: 'Start',
+      chargedPercent: 3.49,
+      chargedFixed: 0.49,
+      costPercent: 1.99,
+      costFixed: 0.25,
+    },
+  })
+
+  await prisma.feePlan.upsert({
+    where: { id: 'plan-prime' },
+    update: {},
+    create: {
+      id: 'plan-prime',
+      name: 'Prime',
+      chargedPercent: 2.49,
       chargedFixed: 0.39,
-      costPercent: 1.5,
-      costFixed: 0.2,
+      costPercent: 1.50,
+      costFixed: 0.20,
     },
   })
 
-  await prisma.feePlan.upsert({
-    where: { id: 'plan-premium' },
-    update: {},
-    create: {
-      id: 'plan-premium',
-      name: 'Premium',
-      chargedPercent: 1.99,
-      chargedFixed: 0.29,
-      costPercent: 1.2,
-      costFixed: 0.15,
-    },
-  })
-
-  // --- Users ---
+  // --- Usuário admin ---
   await prisma.user.upsert({
     where: { email: 'admin@masterpagamentos.com' },
     update: {},
@@ -100,22 +62,30 @@ async function main() {
     },
   })
 
+  // --- Único usuário cliente de teste ---
   await prisma.user.upsert({
-    where: { email: 'cliente@teste.com' },
+    where: { email: 'teste@masterpagamentos.com' },
     update: {},
     create: {
-      name: 'Cliente Teste',
-      email: 'cliente@teste.com',
+      name: 'Usuário Teste',
+      email: 'teste@masterpagamentos.com',
       password: clientePassword,
       role: 'CLIENT',
-      merchantId: createdMerchants['lojalpha@teste.com'],
+      merchantId: merchant.id,
     },
   })
 
-  console.log('✅ Seed concluído!')
-  console.log('👤 Admin: admin@masterpagamentos.com / admin123')
-  console.log('👤 Cliente: cliente@teste.com / cliente123')
-  console.log(`🏪 ${merchantsData.length} merchants criados`)
+  console.log('\n✅ Seed concluído!\n')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('👤 ADMIN')
+  console.log('   Email: admin@masterpagamentos.com')
+  console.log('   Senha: admin123')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('👤 CLIENTE TESTE')
+  console.log('   Email: teste@masterpagamentos.com')
+  console.log('   Senha: teste123')
+  console.log('   Merchant: Loja Teste')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
 }
 
 main()

@@ -22,16 +22,18 @@ model User {
 }
 
 model Merchant {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  document  String
-  type      String   @default("ECOMMERCE")
-  status    String   @default("REVIEW")
-  plan      String   @default("basic")
-  users     User[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  document        String
+  type            String   @default("ECOMMERCE")
+  status          String   @default("REVIEW")
+  plan            String   @default("basic")
+  balance         Float    @default(0)
+  pendingBalance  Float    @default(0)
+  users           User[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model FeePlan {
