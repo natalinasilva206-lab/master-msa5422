@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -15,24 +15,20 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const result = await signIn('credentials', {
+    const supabase = createClient()
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      redirect: false,
     })
 
-    if (result?.error) {
+    if (authError || !data.user) {
       setError('Email ou senha inválidos.')
       setLoading(false)
       return
     }
 
-    // Fetch session to get role
-    const res = await fetch('/api/auth/session')
-    const session = await res.json()
-    const role = session?.user?.role
-
-    if (role === 'ADMIN') {
+    const role = data.user.app_metadata?.role
+    if (role === 'admin') {
       router.push('/admin/dashboard')
     } else {
       router.push('/cliente/dashboard')

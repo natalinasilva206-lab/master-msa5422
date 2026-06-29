@@ -1,17 +1,23 @@
-import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!session) redirect('/login')
-  if ((session.user as any).role !== 'ADMIN') redirect('/cliente/dashboard')
+  if (!user) redirect('/login')
+  if (user.app_metadata?.role !== 'admin') redirect('/cliente/dashboard')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', user.id)
+    .single()
 
   return (
     <div className="flex min-h-screen bg-slate-950">
-      <Sidebar role="ADMIN" userName={session.user.name ?? 'Admin'} />
+      <Sidebar role="ADMIN" userName={profile?.name ?? user.email ?? 'Admin'} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   )
