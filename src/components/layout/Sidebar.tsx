@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 interface NavItem {
   label: string
@@ -49,7 +49,14 @@ const clientNav: NavItem[] = [
 
 export function Sidebar({ role, userName }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const nav = role === 'ADMIN' ? adminNav : clientNav
+
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <aside className="w-64 min-h-screen bg-slate-900 border-r border-slate-800 flex flex-col">
@@ -70,7 +77,9 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
       {/* Role badge */}
       <div className="px-4 py-3 border-b border-slate-800">
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${role === 'ADMIN' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}`}>
+        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+          role === 'ADMIN' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'
+        }`}>
           {role === 'ADMIN' ? 'Administrador' : 'Cliente'}
         </span>
       </div>
@@ -105,7 +114,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
           <p className="text-slate-300 text-sm font-medium truncate">{userName}</p>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
+          onClick={handleSignOut}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

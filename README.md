@@ -11,6 +11,7 @@ Gateway financeiro premium — Next.js 14 + TypeScript + Tailwind + Supabase.
 | Base Next.js + TypeScript + Tailwind | ✅ Concluído |
 | Supabase Auth + Postgres (schema, RLS, seed) | ✅ Concluído |
 | Dashboards com dados reais | ✅ Concluído |
+| Listagem de Clientes (`/admin/clientes`) | ✅ Concluído |
 | CRUD de clientes, transações, taxas, cofres | 🔜 Próxima etapa |
 
 ---
@@ -75,18 +76,16 @@ npm install
 npm run seed
 ```
 
-### O que é criado
-
-**Usuários:**
+**Usuários criados:**
 
 | Tipo | Email | Senha |
 |---|---|---|
 | Admin | admin@masterpagamentos.com | admin123 |
 | Cliente | cliente@teste.com | cliente123 |
 
-**Planos de taxa:** Start, Growth, Prime, Black
+**Planos criados:** Start, Growth, Prime, Black
 
-**Merchants:** Loja Alpha, Digital Pro, Market Fit Store, Curso Elite, Oferta Max
+**Merchants criados:** Loja Alpha, Digital Pro, Market Fit Store, Curso Elite, Oferta Max
 
 ---
 
@@ -103,20 +102,45 @@ Acesse [http://localhost:3000](http://localhost:3000).
 ## 7. Testar login e dashboards
 
 ### Admin
-1. Acesse `/login`
-2. Email: `admin@masterpagamentos.com` / Senha: `admin123`
-3. Redireciona para `/admin/dashboard`
-4. Vê cards com dados reais: total de merchants, ativos, em análise, bloqueados, planos de taxa
-5. Vê tabela com os últimos merchants cadastrados
+1. `/login` → `admin@masterpagamentos.com` / `admin123`
+2. Redireciona para `/admin/dashboard` — cards com dados reais do Supabase
+3. Sidebar: Dashboard | Clientes
 
 ### Cliente
-1. Acesse `/login`
-2. Email: `cliente@teste.com` / Senha: `cliente123`
-3. Redireciona para `/cliente/dashboard`
-4. Vê card com nome, e-mail, role e status da conta (dados reais do Supabase)
-5. Vê placeholders de saldo, volume e rendimento
+1. `/login` → `cliente@teste.com` / `cliente123`
+2. Redireciona para `/cliente/dashboard` — perfil real + placeholders financeiros
+3. Tentativa de acessar `/admin/*` → redirecionado para `/cliente/dashboard`
 
-### Proteção de rotas
+---
+
+## 8. Testar `/admin/clientes`
+
+1. Faça login como admin
+2. Clique em **Clientes** na sidebar ou acesse `/admin/clientes`
+3. Veja a tabela com todos os merchants do Supabase
+
+### Filtros disponíveis
+
+| Filtro | Exemplo |
+|---|---|
+| Busca por nome/email/documento | digitar "alpha" no campo de busca |
+| Filtro por status | selecionar "Ativo", "Em análise" ou "Bloqueado" |
+| Filtro por tipo | selecionar "E-commerce" ou "Infoprodutor" |
+
+Os filtros atualizam a URL com query params (`?q=alpha&status=active&type=ecommerce`) e a página recarrega com dados filtrados do Supabase.
+
+### Exemplos de URL com filtros
+
+```
+/admin/clientes?q=alpha
+/admin/clientes?status=active
+/admin/clientes?type=infoprodutor
+/admin/clientes?status=active&type=ecommerce
+```
+
+---
+
+## 9. Proteção de rotas
 
 | Rota | Comportamento |
 |---|---|
@@ -128,7 +152,7 @@ Acesse [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 8. Build de produção
+## 10. Build de produção
 
 ```bash
 npm run build
@@ -141,26 +165,30 @@ npm start
 
 ```
 supabase/
-  schema.sql              # tabelas + RLS + índices
+  schema.sql                        # tabelas + RLS + índices
 scripts/
-  seed.ts                 # popula banco com dados iniciais
+  seed.ts                           # popula banco com dados iniciais
 src/
-  middleware.ts           # proteção de rotas por role
+  middleware.ts                     # proteção de rotas por role
   types/
-    ui.ts                 # tipos compartilhados (BadgeVariant, etc.)
+    ui.ts                           # BadgeVariant compartilhado
   lib/
     supabase/
-      client.ts           # createBrowserClient (componentes client)
-      server.ts           # createServerClient  (Server Components)
-      admin.ts            # service_role client (seed / API routes)
+      client.ts                     # createBrowserClient
+      server.ts                     # createServerClient com cookies
+      admin.ts                      # service_role (seed / server)
   app/
-    login/page.tsx        # login via Supabase Auth
+    login/page.tsx
     admin/
-      layout.tsx          # proteção: apenas role=admin
-      dashboard/page.tsx  # dados reais: merchants + fee_plans
+      layout.tsx                    # proteção: role=admin
+      dashboard/page.tsx            # dados reais: merchants + fee_plans
+      clientes/
+        page.tsx                    # listagem de merchants com filtros
+        _components/
+          MerchantsFilters.tsx      # busca + selects (client component)
     cliente/
-      layout.tsx          # proteção: apenas role=client
-      dashboard/page.tsx  # dados reais: perfil do usuário
+      layout.tsx                    # proteção: role=client
+      dashboard/page.tsx            # perfil real + placeholders
 ```
 
 ---
@@ -168,10 +196,7 @@ src/
 ## Implantação (Vercel)
 
 1. Conecte o repositório em [vercel.com](https://vercel.com).
-2. Em **Settings → Environment Variables**, adicione:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+2. Em **Settings → Environment Variables**, adicione as 3 variáveis do `.env.example`.
 3. O build valida as variáveis obrigatórias automaticamente.
 
 ---
