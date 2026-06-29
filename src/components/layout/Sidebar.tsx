@@ -62,10 +62,10 @@ export function Sidebar({ role, userName }: SidebarProps) {
   const initial = userName.charAt(0).toUpperCase()
 
   return (
-    <aside className="w-[240px] min-h-screen bg-slate-950 border-r border-slate-800/60 flex flex-col shrink-0">
+    <aside className="w-[240px] h-full flex flex-col shrink-0 bg-slate-950 border-r border-slate-800/50 overflow-y-auto">
 
       {/* ── Logo ── */}
-      <div className="px-5 pt-6 pb-5">
+      <div className="px-5 pt-6 pb-5 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40 shrink-0">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -79,11 +79,11 @@ export function Sidebar({ role, userName }: SidebarProps) {
         </div>
       </div>
 
-      <div className="mx-4 h-px bg-slate-800/70" />
+      <div className="mx-4 h-px bg-slate-800/60 shrink-0" />
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
-        <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-3 mb-2">Menu</p>
+        <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-3 mb-2.5">Menu</p>
         {nav.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -95,16 +95,16 @@ export function Sidebar({ role, userName }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-950 ${
                 isActive
                   ? 'bg-blue-600/15 text-blue-400'
                   : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/60'
               }`}
             >
-              <span className={isActive ? 'text-blue-400' : ''}>{item.icon}</span>
-              {item.label}
+              <span className={`shrink-0 ${isActive ? 'text-blue-400' : ''}`}>{item.icon}</span>
+              <span className="truncate">{item.label}</span>
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400" />
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
               )}
             </Link>
           )
@@ -112,11 +112,11 @@ export function Sidebar({ role, userName }: SidebarProps) {
       </nav>
 
       {/* ── User area ── */}
-      <div className="px-3 pb-4">
-        <div className="mx-0 mb-3 h-px bg-slate-800/70" />
+      <div className="px-3 pb-4 shrink-0">
+        <div className="mb-3 h-px bg-slate-800/60" />
 
-        <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-slate-900/50 border border-slate-800/60">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-[13px] font-bold text-white shrink-0 shadow-sm">
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-900/60 border border-slate-800/60">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center text-[13px] font-bold text-white shrink-0">
             {initial}
           </div>
           <div className="flex-1 min-w-0">
@@ -129,9 +129,9 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
-          className="w-full flex items-center gap-2.5 px-3 py-2 mt-1 rounded-lg text-[13px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-all duration-150 group"
+          className="w-full flex items-center gap-2.5 px-3 py-2 mt-1.5 rounded-lg text-[12.5px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/40 group"
         >
-          <svg className="w-4 h-4 group-hover:text-slate-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           Sair da conta

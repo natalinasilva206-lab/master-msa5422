@@ -82,13 +82,13 @@ export default async function AdminDashboardPage() {
       <span className="text-[12px] text-slate-400 px-3 py-1.5 bg-slate-800/80 border border-slate-700/60 rounded-lg font-medium">
         Este mês
       </span>
-      <button className="flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-200 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors">
+      <button className="flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-200 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         Atualizar
       </button>
-      <button className="flex items-center gap-1.5 text-[12px] text-slate-300 hover:text-white px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors">
+      <button className="flex items-center gap-1.5 text-[12px] text-slate-300 hover:text-white px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
@@ -105,12 +105,12 @@ export default async function AdminDashboardPage() {
         actions={topbarActions}
       />
 
-      <div className="p-8 space-y-8">
+      <div className="p-5 xl:p-8 space-y-6 xl:space-y-8">
 
         {/* ── Visão geral dos clientes ── */}
         <section>
           <SectionLabel>Visão geral</SectionLabel>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard
               title="Total de Clientes"
               value={String(totalMerchants)}
@@ -214,10 +214,10 @@ export default async function AdminDashboardPage() {
         </section>
 
         {/* ── Tabela + coluna direita ── */}
-        <section className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
           {/* Clientes recentes */}
-          <div className="xl:col-span-2 bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
+          <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
               <div>
                 <p className="text-[13px] font-semibold text-white">Clientes recentes</p>
@@ -225,7 +225,7 @@ export default async function AdminDashboardPage() {
               </div>
               <Link
                 href="/admin/clientes"
-                className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-400 hover:text-blue-400 transition-colors"
+                className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-400 hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded"
               >
                 Ver todos
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -299,6 +299,17 @@ export default async function AdminDashboardPage() {
                     ))}
                   </tbody>
                 </table>
+                <div className="px-5 py-3 border-t border-slate-800/60 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-600">
+                    Exibindo {recentMerchants.length} de {totalMerchants} cliente{totalMerchants !== 1 ? 's' : ''}
+                  </span>
+                  <Link
+                    href="/admin/clientes"
+                    className="text-[11px] font-medium text-slate-500 hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded"
+                  >
+                    Ver lista completa →
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -312,7 +323,7 @@ export default async function AdminDashboardPage() {
               <div className="flex flex-col gap-1.5">
                 <Link
                   href="/admin/clientes/novo"
-                  className="flex items-center gap-3 px-3.5 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors group"
+                  className="flex items-center gap-3 px-3.5 py-3 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900"
                 >
                   <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -327,7 +338,7 @@ export default async function AdminDashboardPage() {
 
                 <Link
                   href="/admin/taxas/novo"
-                  className="flex items-center gap-3 px-3.5 py-3 bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 hover:text-white text-[13px] font-medium rounded-lg border border-slate-700/50 transition-colors group"
+                  className="flex items-center gap-3 px-3.5 py-3 bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 hover:text-white text-[13px] font-medium rounded-lg border border-slate-700/50 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900"
                 >
                   <div className="w-6 h-6 rounded-md bg-slate-700/80 flex items-center justify-center shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -343,7 +354,7 @@ export default async function AdminDashboardPage() {
                 {reviewMerchants > 0 && (
                   <Link
                     href="/admin/clientes?status=REVIEW"
-                    className="flex items-center gap-3 px-3.5 py-3 bg-amber-500/8 hover:bg-amber-500/15 text-amber-400 text-[13px] font-medium rounded-lg border border-amber-500/20 transition-colors group"
+                    className="flex items-center gap-3 px-3.5 py-3 bg-amber-500/8 hover:bg-amber-500/15 text-amber-400 text-[13px] font-medium rounded-lg border border-amber-500/20 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900"
                   >
                     <div className="w-6 h-6 rounded-md bg-amber-500/10 flex items-center justify-center shrink-0">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
