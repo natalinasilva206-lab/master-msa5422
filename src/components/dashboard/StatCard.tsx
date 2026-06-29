@@ -13,6 +13,7 @@ export function StatCard({ title, value, subtitle, trend, icon, accent = 'blue' 
     green: 'bg-emerald-500/10 text-emerald-400',
     purple: 'bg-purple-500/10 text-purple-400',
     amber: 'bg-amber-500/10 text-amber-400',
+    red: 'bg-red-500/10 text-red-400',
   }
 
   return (
