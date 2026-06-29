@@ -1,14 +1,24 @@
 interface TopbarProps {
   title: string
   subtitle?: string
+  actions?: React.ReactNode
 }
 
-export function Topbar({ title, subtitle }: TopbarProps) {
+export function Topbar({ title, subtitle, actions }: TopbarProps) {
   return (
-    <header className="h-16 bg-slate-800/50 border-b border-slate-700/50 flex items-center px-6">
-      <div>
-        <h1 className="text-white font-semibold text-lg leading-none">{title}</h1>
-        {subtitle && <p className="text-slate-400 text-sm mt-0.5">{subtitle}</p>}
+    <header className="bg-slate-950 border-b border-slate-800/60 px-8 py-5">
+      <div className="flex items-center justify-between gap-6 min-h-[2.5rem]">
+        <div>
+          <h1 className="text-white font-bold text-xl tracking-tight leading-none">{title}</h1>
+          {subtitle && (
+            <p className="text-slate-500 text-sm mt-1.5 leading-none">{subtitle}</p>
+          )}
+        </div>
+        {actions && (
+          <div className="flex items-center gap-2 shrink-0">
+            {actions}
+          </div>
+        )}
       </div>
     </header>
   )

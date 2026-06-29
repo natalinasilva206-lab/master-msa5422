@@ -23,7 +23,11 @@ function formatBRL(value: number) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-white font-semibold text-base mb-3">{children}</h2>
+  return (
+    <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-4">
+      {children}
+    </h2>
+  )
 }
 
 export default async function AdminDashboardPage() {
@@ -54,10 +58,34 @@ export default async function AdminDashboardPage() {
   const totalBalance = financials._sum.balance ?? 0
   const totalPending = financials._sum.pendingBalance ?? 0
 
+  const topbarActions = (
+    <div className="flex items-center gap-2">
+      <span className="text-[12px] text-slate-400 px-3 py-1.5 bg-slate-800/80 border border-slate-700/60 rounded-lg font-medium">
+        Este mês
+      </span>
+      <button className="flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-200 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Atualizar
+      </button>
+      <button className="flex items-center gap-1.5 text-[12px] text-slate-300 hover:text-white px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Exportar
+      </button>
+    </div>
+  )
+
   return (
     <div>
-      <Topbar title="Dashboard" subtitle="Visão geral da plataforma" />
-      <div className="p-6 space-y-8">
+      <Topbar
+        title="Dashboard"
+        subtitle="Acompanhe clientes, saldos e a operação financeira da plataforma."
+        actions={topbarActions}
+      />
+      <div className="p-8 space-y-8">
 
         {/* ── Clientes ── */}
         <section>
