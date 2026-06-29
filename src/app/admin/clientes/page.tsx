@@ -66,6 +66,7 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
             <th className="text-left px-4 py-3 text-slate-400 font-medium">Status</th>
             <th className="text-left px-4 py-3 text-slate-400 font-medium">Plano</th>
             <th className="text-left px-4 py-3 text-slate-400 font-medium">Cadastro</th>
+            <th className="px-4 py-3 text-slate-400 font-medium text-right">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -87,6 +88,18 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
               </td>
               <td className="px-4 py-3 text-slate-400 text-xs">
                 {new Date(m.createdAt).toLocaleDateString('pt-BR')}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <Link
+                  href={`/admin/clientes/${m.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-500/30 hover:border-blue-600 rounded-lg transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Ver detalhes
+                </Link>
               </td>
             </tr>
           ))}
