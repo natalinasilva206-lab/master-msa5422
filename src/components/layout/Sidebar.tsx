@@ -33,6 +33,15 @@ const adminNav: NavItem[] = [
       </svg>
     ),
   },
+  {
+    label: 'Taxas',
+    href: '/admin/taxas',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+      </svg>
+    ),
+  },
 ]
 
 const clientNav: NavItem[] = [
@@ -78,7 +87,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         {nav.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || (item.href !== '/admin/dashboard' && item.href !== '/cliente/dashboard' && pathname.startsWith(item.href))
           return (
             <Link
               key={item.href}
