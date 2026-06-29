@@ -31,6 +31,7 @@ model Merchant {
   plan            String   @default("basic")
   balance         Float    @default(0)
   pendingBalance  Float    @default(0)
+  cdiRate         Float    @default(1.0)
   users           User[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
