@@ -31,6 +31,10 @@ function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function anualizarTaxa(mensal: number) {
+  return (Math.pow(1 + mensal / 100, 12) - 1) * 100
+}
+
 function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
 }
@@ -143,12 +147,14 @@ export default async function CdiPage() {
                     <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
                       Taxa CDI / mês
                     </th>
+                    <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Equiv. anual</th>
                     <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Rend. Est. / mês</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {merchants.map((m, i) => {
                     const rendimento = m.balance * (m.cdiRate / 100)
+                    const anual = anualizarTaxa(m.cdiRate)
                     return (
                       <tr key={m.id} className="hover:bg-slate-800/20 transition-colors duration-100">
 
@@ -193,6 +199,13 @@ export default async function CdiPage() {
                           </div>
                         </td>
 
+                        {/* Equivalente anual */}
+                        <td className="px-4 py-4 text-center hidden lg:table-cell">
+                          <span className="text-[12px] font-semibold text-slate-400 tabular-nums">
+                            {anual.toFixed(2)}% a.a.
+                          </span>
+                        </td>
+
                         {/* Rendimento estimado */}
                         <td className="px-5 py-4 text-right">
                           <div>
@@ -213,7 +226,7 @@ export default async function CdiPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-slate-700/60 bg-slate-900/30">
-                    <td colSpan={3} className="px-5 py-3.5">
+                    <td colSpan={3} className="px-5 py-3.5 hidden lg:table-cell">
                       <span className="text-[11px] text-slate-600">
                         {merchants.length} seller{merchants.length !== 1 ? 's' : ''} cadastrado{merchants.length !== 1 ? 's' : ''}
                       </span>
@@ -225,6 +238,11 @@ export default async function CdiPage() {
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className="text-[11.5px] font-semibold text-amber-400">{avgRate.toFixed(2)}% avg</span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center hidden lg:table-cell">
+                      <span className="text-[11.5px] font-semibold text-slate-500">
+                        {anualizarTaxa(avgRate).toFixed(2)}% a.a.
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <span className="text-[12px] font-semibold text-slate-300 tabular-nums">

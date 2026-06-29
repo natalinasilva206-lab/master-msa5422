@@ -10,9 +10,9 @@ export default async function ClienteLayout({ children }: { children: React.Reac
   if ((session.user as any).role !== 'CLIENT') redirect('/admin/dashboard')
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-[#080c12]">
       <Sidebar role="CLIENT" userName={session.user.name ?? 'Cliente'} />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-y-auto min-w-0 scroll-smooth">{children}</main>
     </div>
   )
 }
