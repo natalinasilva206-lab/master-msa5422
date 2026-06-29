@@ -7,45 +7,57 @@ Gateway de pagamentos premium para e-commerces e infoprodutores.
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS
-- Prisma ORM + SQLite (local) / PostgreSQL (produção)
+- Prisma ORM + PostgreSQL (Neon)
 - NextAuth v4 (autenticação JWT)
 - bcryptjs (hash de senhas)
 
 ---
 
-## Instalação e Setup
+## Configuração do banco — Neon PostgreSQL
+
+### 1. Criar banco no Neon
+
+1. Acesse [neon.tech](https://neon.tech) e crie uma conta gratuita
+2. Crie um novo projeto (ex: `master-pagamentos`)
+3. Na tela do projeto, copie a **Connection string** no formato:
+   ```
+   postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require
+   ```
+
+### 2. Criar `.env` local
+
+Crie um arquivo `.env` na raiz (não é versionado):
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DATABASE?sslmode=require"
+NEXTAUTH_SECRET="string-longa-e-aleatoria-minimo-32-caracteres"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+Para gerar um `NEXTAUTH_SECRET` seguro:
+```bash
+openssl rand -base64 32
+```
+
+---
+
+## Setup local
 
 ### Pré-requisitos
 
 - Node.js 18+
 - npm 9+
+- Conta Neon com banco criado
 
-### 1. Clonar e instalar
-
-```bash
-git clone <repo>
-cd master-msa5422
-```
-
-### 2. Criar o arquivo `.env`
-
-Crie um arquivo `.env` na raiz com o conteúdo abaixo. O arquivo não é versionado por segurança.
-
-```env
-DATABASE_URL="file:./dev.db"
-NEXTAUTH_SECRET="master-pagamentos-secret-key-2024"
-NEXTAUTH_URL="http://localhost:3000"
-```
-
-### 3. Instalar dependências, aplicar migrations e seedar banco
+### Instalar, migrar e seedar
 
 ```bash
 npm run setup
 ```
 
-Esse comando executa: `npm install` → `prisma generate` → `prisma migrate deploy` → seed com usuários de teste.
+Esse comando executa: `npm install` → `prisma generate` → `prisma migrate deploy` → seed com dados de teste.
 
-### 4. Rodar em desenvolvimento
+### Rodar em desenvolvimento
 
 ```bash
 npm run dev
@@ -55,11 +67,43 @@ Acesse: **http://localhost:3000**
 
 ---
 
+## Deploy na Vercel
+
+### 1. Configurar variáveis de ambiente
+
+No painel da Vercel: **Project → Settings → Environment Variables**, adicione:
+
+| Variável | Valor |
+|----------|-------|
+| `DATABASE_URL` | Connection string do Neon (com `?sslmode=require`) |
+| `NEXTAUTH_SECRET` | String aleatória segura (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | `https://master-msa5422.vercel.app` |
+
+### 2. Build automático
+
+O script de build já inclui migrations:
+
+```
+prisma generate && prisma migrate deploy && next build
+```
+
+Toda vez que você fizer push para a branch configurada na Vercel, o deploy roda migrations automaticamente antes do build.
+
+### 3. Seedar o banco de produção (primeira vez)
+
+Após o primeiro deploy, rode localmente apontando para o banco de produção:
+
+```bash
+DATABASE_URL="postgresql://..." npm run seed
+```
+
+---
+
 ## Comandos disponíveis
 
 ```bash
 npm run dev            # Servidor de desenvolvimento
-npm run build          # Build de produção
+npm run build          # Build de produção (com migrations)
 npm run start          # Servir o build de produção
 npm run setup          # Setup completo (install + banco + seed)
 npm run db:reset       # Resetar banco completamente e re-seedar
@@ -84,12 +128,12 @@ npm run prisma:studio  # Abrir Prisma Studio (interface visual do banco)
 |------|--------|-----------|
 | `/` | Público | Redireciona para `/login` |
 | `/login` | Público | Tela de login com redirecionamento por perfil |
-| `/admin/dashboard` | Somente Admin | Dashboard administrativo com cards e tabela de clientes |
+| `/admin/dashboard` | Somente Admin | Dashboard administrativo |
 | `/admin/clientes` | Somente Admin | Listagem de merchants com busca e filtros |
 | `/admin/clientes/novo` | Somente Admin | Formulário de criação de novo merchant |
-| `/admin/clientes/[id]` | Somente Admin | Detalhes do merchant com dados, placeholders financeiros e módulos futuros |
-| `/admin/clientes/[id]/editar` | Somente Admin | Formulário de edição de dados do merchant |
-| `/cliente/dashboard` | Somente Cliente | Dashboard do cliente com cards e tabela de transações |
+| `/admin/clientes/[id]` | Somente Admin | Detalhes do merchant |
+| `/admin/clientes/[id]/editar` | Somente Admin | Formulário de edição do merchant |
+| `/cliente/dashboard` | Somente Cliente | Dashboard do cliente |
 
 Rotas protegidas: Admin que tentar acessar `/cliente/*` é redirecionado para `/admin/dashboard` e vice-versa.
 
@@ -134,7 +178,7 @@ src/
 prisma/
 ├── schema.prisma                     # Modelos: User, Merchant, FeePlan, AuditLog
 ├── seed.ts                           # Dados de teste
-└── migrations/                       # Migrations SQLite
+└── migrations/                       # Migrations PostgreSQL
 ```
 
 ---
@@ -148,21 +192,14 @@ prisma/
 - **FeePlan** — planos de taxas (básico, premium)
 - **AuditLog** — log de auditoria de ações
 
-### Migrar para PostgreSQL
+### Como rodar migrations manualmente
 
-Altere `prisma/schema.prisma`:
+```bash
+# Aplica migrations pendentes (sem interação — ideal para CI/CD)
+npx prisma migrate deploy
 
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-Atualize `.env`:
-
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
+# Cria nova migration durante desenvolvimento (requer DB acessível)
+npx prisma migrate dev --name nome-da-migration
 ```
 
 ---
@@ -172,7 +209,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 ### Etapa 1 — Base
 - [x] Estrutura Next.js 14 App Router + TypeScript
 - [x] Tailwind CSS com design fintech dark premium
-- [x] Prisma ORM com SQLite + migrations
+- [x] Prisma ORM com PostgreSQL (Neon) + migrations
 - [x] Autenticação JWT com NextAuth v4
 - [x] Login com redirecionamento por perfil
 - [x] Proteção de rotas por role (ADMIN / CLIENT)
@@ -198,49 +235,43 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 - [x] Verificação de e-mail duplicado
 - [x] Registro de auditoria (`CREATE_MERCHANT`) no `AuditLog`
 - [x] Redirecionamento para listagem após criação bem-sucedida
-- [x] Botão "Novo cliente" em `/admin/clientes` agora funcional
 
 ### Etapa 4 — Detalhes do Cliente
 - [x] Rota `/admin/clientes/[id]` com dados reais do banco
 - [x] Página "Cliente não encontrado" para IDs inválidos
-- [x] Informações cadastrais completas (nome, e-mail, documento, tipo, status, plano, datas, ID)
-- [x] Badge de status na página de detalhes
-- [x] Cards placeholder de resumo financeiro (Saldo, Volume, Rendimento, Lucro)
-- [x] Seção "Próximos módulos" (Transações, Taxas, Saldo Turbo Master, Cofres, Saques, Logs)
-- [x] Botões Editar e Bloquear/Ativar presentes mas desabilitados (funcionalidade futura)
+- [x] Informações cadastrais completas
+- [x] Cards placeholder de resumo financeiro
+- [x] Seção "Próximos módulos"
 - [x] Breadcrumb de navegação
-- [x] Coluna "Ações" com link "Ver detalhes" adicionada à tabela de listagem
 
 ### Etapa 5 — Edição de Cliente
 - [x] Rota `/admin/clientes/[id]/editar` com formulário pré-preenchido
-- [x] Server Action `updateMerchant` — valida, atualiza no banco, grava AuditLog `UPDATE_MERCHANT`
-- [x] Validação client-side campo a campo (erros inline que somem ao corrigir)
-- [x] Verificação de e-mail duplicado respeitando o próprio e-mail do merchant
-- [x] Redirecionamento para `/admin/clientes/[id]` após salvar
-- [x] Página "Cliente não encontrado" para IDs inválidos
-- [x] Breadcrumb de três níveis: Clientes / Nome / Editar
-- [x] Botão Cancelar retorna para `/admin/clientes/[id]`
-- [x] Botão "Editar" na página de detalhes agora funcional
+- [x] Server Action `updateMerchant` — valida, atualiza, grava AuditLog
+- [x] Validação client-side campo a campo
+- [x] Verificação de e-mail duplicado respeitando o próprio e-mail
 
 ### Etapa 6 — Bloquear / Ativar Cliente
-- [x] Server Action `toggleMerchantStatus`: alterna ACTIVE ↔ BLOCKED, ignora REVIEW
-- [x] AuditLog `BLOCK_MERCHANT` / `ACTIVATE_MERCHANT` com status anterior e novo
-- [x] Botão vermelho "Bloquear cliente" para merchants ACTIVE
-- [x] Botão verde "Ativar cliente" para merchants BLOCKED
-- [x] Texto informativo para merchants em REVIEW (sem ação automática)
-- [x] Spinner de loading durante a transição via `useTransition`
-- [x] `revalidatePath` na listagem e na página de detalhes
-- [x] Breadcrumb de navegação no formulário
-- [x] Botão "Cancelar" que volta para `/admin/clientes`
-- [x] Estado de loading no botão durante envio
+- [x] Server Action `toggleMerchantStatus`: alterna ACTIVE ↔ BLOCKED
+- [x] AuditLog `BLOCK_MERCHANT` / `ACTIVATE_MERCHANT`
+- [x] Botão vermelho "Bloquear" / verde "Ativar"
+- [x] Spinner de loading via `useTransition`
+
+### Etapa 7 — Segurança de Dependências
+- [x] `next` atualizado para 14.2.35 (corrige CVEs críticos)
+- [x] Vulnerabilidades restantes documentadas (requerem breaking changes)
+
+### Etapa 8 — CI/Build/Deploy
+- [x] `postinstall: prisma generate` para Vercel/CI
+- [x] `build: prisma generate && prisma migrate deploy && next build`
+- [x] `export const dynamic = 'force-dynamic'` em todas as páginas com DB
+- [x] `.env.example` documentado
+- [x] Migração de SQLite para PostgreSQL (Neon)
+- [x] Migration SQL reescrita para PostgreSQL
 
 ## O que será implementado nas próximas etapas
 
-- [ ] CRUD de Merchants (Admin)
 - [ ] CRUD de Planos de Taxas
 - [ ] Módulo de Transações (simulação — sem Pix real)
 - [ ] Gestão de usuários
 - [ ] Log de auditoria visível
 - [ ] Relatórios e exportação CSV
-- [ ] Migração para PostgreSQL
-- [ ] Deploy
