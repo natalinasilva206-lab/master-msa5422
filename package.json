@@ -4,32 +4,26 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/check-env.js && node scripts/build.mjs",
+    "build": "node scripts/check-env.js && next build",
     "start": "next start",
-    "setup": "npm install && npx prisma generate && npx prisma migrate deploy && npm run seed",
-    "db:reset": "npx prisma migrate reset --force && npm run seed",
-    "seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
-    "prisma:studio": "npx prisma studio"
+    "seed": "npx tsx scripts/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.15.0",
-    "bcryptjs": "^2.4.3",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
     "lucide-react": "^0.400.0",
     "next": "^14.2.35",
-    "next-auth": "^4.24.7",
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
-    "prisma": "^5.15.0",
     "tailwindcss": "^3.4.1",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }
