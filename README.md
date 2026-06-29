@@ -85,6 +85,7 @@ npm run prisma:studio  # Abrir Prisma Studio (interface visual do banco)
 | `/` | Público | Redireciona para `/login` |
 | `/login` | Público | Tela de login com redirecionamento por perfil |
 | `/admin/dashboard` | Somente Admin | Dashboard administrativo com cards e tabela de clientes |
+| `/admin/clientes` | Somente Admin | Listagem de merchants com busca e filtros |
 | `/cliente/dashboard` | Somente Cliente | Dashboard do cliente com cards e tabela de transações |
 
 Rotas protegidas: Admin que tentar acessar `/cliente/*` é redirecionado para `/admin/dashboard` e vice-versa.
@@ -163,8 +164,9 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 
 ---
 
-## O que está implementado (Etapa 1)
+## O que está implementado
 
+### Etapa 1 — Base
 - [x] Estrutura Next.js 14 App Router + TypeScript
 - [x] Tailwind CSS com design fintech dark premium
 - [x] Prisma ORM com SQLite + migrations
@@ -175,8 +177,17 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 - [x] Dashboard Admin — cards de volume, receita, margem e clientes
 - [x] Dashboard Cliente — cards de saldo, volume, rendimento e plano
 - [x] Componentes UI: Button, Input, Select, Card, Badge, Table, StatCard
-- [x] Seed com 2 usuários de teste + 2 planos de taxa + 1 merchant
 - [x] Scripts npm configurados
+
+### Etapa 2 — Listagem de Clientes
+- [x] Rota `/admin/clientes` com listagem de merchants do banco
+- [x] Busca por nome, e-mail ou documento (server-side via URL params)
+- [x] Filtro por status (ACTIVE / REVIEW / BLOCKED)
+- [x] Filtro por tipo (ECOMMERCE / INFOPRODUTOR)
+- [x] Badges coloridos de status (Ativo / Em análise / Bloqueado)
+- [x] Botão "Novo cliente" visual (desabilitado — funcionalidade futura)
+- [x] Item "Clientes" adicionado na Sidebar do Admin
+- [x] Seed atualizado com 5 merchants de teste
 
 ## O que será implementado nas próximas etapas
 

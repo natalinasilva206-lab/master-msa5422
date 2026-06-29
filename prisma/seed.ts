@@ -7,43 +7,61 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10)
   const clientePassword = await bcrypt.hash('cliente123', 10)
 
-  // Create a merchant for the client
-  const merchant = await prisma.merchant.upsert({
-    where: { email: 'loja@teste.com' },
-    update: {},
-    create: {
-      name: 'Loja Teste',
-      email: 'loja@teste.com',
-      document: '12.345.678/0001-90',
+  // --- Merchants ---
+  const merchantsData = [
+    {
+      name: 'Loja Alpha',
+      email: 'lojalpha@teste.com',
+      document: '11.111.111/0001-11',
       type: 'ECOMMERCE',
       status: 'ACTIVE',
-      plan: 'premium',
+      plan: 'Prime',
     },
-  })
-
-  await prisma.user.upsert({
-    where: { email: 'admin@masterpagamentos.com' },
-    update: {},
-    create: {
-      name: 'Administrador',
-      email: 'admin@masterpagamentos.com',
-      password: adminPassword,
-      role: 'ADMIN',
+    {
+      name: 'Digital Pro',
+      email: 'digitalpro@teste.com',
+      document: '22.222.222/0001-22',
+      type: 'INFOPRODUTOR',
+      status: 'ACTIVE',
+      plan: 'Black',
     },
-  })
-
-  await prisma.user.upsert({
-    where: { email: 'cliente@teste.com' },
-    update: {},
-    create: {
-      name: 'Cliente Teste',
-      email: 'cliente@teste.com',
-      password: clientePassword,
-      role: 'CLIENT',
-      merchantId: merchant.id,
+    {
+      name: 'Market Fit Store',
+      email: 'marketfit@teste.com',
+      document: '33.333.333/0001-33',
+      type: 'ECOMMERCE',
+      status: 'REVIEW',
+      plan: 'Growth',
     },
-  })
+    {
+      name: 'Curso Elite',
+      email: 'cursoelite@teste.com',
+      document: '44.444.444/0001-44',
+      type: 'INFOPRODUTOR',
+      status: 'BLOCKED',
+      plan: 'Start',
+    },
+    {
+      name: 'Oferta Max',
+      email: 'ofertamax@teste.com',
+      document: '55.555.555/0001-55',
+      type: 'ECOMMERCE',
+      status: 'ACTIVE',
+      plan: 'Growth',
+    },
+  ]
 
+  const createdMerchants: Record<string, string> = {}
+  for (const m of merchantsData) {
+    const merchant = await prisma.merchant.upsert({
+      where: { email: m.email },
+      update: {},
+      create: m,
+    })
+    createdMerchants[m.email] = merchant.id
+  }
+
+  // --- Fee Plans ---
   await prisma.feePlan.upsert({
     where: { id: 'plan-basic' },
     update: {},
@@ -70,11 +88,40 @@ async function main() {
     },
   })
 
-  console.log('✅ Seed concluído com sucesso!')
+  // --- Users ---
+  await prisma.user.upsert({
+    where: { email: 'admin@masterpagamentos.com' },
+    update: {},
+    create: {
+      name: 'Administrador',
+      email: 'admin@masterpagamentos.com',
+      password: adminPassword,
+      role: 'ADMIN',
+    },
+  })
+
+  await prisma.user.upsert({
+    where: { email: 'cliente@teste.com' },
+    update: {},
+    create: {
+      name: 'Cliente Teste',
+      email: 'cliente@teste.com',
+      password: clientePassword,
+      role: 'CLIENT',
+      merchantId: createdMerchants['lojalpha@teste.com'],
+    },
+  })
+
+  console.log('✅ Seed concluído!')
   console.log('👤 Admin: admin@masterpagamentos.com / admin123')
   console.log('👤 Cliente: cliente@teste.com / cliente123')
+  console.log(`🏪 ${merchantsData.length} merchants criados`)
 }
 
 main()
   .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1) })
+  .catch((e) => {
+    console.error(e)
+    prisma.$disconnect()
+    process.exit(1)
+  })
