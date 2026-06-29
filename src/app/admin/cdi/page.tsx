@@ -4,6 +4,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
 import { CdiRateInput } from './CdiRateInput'
+import { BalanceInput } from './BalanceInput'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -115,7 +116,7 @@ export default async function CdiPage() {
             <div>
               <p className="text-[13px] font-semibold text-white">Sellers cadastrados</p>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Clique na taxa para editar individualmente · Enter para confirmar · Esc para cancelar
+                Clique no saldo ou na taxa para editar · Enter confirma · Esc cancela
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -143,7 +144,10 @@ export default async function CdiPage() {
                     <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
                     <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                     <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Plano</th>
-                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Saldo Disponível</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Saldo Disponível
+                      <span className="ml-1 text-slate-700 normal-case tracking-normal font-normal">(editável)</span>
+                    </th>
                     <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
                       Taxa CDI / mês
                     </th>
@@ -185,11 +189,9 @@ export default async function CdiPage() {
                           </span>
                         </td>
 
-                        {/* Saldo */}
+                        {/* Saldo editável */}
                         <td className="px-4 py-4 text-right">
-                          <span className="text-[13px] font-semibold text-emerald-400 tabular-nums">
-                            R$ {formatBRL(m.balance)}
-                          </span>
+                          <BalanceInput merchantId={m.id} initialBalance={m.balance} />
                         </td>
 
                         {/* Taxa CDI editável */}

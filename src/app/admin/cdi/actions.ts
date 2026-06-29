@@ -10,3 +10,12 @@ export async function updateCdiRate(merchantId: string, rate: number) {
   })
   revalidatePath('/admin/cdi')
 }
+
+export async function updateBalance(merchantId: string, balance: number) {
+  if (balance < 0) throw new Error('Saldo inválido')
+  await prisma.merchant.update({
+    where: { id: merchantId },
+    data: { balance },
+  })
+  revalidatePath('/admin/cdi')
+}
