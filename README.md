@@ -86,6 +86,7 @@ npm run prisma:studio  # Abrir Prisma Studio (interface visual do banco)
 | `/login` | Público | Tela de login com redirecionamento por perfil |
 | `/admin/dashboard` | Somente Admin | Dashboard administrativo com cards e tabela de clientes |
 | `/admin/clientes` | Somente Admin | Listagem de merchants com busca e filtros |
+| `/admin/clientes/novo` | Somente Admin | Formulário de criação de novo merchant |
 | `/cliente/dashboard` | Somente Cliente | Dashboard do cliente com cards e tabela de transações |
 
 Rotas protegidas: Admin que tentar acessar `/cliente/*` é redirecionado para `/admin/dashboard` e vice-versa.
@@ -185,9 +186,20 @@ DATABASE_URL="postgresql://user:password@localhost:5432/master_pagamentos"
 - [x] Filtro por status (ACTIVE / REVIEW / BLOCKED)
 - [x] Filtro por tipo (ECOMMERCE / INFOPRODUTOR)
 - [x] Badges coloridos de status (Ativo / Em análise / Bloqueado)
-- [x] Botão "Novo cliente" visual (desabilitado — funcionalidade futura)
 - [x] Item "Clientes" adicionado na Sidebar do Admin
 - [x] Seed atualizado com 5 merchants de teste
+
+### Etapa 3 — Criação de Cliente
+- [x] Rota `/admin/clientes/novo` com formulário completo
+- [x] Validação client-side (campos obrigatórios com feedback visual)
+- [x] Server Action para criação no banco de dados
+- [x] Verificação de e-mail duplicado
+- [x] Registro de auditoria (`CREATE_MERCHANT`) no `AuditLog`
+- [x] Redirecionamento para listagem após criação bem-sucedida
+- [x] Botão "Novo cliente" em `/admin/clientes` agora funcional
+- [x] Breadcrumb de navegação no formulário
+- [x] Botão "Cancelar" que volta para `/admin/clientes`
+- [x] Estado de loading no botão durante envio
 
 ## O que será implementado nas próximas etapas
 

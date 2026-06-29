@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
@@ -110,16 +111,15 @@ export default function AdminClientesPage({ searchParams }: PageProps) {
           <h2 className="text-white font-semibold text-lg">
             Todos os clientes
           </h2>
-          <button
-            disabled
-            title="Disponível em breve"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg opacity-50 cursor-not-allowed"
+          <Link
+            href="/admin/clientes/novo"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Novo cliente
-          </button>
+          </Link>
         </div>
 
         {/* Filters */}
