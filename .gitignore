@@ -6,3 +6,4 @@ dev.db
 dev.db-journal
 *.db
 next-env.d.ts
+tsconfig.tsbuildinfo
