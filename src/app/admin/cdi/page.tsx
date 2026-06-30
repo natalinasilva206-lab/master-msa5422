@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { CdiRateInput } from './CdiRateInput'
 import { BalanceInput } from './BalanceInput'
 import { GlobalRateForm } from './GlobalRateForm'
+import { CdiPrazoInput } from './CdiPrazoInput'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -42,9 +43,24 @@ function getInitials(name: string) {
 }
 
 export default async function CdiPage() {
-  const merchants = await prisma.merchant.findMany({
-    orderBy: { balance: 'desc' },
-  })
+  const [merchants, prazoLogs] = await Promise.all([
+    prisma.merchant.findMany({ orderBy: { balance: 'desc' } }),
+    prisma.auditLog.findMany({
+      where: { action: 'CDI_LIMIT_SET' },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ])
+
+  // Pega o prazo mais recente por merchant
+  const prazoMap = new Map<string, string | null>()
+  for (const log of prazoLogs) {
+    if (log.entityId && !prazoMap.has(log.entityId)) {
+      try {
+        const m = JSON.parse(log.metadata ?? '{}')
+        prazoMap.set(log.entityId, m.expiresAt ?? null)
+      } catch {}
+    }
+  }
 
   const totalBalance = merchants.reduce((s, m) => s + m.balance, 0)
   const totalRendimento = merchants.reduce((s, m) => s + m.balance * (m.cdiRate / 100), 0)
@@ -163,8 +179,8 @@ export default async function CdiPage() {
                     <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
                       Taxa CDI / mês
                     </th>
-                    <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Equiv. anual</th>
-                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Rend. 12m</th>
+                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Prazo CDI</th>
+                    <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Equiv. anual</th>
                     <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Rend. / mês</th>
                   </tr>
                 </thead>
@@ -174,6 +190,7 @@ export default async function CdiPage() {
                     const rend12m = m.balance * (Math.pow(1 + m.cdiRate / 100, 12) - 1)
                     const anual = anualizarTaxa(m.cdiRate)
                     const balancePct = totalBalance > 0 ? (m.balance / maxBalance) * 100 : 0
+                    const prazo = prazoMap.get(m.id) ?? null
                     return (
                       <tr key={m.id} className="hover:bg-slate-800/20 transition-colors duration-100">
 
@@ -221,17 +238,15 @@ export default async function CdiPage() {
                           </div>
                         </td>
 
-                        {/* Equivalente anual */}
-                        <td className="px-4 py-4 text-center hidden lg:table-cell">
-                          <span className="text-[12px] font-semibold text-slate-400 tabular-nums">
-                            {anual.toFixed(2)}% a.a.
-                          </span>
+                        {/* Prazo CDI */}
+                        <td className="px-4 py-4 hidden lg:table-cell">
+                          <CdiPrazoInput merchantId={m.id} expiresAt={prazo} />
                         </td>
 
-                        {/* Rendimento 12 meses */}
-                        <td className="px-4 py-4 text-right hidden xl:table-cell">
-                          <span className={`text-[12px] font-semibold tabular-nums ${rend12m > 0 ? 'text-emerald-400' : 'text-slate-700'}`}>
-                            {rend12m > 0 ? `+R$ ${formatBRL(rend12m)}` : '—'}
+                        {/* Equivalente anual */}
+                        <td className="px-4 py-4 text-center hidden xl:table-cell">
+                          <span className="text-[12px] font-semibold text-slate-400 tabular-nums">
+                            {anual.toFixed(2)}% a.a.
                           </span>
                         </td>
 
@@ -268,14 +283,10 @@ export default async function CdiPage() {
                     <td className="px-4 py-3.5 text-center">
                       <span className="text-[11.5px] font-semibold text-amber-400">{avgRate.toFixed(2)}% avg</span>
                     </td>
-                    <td className="px-4 py-3.5 text-center hidden lg:table-cell">
+                    <td className="px-4 py-3.5 hidden lg:table-cell" />
+                    <td className="px-4 py-3.5 text-center hidden xl:table-cell">
                       <span className="text-[11.5px] font-semibold text-slate-500">
                         {anualizarTaxa(avgRate).toFixed(2)}% a.a.
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right hidden xl:table-cell">
-                      <span className="text-[12px] font-semibold text-emerald-400 tabular-nums">
-                        +R$ {formatBRL(merchants.reduce((s, m) => s + m.balance * (Math.pow(1 + m.cdiRate / 100, 12) - 1), 0))}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">

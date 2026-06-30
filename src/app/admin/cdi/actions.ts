@@ -23,6 +23,22 @@ export async function updateBalance(merchantId: string, balance: number) {
   revalidatePath('/admin/cdi')
 }
 
+export async function setCdiPrazo(merchantId: string, expiresAt: string | null) {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/login')
+  const userId = (session.user as any)?.id as string
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   'CDI_LIMIT_SET',
+      entity:   'Merchant',
+      entityId: merchantId,
+      metadata: JSON.stringify({ expiresAt }),
+    },
+  })
+  revalidatePath('/admin/cdi')
+}
+
 export async function applyGlobalRate(rate: number, plan?: string) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') redirect('/login')
