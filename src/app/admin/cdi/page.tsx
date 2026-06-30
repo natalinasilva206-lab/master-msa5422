@@ -56,6 +56,7 @@ export default async function CdiPage() {
     <div>
       <Topbar
         title="CDI e Rendimentos"
+        breadcrumb="Casa › Financeiro"
         subtitle="Gerencie a taxa de rendimento CDI por conta de seller."
       />
 

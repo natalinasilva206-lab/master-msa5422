@@ -4,6 +4,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { KycActions } from './KycActions'
 
 function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
@@ -118,10 +119,11 @@ export default async function KycPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Link
                       href={`/admin/clientes/${m.id}`}
-                      className="px-3 py-1.5 text-[11.5px] font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                      className="px-3 py-1.5 text-[11.5px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/80 border border-slate-700/40 rounded-lg transition-colors"
                     >
-                      Revisar
+                      Detalhes
                     </Link>
+                    <KycActions merchantId={m.id} />
                   </div>
                 </div>
               ))}
