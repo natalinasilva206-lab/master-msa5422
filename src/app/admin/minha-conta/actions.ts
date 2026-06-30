@@ -83,3 +83,31 @@ export async function changePassword(formData: FormData) {
 
   return { success: true }
 }
+
+export async function saveTheme(theme: string, accentColor: string) {
+  const session = await requireAdmin()
+  const userId = (session.user as any).id as string
+
+  const validThemes  = ['dark', 'darker', 'system', 'light']
+  const validAccents = ['blue', 'violet', 'emerald', 'rose', 'amber']
+  if (!validThemes.includes(theme))        return { error: 'Tema inválido.' }
+  if (!validAccents.includes(accentColor)) return { error: 'Cor inválida.' }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { theme, accentColor },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action: 'UPDATE_THEME',
+      entity: 'User',
+      entityId: userId,
+      metadata: JSON.stringify({ theme, accentColor, updatedAt: new Date().toISOString() }),
+    },
+  })
+
+  revalidatePath('/admin')
+  return { success: true }
+}

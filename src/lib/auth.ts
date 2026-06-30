@@ -16,6 +16,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          select: { id: true, name: true, email: true, password: true, role: true, theme: true, accentColor: true },
         })
 
         if (!user) return null
@@ -28,6 +29,8 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          theme: (user as any).theme ?? 'dark',
+          accentColor: (user as any).accentColor ?? 'blue',
         }
       },
     }),
@@ -35,9 +38,11 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role
-        token.id = user.id
-        token.iat = Math.floor(Date.now() / 1000)
+        token.role        = (user as any).role
+        token.id          = user.id
+        token.theme       = (user as any).theme       ?? 'dark'
+        token.accentColor = (user as any).accentColor ?? 'blue'
+        token.iat         = Math.floor(Date.now() / 1000)
       }
       // Invalidate token if password was changed after it was issued
       if (token.id && token.iat) {
@@ -55,8 +60,10 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (!token.id) return { ...session, user: undefined } as any
       if (session.user) {
-        (session.user as any).role = token.role
-        ;(session.user as any).id = token.id
+        (session.user as any).role        = token.role
+        ;(session.user as any).id         = token.id
+        ;(session.user as any).theme      = token.theme      ?? 'dark'
+        ;(session.user as any).accentColor = token.accentColor ?? 'blue'
       }
       return session
     },

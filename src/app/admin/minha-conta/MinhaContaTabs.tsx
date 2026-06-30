@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition, useCallback } from 'react'
+import { useState, useTransition, useCallback, useEffect } from 'react'
 import { signOut } from 'next-auth/react'
-import { updateProfile, changePassword } from './actions'
+import { updateProfile, changePassword, saveTheme } from './actions'
 
-type User = { id: string; name: string; email: string; phone: string | null }
+type User = { id: string; name: string; email: string; phone: string | null; theme: string; accentColor: string }
 
 const TABS = ['Meu Perfil', 'Alterar Senha', 'Tema', 'Segurança'] as const
 type Tab = typeof TABS[number]
@@ -33,7 +33,7 @@ export function MinhaContaTabs({ user }: { user: User }) {
 
       {activeTab === 'Meu Perfil'   && <ProfileTab user={user} />}
       {activeTab === 'Alterar Senha' && <PasswordTab />}
-      {activeTab === 'Tema'          && <TemaTab />}
+      {activeTab === 'Tema'          && <TemaTab user={user} />}
       {activeTab === 'Segurança'     && <SegurancaTab user={user} />}
     </div>
   )
@@ -478,59 +478,226 @@ function PasswordTab() {
 }
 
 /* ─── Tema ─── */
-function TemaTab() {
-  const [selected, setSelected] = useState<'dark' | 'darker'>('dark')
+type ThemeId  = 'dark' | 'darker' | 'system' | 'light'
+type AccentId = 'blue' | 'violet' | 'emerald' | 'rose' | 'amber'
 
-  const themes = [
-    { id: 'dark'   as const, label: 'Dark',        desc: 'Tema padrão',         bg: 'bg-slate-900',   accent: 'bg-blue-600' },
-    { id: 'darker' as const, label: 'Dark Profundo', desc: 'Preto intenso',     bg: 'bg-[#080c12]',   accent: 'bg-violet-600' },
-  ]
+const THEMES: { id: ThemeId; label: string; desc: string; bgPreview: string; cardPreview: string }[] = [
+  { id: 'dark',    label: 'Dark',           desc: 'Padrão — fundo azulado escuro', bgPreview: '#080c12',  cardPreview: '#0f172a' },
+  { id: 'darker',  label: 'Dark Profundo',  desc: 'Preto intenso',                bgPreview: '#000000',  cardPreview: '#0a0a0a' },
+  { id: 'light',   label: 'Claro',          desc: 'Interface em tons claros',     bgPreview: '#f1f5f9',  cardPreview: '#ffffff' },
+  { id: 'system',  label: 'Sistema',        desc: 'Segue a preferência do SO',    bgPreview: 'linear-gradient(135deg,#080c12 50%,#f1f5f9 50%)', cardPreview: '#0f172a' },
+]
+
+const ACCENTS: { id: AccentId; label: string; hex500: string; hex600: string }[] = [
+  { id: 'blue',    label: 'Azul',     hex500: '#3b82f6', hex600: '#2563eb' },
+  { id: 'violet',  label: 'Violeta',  hex500: '#8b5cf6', hex600: '#7c3aed' },
+  { id: 'emerald', label: 'Verde',    hex500: '#10b981', hex600: '#059669' },
+  { id: 'rose',    label: 'Rosa',     hex500: '#f43f5e', hex600: '#e11d48' },
+  { id: 'amber',   label: 'Âmbar',   hex500: '#f59e0b', hex600: '#d97706' },
+]
+
+function applyThemeToDom(theme: ThemeId, accent: AccentId) {
+  const shell = document.querySelector('.admin-shell') as HTMLElement | null
+  if (!shell) return
+  // Resolve 'system' to actual theme
+  let resolved: ThemeId = theme
+  if (theme === 'system') {
+    resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+  shell.dataset.theme  = resolved
+  shell.dataset.accent = accent
+}
+
+function TemaTab({ user }: { user: User }) {
+  const [theme,  setTheme]  = useState<ThemeId>(user.theme as ThemeId   ?? 'dark')
+  const [accent, setAccent] = useState<AccentId>(user.accentColor as AccentId ?? 'blue')
+  const [isPending, startTransition] = useTransition()
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Preview immediately when selection changes
+  useEffect(() => {
+    applyThemeToDom(theme, accent)
+  }, [theme, accent])
+
+  function handleSave() {
+    setMessage(null)
+    startTransition(async () => {
+      const res = await saveTheme(theme, accent)
+      if (res?.error) {
+        setMessage({ type: 'error', text: res.error })
+      } else {
+        setMessage({ type: 'success', text: 'Tema salvo! As preferências serão mantidas após logout.' })
+      }
+    })
+  }
+
+  const accentObj = ACCENTS.find(a => a.id === accent)!
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-6 max-w-2xl space-y-5">
-      <div>
-        <p className="text-[14px] font-semibold text-white">Tema da Interface</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">Escolha a aparência do painel administrativo</p>
+    <div className="space-y-4 max-w-2xl">
+
+      {/* Tema */}
+      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-6 space-y-4">
+        <div>
+          <p className="text-[14px] font-semibold text-white">Aparência</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Escolha como o painel será exibido para você</p>
+        </div>
+        <div className="border-t border-slate-800/50" />
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {THEMES.map((t) => {
+            const isSelected = theme === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className={`relative rounded-xl p-3 border-2 text-left transition-all group ${
+                  isSelected
+                    ? 'border-blue-500 bg-blue-500/5'
+                    : 'border-slate-800/60 hover:border-slate-700 hover:bg-slate-800/20'
+                }`}
+              >
+                {isSelected && (
+                  <div className="absolute top-2 right-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+                {/* Mini preview */}
+                <div
+                  className="w-full h-10 rounded-lg mb-2.5 border border-slate-700/20 overflow-hidden flex items-center gap-1 px-1.5"
+                  style={{ background: t.bgPreview.startsWith('linear') ? t.bgPreview : t.bgPreview }}
+                >
+                  <div
+                    className="w-2 h-6 rounded-sm opacity-60"
+                    style={{ backgroundColor: t.id === 'light' ? '#e2e8f0' : '#1e293b' }}
+                  />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-1 w-5 rounded-full" style={{ backgroundColor: accentObj.hex500 }} />
+                    <div
+                      className="h-0.5 w-8 rounded-full opacity-40"
+                      style={{ backgroundColor: t.id === 'light' ? '#94a3b8' : '#475569' }}
+                    />
+                    <div
+                      className="h-0.5 w-6 rounded-full opacity-20"
+                      style={{ backgroundColor: t.id === 'light' ? '#94a3b8' : '#475569' }}
+                    />
+                  </div>
+                </div>
+                <p className="text-[11.5px] font-semibold text-slate-200 leading-tight">{t.label}</p>
+                <p className="text-[9.5px] text-slate-600 mt-0.5 leading-tight">{t.desc}</p>
+              </button>
+            )
+          })}
+        </div>
       </div>
-      <div className="border-t border-slate-800/50" />
-      <div className="grid grid-cols-2 gap-3">
-        {themes.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setSelected(t.id)}
-            className={`relative rounded-xl p-4 border-2 text-left transition-all ${
-              selected === t.id
-                ? 'border-blue-500 bg-blue-500/5'
-                : 'border-slate-800/60 hover:border-slate-700'
-            }`}
-          >
-            {selected === t.id && (
-              <div className="absolute top-3 right-3 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )}
-            {/* Mini preview */}
-            <div className={`w-full h-12 rounded-lg ${t.bg} border border-slate-700/30 mb-3 flex items-center gap-1.5 px-2`}>
-              <div className="w-1.5 h-7 bg-slate-800 rounded" />
-              <div className="flex-1 space-y-1.5">
-                <div className={`h-1.5 w-8 ${t.accent} rounded`} />
-                <div className="h-1 w-12 bg-slate-700 rounded" />
-              </div>
+
+      {/* Cor de destaque */}
+      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-6 space-y-4">
+        <div>
+          <p className="text-[14px] font-semibold text-white">Cor Principal</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Aplica-se em botões, links ativos e destaques</p>
+        </div>
+        <div className="border-t border-slate-800/50" />
+
+        <div className="flex flex-wrap gap-3">
+          {ACCENTS.map((a) => {
+            const isSelected = accent === a.id
+            return (
+              <button
+                key={a.id}
+                onClick={() => setAccent(a.id)}
+                className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                  isSelected
+                    ? 'border-white/20 bg-white/5'
+                    : 'border-slate-800/50 hover:border-slate-700'
+                }`}
+              >
+                <div
+                  className="w-4 h-4 rounded-full shrink-0 shadow-sm"
+                  style={{ backgroundColor: a.hex500, boxShadow: isSelected ? `0 0 8px ${a.hex500}88` : undefined }}
+                />
+                <span className={`text-[12px] font-semibold ${isSelected ? 'text-slate-200' : 'text-slate-500'}`}>
+                  {a.label}
+                </span>
+                {isSelected && (
+                  <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Live preview strip */}
+        <div className="rounded-xl overflow-hidden border border-slate-800/50">
+          <div className="flex items-center gap-3 px-4 py-3" style={{ backgroundColor: accentObj.hex600 }}>
+            <div className="w-5 h-5 rounded-lg bg-white/20 flex items-center justify-center">
+              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" />
+              </svg>
             </div>
-            <p className="text-[12.5px] font-semibold text-slate-200">{t.label}</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">{t.desc}</p>
-          </button>
-        ))}
+            <span className="text-[12px] font-semibold text-white flex-1">Prévia da cor — botão principal</span>
+            <div className="w-2 h-2 rounded-full bg-white/40" />
+          </div>
+          <div className="bg-slate-800/40 px-4 py-3 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentObj.hex500}22` }}>
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: accentObj.hex500 }} />
+            </div>
+            <div>
+              <div className="text-[11.5px] font-semibold text-slate-200">Link ativo no menu</div>
+              <div className="text-[9.5px] mt-0.5" style={{ color: accentObj.hex500 }}>cor de destaque aplicada</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="pt-1">
+
+      {/* Message */}
+      {message && (
+        <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-[12px] font-medium border ${
+          message.type === 'success'
+            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+            : 'bg-red-500/10 border-red-500/20 text-red-400'
+        }`}>
+          {message.type === 'success' ? (
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+          {message.text}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
         <button
-          onClick={() => {}}
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors"
+          onClick={handleSave}
+          disabled={isPending}
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[13px] font-semibold rounded-lg transition-colors"
         >
-          Aplicar Tema
+          {isPending ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Salvando…
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Salvar Preferências
+            </>
+          )}
         </button>
+        <p className="text-[10.5px] text-slate-600">A prévia já está ativa — salve para manter após logout</p>
       </div>
     </div>
   )

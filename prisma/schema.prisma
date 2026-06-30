@@ -16,6 +16,8 @@ model User {
   role       String     @default("CLIENT")
   phone             String?
   passwordChangedAt DateTime?
+  theme             String    @default("dark")
+  accentColor       String    @default("blue")
   merchantId        String?
   merchant   Merchant?  @relation(fields: [merchantId], references: [id])
   auditLogs  AuditLog[]

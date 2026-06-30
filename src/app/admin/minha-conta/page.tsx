@@ -15,7 +15,7 @@ export default async function MinhaContaPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true, phone: true },
+    select: { id: true, name: true, email: true, phone: true, theme: true, accentColor: true },
   })
 
   if (!user) redirect('/login')
