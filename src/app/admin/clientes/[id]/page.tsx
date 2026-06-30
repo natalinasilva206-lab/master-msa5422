@@ -9,6 +9,7 @@ import { CreateAccessForm } from './CreateAccessForm'
 import { RiskPanel } from './risk/RiskPanel'
 import RiskConfigForm from './risk/RiskConfigForm'
 import SimularVendaForm from './risk/SimularVendaForm'
+import ReserveCalendar, { ReserveEntry } from './risk/ReserveCalendar'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -92,6 +93,26 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
       } catch { return null }
     })
     .filter((l): l is NonNullable<typeof l> => l !== null && !!l.releaseDate)
+
+  // Fetch reserve calendar entries
+  const reserveEntries = await prisma.reserveRelease.findMany({
+    where: { merchantId: merchant.id },
+    orderBy: { releaseAt: 'asc' },
+  })
+
+  const calendarEntries: ReserveEntry[] = reserveEntries.map((r) => ({
+    id:             r.id,
+    saleLogId:      r.saleLogId,
+    amount:         r.amount,
+    saleAmount:     r.saleAmount,
+    reservePercent: r.reservePercent,
+    releaseDays:    r.releaseDays,
+    saleDate:       r.saleDate.toISOString(),
+    releaseAt:      r.releaseAt.toISOString(),
+    status:         r.status,
+    releasedAt:     r.releasedAt?.toISOString() ?? null,
+    notes:          r.notes ?? null,
+  }))
 
   // Fetch risk audit history
   const riskLogs = await prisma.auditLog.findMany({
@@ -193,6 +214,26 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
               futureBalance={merchant.futureBalance}
               releaseLogs={releaseLogs}
             />
+          </div>
+        </div>
+
+        {/* ══ Calendário de Liberação ══ */}
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-700/40 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Calendário de Liberação da Reserva</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                Todas as reservas deste seller — status, prazo e liberação manual ou automática
+              </p>
+            </div>
+          </div>
+          <div className="p-5">
+            <ReserveCalendar merchantId={merchant.id} entries={calendarEntries} />
           </div>
         </div>
 

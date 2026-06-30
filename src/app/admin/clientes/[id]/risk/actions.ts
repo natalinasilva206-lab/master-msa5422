@@ -186,6 +186,101 @@ export async function saveRiskConfig(
   }
 }
 
+export type ReserveStatus = 'RESERVADO' | 'LIBERADO' | 'BLOQUEADO' | 'DISPUTA' | 'CANCELADO'
+
+export async function updateReserveStatus(
+  releaseId: string,
+  merchantId: string,
+  newStatus: ReserveStatus,
+  notes?: string,
+): Promise<{ error?: string; ok?: boolean }> {
+  try {
+    const adminUserId = await getAdminUserId()
+
+    const reserve = await prisma.reserveRelease.findUnique({ where: { id: releaseId } })
+    if (!reserve || reserve.merchantId !== merchantId) return { error: 'Reserva não encontrada.' }
+    if (reserve.status === newStatus) return { ok: true }
+
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
+    if (!merchant) return { error: 'Seller não encontrado.' }
+
+    let merchantUpdate: Record<string, unknown> = {}
+    let auditMeta: Record<string, unknown> = {
+      reserveId: releaseId,
+      from: reserve.status,
+      to: newStatus,
+      amount: reserve.amount,
+      notes,
+    }
+
+    if (newStatus === 'LIBERADO' && reserve.status === 'RESERVADO') {
+      // Move de reservedBalance para pendingBalance
+      merchantUpdate = {
+        pendingBalance:  { increment: reserve.amount },
+        reservedBalance: { decrement: reserve.amount },
+      }
+    } else if (newStatus === 'RESERVADO' && reserve.status === 'LIBERADO') {
+      // Reverte liberação
+      merchantUpdate = {
+        pendingBalance:  { decrement: reserve.amount },
+        reservedBalance: { increment: reserve.amount },
+      }
+    }
+    // BLOQUEADO / DISPUTA / CANCELADO: não move saldo (apenas muda status para rastreamento)
+
+    const reserveUpdateOp = prisma.reserveRelease.update({
+      where: { id: releaseId },
+      data: {
+        status:     newStatus,
+        releasedAt: newStatus === 'LIBERADO' ? new Date() : null,
+        releasedBy: newStatus === 'LIBERADO' ? adminUserId : null,
+        notes:      notes ?? reserve.notes,
+      },
+    })
+
+    const auditOp = prisma.auditLog.create({
+      data: {
+        userId:   adminUserId,
+        action:   'RESERVE_STATUS_CHANGE',
+        entity:   'ReserveRelease',
+        entityId: releaseId,
+        metadata: JSON.stringify(auditMeta),
+      },
+    })
+
+    if (Object.keys(merchantUpdate).length > 0) {
+      await prisma.$transaction([
+        reserveUpdateOp,
+        auditOp,
+        prisma.merchant.update({ where: { id: merchantId }, data: merchantUpdate }),
+      ])
+    } else {
+      await prisma.$transaction([reserveUpdateOp, auditOp])
+    }
+
+    revalidatePath(`/admin/clientes/${merchantId}`)
+    return { ok: true }
+  } catch (e: any) {
+    if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
+    console.error('[updateReserveStatus]', e)
+    return { error: 'Erro interno.' }
+  }
+}
+
+export async function triggerCronRelease(): Promise<{ error?: string; processed?: number }> {
+  try {
+    await getAdminUserId()
+    const res = await fetch(
+      `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/api/cron/release-reserves`,
+      { method: 'GET', headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ''}` } },
+    )
+    const json = await res.json()
+    return { processed: json.processed ?? 0 }
+  } catch (e: any) {
+    return { error: e.message ?? 'Erro interno.' }
+  }
+}
+
 export async function simulateSale(
   merchantId: string,
   saleAmount: number,

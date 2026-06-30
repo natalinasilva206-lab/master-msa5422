@@ -42,6 +42,7 @@ model Merchant {
   riskReserveMax       Float    @default(0)
   riskNotes            String   @default("")
   users           User[]
+  reserveReleases ReserveRelease[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -55,6 +56,25 @@ model FeePlan {
   costFixed      Float
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model ReserveRelease {
+  id             String    @id @default(cuid())
+  merchantId     String
+  merchant       Merchant  @relation(fields: [merchantId], references: [id])
+  saleLogId      String    // AuditLog.id da venda original
+  amount         Float     // valor reservado
+  saleAmount     Float     // valor bruto da venda
+  reservePercent Float     // percentual aplicado
+  releaseDays    Int       // prazo configurado em dias
+  saleDate       DateTime  // data/hora da venda
+  releaseAt      DateTime  // data prevista de liberação
+  status         String    @default("RESERVADO") // RESERVADO | LIBERADO | BLOQUEADO | DISPUTA | CANCELADO
+  releasedAt     DateTime? // data efetiva de liberação
+  releasedBy     String?   // userId que liberou manualmente
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model AuditLog {

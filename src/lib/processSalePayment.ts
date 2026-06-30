@@ -9,13 +9,14 @@ export interface SalePayload {
 }
 
 export interface SaleResult {
-  valorVenda:      number
-  valorReserva:    number
-  valorDisponivel: number
-  reservePercent:  number
-  releaseDays:     number
-  releaseAt:       string        // ISO date da liberação prevista
-  auditIds:        { saleLogId: string; reserveLogId: string | null }
+  valorVenda:       number
+  valorReserva:     number
+  valorDisponivel:  number
+  reservePercent:   number
+  releaseDays:      number
+  releaseAt:        string        // ISO date da liberação prevista
+  reserveReleaseId: string | null // ReserveRelease.id criado
+  auditIds:         { saleLogId: string; reserveLogId: string | null }
 }
 
 /**
@@ -61,7 +62,7 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
   const releaseAtIso = releaseAt.toISOString().slice(0, 10)
 
   // Executa em transação
-  const [saleLog, reserveLog] = await prisma.$transaction(async (tx) => {
+  const [saleLog, reserveLog, releaseRecord] = await prisma.$transaction(async (tx) => {
     // Atualiza saldos do merchant
     await tx.merchant.update({
       where: { id: merchantId },
@@ -89,8 +90,9 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
       },
     })
 
-    // AuditLog: Reserva automática de risco (só se houver reserva)
+    // AuditLog: Reserva automática de risco + ReserveRelease (só se houver reserva)
     let reserve = null
+    let reserveReleaseRecord = null
     if (valorReserva > 0) {
       reserve = await tx.auditLog.create({
         data: {
@@ -109,18 +111,34 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
           }),
         },
       })
+
+      reserveReleaseRecord = await tx.reserveRelease.create({
+        data: {
+          merchantId,
+          saleLogId:     sale.id,
+          amount:        valorReserva,
+          saleAmount,
+          reservePercent,
+          releaseDays,
+          saleDate:      new Date(),
+          releaseAt:     releaseAt,
+          status:        'RESERVADO',
+          notes:         description ?? null,
+        },
+      })
     }
 
-    return [sale, reserve]
+    return [sale, reserve, reserveReleaseRecord]
   })
 
   return {
-    valorVenda:      saleAmount,
+    valorVenda:       saleAmount,
     valorReserva,
     valorDisponivel,
     reservePercent,
     releaseDays,
-    releaseAt:       releaseAtIso,
+    releaseAt:        releaseAtIso,
+    reserveReleaseId: releaseRecord?.id ?? null,
     auditIds: {
       saleLogId:    saleLog.id,
       reserveLogId: reserveLog?.id ?? null,
