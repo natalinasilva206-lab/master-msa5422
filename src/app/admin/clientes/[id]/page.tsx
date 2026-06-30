@@ -12,7 +12,7 @@ import SimularVendaForm from './risk/SimularVendaForm'
 import ReserveCalendar, { ReserveEntry } from './risk/ReserveCalendar'
 import RiskSuggestions from './risk/RiskSuggestions'
 import SellerTabs from './SellerTabs'
-import { computeRiskSuggestions } from '@/lib/computeRiskSuggestions'
+import { computeRiskSuggestions, computeRiskMetrics } from '@/lib/computeRiskSuggestions'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -117,8 +117,11 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     notes:          r.notes ?? null,
   }))
 
-  // Compute risk suggestions
-  const riskSuggestions = await computeRiskSuggestions(merchant).catch(() => [])
+  // Compute risk suggestions + metrics
+  const [riskSuggestions, riskMetrics] = await Promise.all([
+    computeRiskSuggestions(merchant).catch(() => []),
+    computeRiskMetrics(merchant).catch(() => null),
+  ])
 
   // Fetch risk audit history
   const riskLogs = await prisma.auditLog.findMany({
@@ -273,6 +276,74 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             />
           </div>
         </div>
+
+        {/* ══ Métricas de Risco (últimos 90 dias) ══ */}
+        {riskMetrics && (
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-700/40">
+              <p className="text-[13px] font-semibold text-white">Métricas de Risco</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Calculadas a partir das transações registradas — base para as sugestões abaixo</p>
+            </div>
+            <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                {
+                  label: 'Taxa de Chargeback',
+                  value: riskMetrics.totalSales90d > 0 ? `${riskMetrics.chargebackRate.toFixed(2)}%` : '—',
+                  sub:   `${riskMetrics.chargebackCount90d} estorno(s) / ${riskMetrics.totalSales90d} vendas (90d)`,
+                  color: riskMetrics.chargebackRate >= 2 ? 'text-red-400' : riskMetrics.chargebackRate >= 1 ? 'text-amber-400' : 'text-emerald-400',
+                },
+                {
+                  label: 'Taxa MED Pix',
+                  value: riskMetrics.totalSales90d > 0 ? `${riskMetrics.medRate.toFixed(2)}%` : '—',
+                  sub:   `${riskMetrics.medCount90d} MED(s) nos últimos 90d`,
+                  color: riskMetrics.medRate >= 1 ? 'text-red-400' : riskMetrics.medRate > 0 ? 'text-amber-400' : 'text-emerald-400',
+                },
+                {
+                  label: 'Ticket Médio (30d)',
+                  value: riskMetrics.avgTicket30d > 0 ? `R$ ${formatBRL(riskMetrics.avgTicket30d)}` : '—',
+                  sub:   `Volume: R$ ${formatBRL(riskMetrics.volumeLast30d)}`,
+                  color: riskMetrics.avgTicket30d > 5000 ? 'text-amber-400' : 'text-slate-300',
+                },
+                {
+                  label: 'Crescimento de Volume',
+                  value: riskMetrics.volumePrev30d > 0 ? `${riskMetrics.volumeGrowthPct >= 0 ? '+' : ''}${Math.round(riskMetrics.volumeGrowthPct)}%` : '—',
+                  sub:   `Últ. 30d vs 30-60d atrás`,
+                  color: riskMetrics.volumeGrowthPct >= 100 ? 'text-amber-400' : riskMetrics.volumeGrowthPct > 0 ? 'text-emerald-400' : 'text-slate-400',
+                },
+                {
+                  label: 'Reembolsos (30d)',
+                  value: riskMetrics.reimbCount30d > 0 ? `${riskMetrics.reimbCount30d} caso(s)` : '0',
+                  sub:   `R$ ${formatBRL(riskMetrics.reimbVolume30d)}`,
+                  color: riskMetrics.reimbCount30d >= 3 ? 'text-amber-400' : 'text-slate-400',
+                },
+                {
+                  label: 'Dias sem disputa',
+                  value: riskMetrics.daysSinceLastDispute !== null ? `${riskMetrics.daysSinceLastDispute}d` : 'Nunca',
+                  sub:   riskMetrics.daysSinceLastDispute === null ? 'Sem histórico de disputas' : riskMetrics.daysSinceLastDispute >= 90 ? 'Ótimo histórico' : riskMetrics.daysSinceLastDispute >= 60 ? 'Bom histórico' : 'Monitorar',
+                  color: riskMetrics.daysSinceLastDispute === null || riskMetrics.daysSinceLastDispute >= 90 ? 'text-emerald-400' : riskMetrics.daysSinceLastDispute >= 60 ? 'text-blue-400' : 'text-amber-400',
+                },
+                {
+                  label: 'Chargebacks abertos',
+                  value: String(riskMetrics.openChargebacks),
+                  sub:   'Casos sem resolução final',
+                  color: riskMetrics.openChargebacks >= 2 ? 'text-red-400' : riskMetrics.openChargebacks > 0 ? 'text-amber-400' : 'text-emerald-400',
+                },
+                {
+                  label: 'MED Pix em aberto',
+                  value: String(riskMetrics.openMed),
+                  sub:   'Casos sem resolução final',
+                  color: riskMetrics.openMed >= 2 ? 'text-red-400' : riskMetrics.openMed > 0 ? 'text-amber-400' : 'text-emerald-400',
+                },
+              ].map((c) => (
+                <div key={c.label} className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-3">
+                  <p className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest mb-1">{c.label}</p>
+                  <p className={`text-[17px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                  <p className="text-[9.5px] text-slate-600 mt-1 leading-tight">{c.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ══ Sugestões Automáticas de Risco ══ */}
         <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">

@@ -15,18 +15,11 @@ export interface SaleResult {
   reservePercent:   number
   releaseDays:      number
   releaseAt:        string        // ISO date da liberação prevista
-  reserveReleaseId: string | null // ReserveRelease.id criado
+  reserveReleaseId: string | null
+  saleLogId:        string        // SaleLog.id criado
   auditIds:         { saleLogId: string; reserveLogId: string | null }
 }
 
-/**
- * Processa uma venda aprovada:
- * 1. Lê config de risco do merchant (percentual, min, max)
- * 2. Calcula reserva: valorVenda * reservePercent / 100, clampado por min/max
- * 3. Credita (valorVenda - valorReserva) em pendingBalance
- * 4. Credita valorReserva em reservedBalance
- * 5. Cria AuditLog BALANCE_ADJUST (venda) + RISK_AUTO_RESERVE (reserva)
- */
 export async function processSalePayment(payload: SalePayload): Promise<SaleResult> {
   const { merchantId, saleAmount, description, externalId, triggeredBy } = payload
 
@@ -35,35 +28,24 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
   const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
   if (!merchant) throw new Error('Merchant não encontrado.')
 
-  const reservePercent = merchant.riskReservePercent   // e.g. 5.0
-  const releaseDays    = merchant.riskReleaseDays       // e.g. 30
-  const reserveMin     = merchant.riskReserveMin        // 0 = sem mínimo
-  const reserveMax     = merchant.riskReserveMax        // 0 = sem máximo
+  const reservePercent = merchant.riskReservePercent
+  const releaseDays    = merchant.riskReleaseDays
+  const reserveMin     = merchant.riskReserveMin
+  const reserveMax     = merchant.riskReserveMax
 
-  // Calcula reserva bruta
   let valorReserva = saleAmount * (reservePercent / 100)
-
-  // Aplica mínimo
   if (reserveMin > 0 && valorReserva < reserveMin) valorReserva = reserveMin
-
-  // Aplica máximo
   if (reserveMax > 0 && valorReserva > reserveMax) valorReserva = reserveMax
-
-  // Garante que reserva não ultrapasse o valor da venda
   if (valorReserva > saleAmount) valorReserva = saleAmount
 
-  // Arredonda para 2 casas decimais
-  valorReserva    = Math.round(valorReserva    * 100) / 100
+  valorReserva = Math.round(valorReserva * 100) / 100
   const valorDisponivel = Math.round((saleAmount - valorReserva) * 100) / 100
 
-  // Data prevista de liberação da reserva
   const releaseAt = new Date()
   releaseAt.setDate(releaseAt.getDate() + releaseDays)
   const releaseAtIso = releaseAt.toISOString().slice(0, 10)
 
-  // Executa em transação
-  const [saleLog, reserveLog, releaseRecord] = await prisma.$transaction(async (tx) => {
-    // Atualiza saldos do merchant
+  const [saleLogRecord, auditSale, auditReserve, releaseRecord] = await prisma.$transaction(async (tx) => {
     await tx.merchant.update({
       where: { id: merchantId },
       data: {
@@ -72,7 +54,19 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
       },
     })
 
-    // AuditLog: Venda aprovada (valor disponível)
+    // SaleLog: registro da venda para métricas de risco
+    const saleLog = await tx.saleLog.create({
+      data: {
+        merchantId,
+        amount:      saleAmount,
+        type:        'VENDA',
+        status:      'APROVADO',
+        description: description ?? null,
+        externalId:  externalId  ?? null,
+      },
+    })
+
+    // AuditLog: venda aprovada
     const sale = await tx.auditLog.create({
       data: {
         userId:   triggeredBy,
@@ -80,17 +74,17 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
         entity:   'Merchant',
         entityId: merchantId,
         metadata: JSON.stringify({
-          amount:       valorDisponivel,
-          grossAmount:  saleAmount,
-          description:  description ?? 'Venda aprovada',
-          externalId:   externalId  ?? null,
+          amount:         valorDisponivel,
+          grossAmount:    saleAmount,
+          description:    description ?? 'Venda aprovada',
+          externalId:     externalId  ?? null,
           reserveApplied: valorReserva,
           reservePercent,
+          saleLogId:      saleLog.id,
         }),
       },
     })
 
-    // AuditLog: Reserva automática de risco + ReserveRelease (só se houver reserva)
     let reserve = null
     let reserveReleaseRecord = null
     if (valorReserva > 0) {
@@ -121,14 +115,14 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
           reservePercent,
           releaseDays,
           saleDate:      new Date(),
-          releaseAt:     releaseAt,
+          releaseAt,
           status:        'RESERVADO',
           notes:         description ?? null,
         },
       })
     }
 
-    return [sale, reserve, reserveReleaseRecord]
+    return [saleLog, sale, reserve, reserveReleaseRecord]
   })
 
   return {
@@ -139,9 +133,10 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
     releaseDays,
     releaseAt:        releaseAtIso,
     reserveReleaseId: releaseRecord?.id ?? null,
+    saleLogId:        saleLogRecord.id,
     auditIds: {
-      saleLogId:    saleLog.id,
-      reserveLogId: reserveLog?.id ?? null,
+      saleLogId:    auditSale.id,
+      reserveLogId: auditReserve?.id ?? null,
     },
   }
 }

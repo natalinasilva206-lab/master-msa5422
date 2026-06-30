@@ -44,6 +44,7 @@ model Merchant {
   users           User[]
   reserveReleases ReserveRelease[]
   disputes        Dispute[]
+  saleLogs        SaleLog[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -95,6 +96,20 @@ model ReserveRelease {
   notes          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+}
+
+model SaleLog {
+  id          String   @id @default(cuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+  amount      Float
+  type        String   // VENDA | ESTORNO | MED_PIX | REEMBOLSO | PIX_DEVOLVIDO
+  status      String   @default("APROVADO") // APROVADO | CANCELADO | PENDENTE
+  description String?
+  externalId  String?
+  disputeId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AuditLog {

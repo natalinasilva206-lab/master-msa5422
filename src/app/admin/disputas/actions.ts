@@ -71,6 +71,15 @@ export async function createDispute(
     const merchant = await prisma.merchant.findUnique({ where: { id: input.merchantId } })
     if (!merchant) return { error: 'Seller não encontrado.' }
 
+    // Tipos que geram uma entrada financeira no SaleLog
+    const SALE_LOG_TYPE: Record<string, string | null> = {
+      CHARGEBACK:          'ESTORNO',
+      MED_PIX:             'MED_PIX',
+      REEMBOLSO:           'REEMBOLSO',
+      DISPUTA_MANUAL:      null,
+      BLOQUEIO_PREVENTIVO: null,
+    }
+
     const dispute = await prisma.$transaction(async (tx) => {
       const d = await tx.dispute.create({
         data: {
@@ -84,6 +93,21 @@ export async function createDispute(
           notes:           input.notes ?? null,
         },
       })
+
+      // Registra no SaleLog para métricas de risco
+      const saleLogType = SALE_LOG_TYPE[input.type]
+      if (saleLogType) {
+        await tx.saleLog.create({
+          data: {
+            merchantId: input.merchantId,
+            amount:     input.contestedAmount,
+            type:       saleLogType,
+            status:     'APROVADO',
+            disputeId:  d.id,
+            description: `Caso aberto: ${input.type}`,
+          },
+        })
+      }
 
       await tx.auditLog.create({
         data: {
@@ -134,17 +158,27 @@ export async function updateDisputeStatus(
     if (!dispute) return { error: 'Caso não encontrado.' }
 
     const isResolved = ['RESOLVIDO_SELLER', 'RESOLVIDO_CONTRA', 'DEVOLVIDO_PARCIAL', 'FINALIZADO'].includes(newStatus)
+    // Quando resolvido a favor do seller, o estorno/MED não se concretizou — cancela no SaleLog
+    const cancelSaleLog = newStatus === 'RESOLVIDO_SELLER'
 
-    await prisma.$transaction([
-      prisma.dispute.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.dispute.update({
         where: { id: disputeId },
         data: {
           status:     newStatus,
           resolvedAt: isResolved ? new Date() : null,
           notes:      notes !== undefined ? notes : dispute.notes,
         },
-      }),
-      prisma.auditLog.create({
+      })
+
+      if (cancelSaleLog) {
+        await tx.saleLog.updateMany({
+          where: { disputeId, status: 'APROVADO' },
+          data:  { status: 'CANCELADO' },
+        })
+      }
+
+      await tx.auditLog.create({
         data: {
           userId:   admin.id,
           action:   'DISPUTE_STATUS_CHANGE',
@@ -158,8 +192,8 @@ export async function updateDisputeStatus(
             notes,
           }, admin, ip),
         },
-      }),
-    ])
+      })
+    })
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
