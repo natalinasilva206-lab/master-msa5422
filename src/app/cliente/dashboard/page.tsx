@@ -4,7 +4,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
-import { Badge } from '@/components/ui/Badge'
 import Link from 'next/link'
 
 function formatBRL(v: number) {
@@ -13,6 +12,10 @@ function formatBRL(v: number) {
 
 function anualizarTaxa(mensal: number) {
   return (Math.pow(1 + mensal / 100, 12) - 1) * 100
+}
+
+function formatDate(d: Date) {
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
 
 const planColors: Record<string, string> = {
@@ -29,23 +32,16 @@ const planBg: Record<string, string> = {
   Black:  'bg-slate-800/80 border border-slate-600/30',
 }
 
-const recentTransactions = [
-  { id: 'TXN-001', description: 'Venda curso Python',        amount: 297.00,  status: 'APPROVED', date: '29/06/2024' },
-  { id: 'TXN-002', description: 'Venda ebook marketing',     amount: 47.00,   status: 'APPROVED', date: '29/06/2024' },
-  { id: 'TXN-003', description: 'Venda mentoria',            amount: 1997.00, status: 'PENDING',  date: '28/06/2024' },
-  { id: 'TXN-004', description: 'Venda software SaaS',       amount: 89.90,   status: 'APPROVED', date: '28/06/2024' },
-  { id: 'TXN-005', description: 'Venda pacote anual',        amount: 597.00,  status: 'REFUNDED', date: '27/06/2024' },
-]
-
-const txVariant: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
-  APPROVED: 'success',
-  PENDING:  'warning',
-  REFUNDED: 'danger',
-}
-const txLabel: Record<string, string> = {
-  APPROVED: 'Aprovada',
-  PENDING:  'Pendente',
-  REFUNDED: 'Estornada',
+const logMeta: Record<string, { label: string; sign: string; color: string; dot: string }> = {
+  ADD_TO_CDI:        { label: 'Aporte CDI',         sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  WITHDRAW_REQUEST:  { label: 'Saque Solicitado',    sign: '-', color: 'text-amber-400',   dot: 'bg-amber-500/10 text-amber-400' },
+  WITHDRAW_APPROVED: { label: 'Saque Aprovado',      sign: '-', color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
+  CDI_CREDIT:        { label: 'Rendimento CDI',      sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  KYC_APPROVED:      { label: 'KYC Aprovado',        sign: '',  color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  KYC_BLOCKED:       { label: 'KYC Bloqueado',       sign: '',  color: 'text-red-400',     dot: 'bg-red-500/10 text-red-400' },
+  MERCHANT_CREATED:  { label: 'Conta Criada',        sign: '',  color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
+  CDI_RATE_UPDATED:  { label: 'Taxa CDI Atualizada', sign: '',  color: 'text-purple-400',  dot: 'bg-purple-500/10 text-purple-400' },
+  BALANCE_ADJUST:    { label: 'Ajuste de Saldo',     sign: '±', color: 'text-slate-300',   dot: 'bg-slate-700/40 text-slate-400' },
 }
 
 export default async function ClienteDashboardPage() {
@@ -65,6 +61,14 @@ export default async function ClienteDashboardPage() {
   const rendimentoMes = saldo * (cdiRate / 100)
   const cdiAnual      = anualizarTaxa(cdiRate)
   const plano         = merchant?.plan ?? '—'
+
+  const recentLogs = merchant
+    ? await prisma.auditLog.findMany({
+        where: { entityId: merchant.id, entity: 'Merchant' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      })
+    : []
 
   return (
     <div>
@@ -197,58 +201,53 @@ export default async function ClienteDashboardPage() {
 
         </section>
 
-        {/* ── Últimas Transações ── */}
+        {/* ── Últimas Movimentações ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-white">Últimas Transações</p>
-              <p className="text-[10.5px] text-slate-600 mt-0.5">Histórico recente de vendas</p>
+              <p className="text-[13px] font-semibold text-white">Últimas Movimentações</p>
+              <p className="text-[10.5px] text-slate-600 mt-0.5">Histórico recente da sua conta</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-700 bg-slate-800/60 border border-slate-700/40 px-2.5 py-1 rounded-full font-medium">Dados demo</span>
-              <Link href="/cliente/transacoes" className="text-[11.5px] font-medium text-slate-500 hover:text-blue-400 transition-colors">
-                Ver todas →
-              </Link>
+            <Link href="/cliente/transacoes" className="text-[11.5px] font-medium text-slate-500 hover:text-blue-400 transition-colors">
+              Ver todas →
+            </Link>
+          </div>
+          {recentLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-700">
+              <svg className="w-9 h-9 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <p className="text-[12.5px] font-medium">Nenhuma movimentação ainda</p>
+              <p className="text-[11px] text-slate-800 mt-1">Suas operações aparecerão aqui.</p>
             </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-800/60">
-                  <th className="text-left px-5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">ID</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Descrição</th>
-                  <th className="text-right px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Valor</th>
-                  <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                  <th className="text-right px-5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Data</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/40">
-                {recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-slate-800/25 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <span className="text-[11px] font-mono text-slate-500">#{tx.id}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-[13px] text-slate-200">{tx.description}</span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <span className={`text-[13px] font-bold tabular-nums ${tx.status === 'REFUNDED' ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {tx.status === 'REFUNDED' ? '−' : '+'}R$ {formatBRL(tx.amount)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Badge variant={txVariant[tx.status] ?? 'neutral'}>
-                        {txLabel[tx.status] ?? tx.status}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 text-right hidden sm:table-cell">
-                      <span className="text-[11px] text-slate-600">{tx.date}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          ) : (
+            <div className="divide-y divide-slate-800/40">
+              {recentLogs.map((log) => {
+                const meta   = logMeta[log.action] ?? { label: log.action, sign: '', color: 'text-slate-400', dot: 'bg-slate-800/60 text-slate-500' }
+                let amount: number | null = null
+                try {
+                  const m = JSON.parse(log.metadata ?? '{}')
+                  if (m.amount) amount = parseFloat(m.amount)
+                } catch {}
+                return (
+                  <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${meta.dot}`}>
+                      {meta.sign || '•'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-medium text-slate-200">{meta.label}</p>
+                      <p className="text-[10.5px] text-slate-600 mt-0.5">{formatDate(log.createdAt)}</p>
+                    </div>
+                    {amount !== null && (
+                      <p className={`text-[13px] font-bold tabular-nums shrink-0 ${meta.color}`}>
+                        {meta.sign === '-' ? '−' : meta.sign === '+' ? '+' : ''}R$ {formatBRL(amount)}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </section>
 
       </div>
