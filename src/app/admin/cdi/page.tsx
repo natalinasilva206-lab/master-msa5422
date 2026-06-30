@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
 import { CdiRateInput } from './CdiRateInput'
 import { BalanceInput } from './BalanceInput'
+import { GlobalRateForm } from './GlobalRateForm'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -42,7 +43,7 @@ function getInitials(name: string) {
 
 export default async function CdiPage() {
   const merchants = await prisma.merchant.findMany({
-    orderBy: { createdAt: 'desc' },
+    orderBy: { balance: 'desc' },
   })
 
   const totalBalance = merchants.reduce((s, m) => s + m.balance, 0)
@@ -51,6 +52,13 @@ export default async function CdiPage() {
   const avgRate = merchants.length > 0
     ? merchants.reduce((s, m) => s + m.cdiRate, 0) / merchants.length
     : 0
+  const maxBalance = merchants.reduce((mx, m) => Math.max(mx, m.balance), 1)
+
+  // Count per plan for GlobalRateForm
+  const merchantCounts: Record<string, number> = {}
+  for (const m of merchants) {
+    merchantCounts[m.plan] = (merchantCounts[m.plan] ?? 0) + 1
+  }
 
   return (
     <div>
@@ -111,6 +119,9 @@ export default async function CdiPage() {
 
         </section>
 
+        {/* ── Taxa Global ── */}
+        <GlobalRateForm merchantCounts={merchantCounts} />
+
         {/* ── Tabela de sellers ── */}
         <section className="bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
@@ -153,13 +164,16 @@ export default async function CdiPage() {
                       Taxa CDI / mês
                     </th>
                     <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Equiv. anual</th>
-                    <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Rend. Est. / mês</th>
+                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Rend. 12m</th>
+                    <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Rend. / mês</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {merchants.map((m, i) => {
                     const rendimento = m.balance * (m.cdiRate / 100)
+                    const rend12m = m.balance * (Math.pow(1 + m.cdiRate / 100, 12) - 1)
                     const anual = anualizarTaxa(m.cdiRate)
+                    const balancePct = totalBalance > 0 ? (m.balance / maxBalance) * 100 : 0
                     return (
                       <tr key={m.id} className="hover:bg-slate-800/20 transition-colors duration-100">
 
@@ -169,9 +183,14 @@ export default async function CdiPage() {
                             <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[11px] font-bold text-white shrink-0`}>
                               {getInitials(m.name)}
                             </div>
-                            <div>
-                              <p className="text-[13px] font-medium text-white">{m.name}</p>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-medium text-white truncate">{m.name}</p>
                               <p className="text-[11px] text-slate-500">{m.email}</p>
+                              {m.balance > 0 && (
+                                <div className="mt-1.5 w-28 h-0.5 bg-slate-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full transition-all" style={{ width: `${balancePct}%` }} />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -209,7 +228,14 @@ export default async function CdiPage() {
                           </span>
                         </td>
 
-                        {/* Rendimento estimado */}
+                        {/* Rendimento 12 meses */}
+                        <td className="px-4 py-4 text-right hidden xl:table-cell">
+                          <span className={`text-[12px] font-semibold tabular-nums ${rend12m > 0 ? 'text-emerald-400' : 'text-slate-700'}`}>
+                            {rend12m > 0 ? `+R$ ${formatBRL(rend12m)}` : '—'}
+                          </span>
+                        </td>
+
+                        {/* Rendimento mensal */}
                         <td className="px-5 py-4 text-right">
                           <div>
                             <p className="text-[13px] font-semibold text-slate-300 tabular-nums">
@@ -245,6 +271,11 @@ export default async function CdiPage() {
                     <td className="px-4 py-3.5 text-center hidden lg:table-cell">
                       <span className="text-[11.5px] font-semibold text-slate-500">
                         {anualizarTaxa(avgRate).toFixed(2)}% a.a.
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right hidden xl:table-cell">
+                      <span className="text-[12px] font-semibold text-emerald-400 tabular-nums">
+                        +R$ {formatBRL(merchants.reduce((s, m) => s + m.balance * (Math.pow(1 + m.cdiRate / 100, 12) - 1), 0))}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
+import { CdiSimulator } from './CdiSimulator'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -13,10 +14,21 @@ function anualizarTaxa(mensal: number) {
   return (Math.pow(1 + mensal / 100, 12) - 1) * 100
 }
 
+/* SVG bezier curve for the growth chart */
+function smoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return ''
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length; i++) {
+    const cx = (pts[i - 1].x + pts[i].x) / 2
+    d += ` C ${cx} ${pts[i - 1].y}, ${cx} ${pts[i].y}, ${pts[i].x} ${pts[i].y}`
+  }
+  return d
+}
+
 const meses = [
-  { label: '1 mês',   n: 1  },
-  { label: '3 meses', n: 3  },
-  { label: '6 meses', n: 6  },
+  { label: '1 mês',    n: 1  },
+  { label: '3 meses',  n: 3  },
+  { label: '6 meses',  n: 6  },
   { label: '12 meses', n: 12 },
   { label: '24 meses', n: 24 },
   { label: '36 meses', n: 36 },
@@ -36,7 +48,25 @@ export default async function ClienteCdiPage() {
   const plano    = merchant?.plan      ?? '—'
 
   const rendimentoMes = saldo * (cdiRate / 100)
-  const rendimento12m  = saldo * (Math.pow(1 + cdiRate / 100, 12) - 1)
+  const rendimento12m = saldo * (Math.pow(1 + cdiRate / 100, 12) - 1)
+  const maxRend = rendimento12m // largest period for bar scaling
+
+  // Build SVG chart points (36 months)
+  const W = 500, H = 130, PAD = 12
+  const chartMonths = 36
+  const chartPts = Array.from({ length: chartMonths + 1 }, (_, n) => {
+    const val = saldo > 0 ? saldo * Math.pow(1 + cdiRate / 100, n) : n * 10
+    return val
+  })
+  const minV = chartPts[0]
+  const maxV = chartPts[chartMonths]
+  const svgPts = chartPts.map((v, i) => ({
+    x: PAD + (i / chartMonths) * (W - PAD * 2),
+    y: H - PAD - ((v - minV) / (maxV - minV || 1)) * (H - PAD * 2),
+  }))
+  const linePath = smoothPath(svgPts)
+  const areaPath = linePath + ` L ${svgPts[chartMonths].x} ${H - PAD} L ${svgPts[0].x} ${H - PAD} Z`
+  const milestones = [0, 6, 12, 24, 36]
 
   return (
     <div>
@@ -73,57 +103,104 @@ export default async function ClienteCdiPage() {
           ))}
         </section>
 
-        {/* Simulação de projeção */}
+        {/* Growth Chart */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60">
-            <p className="text-[13px] font-semibold text-white">Projeção de Rendimento</p>
-            <p className="text-[10.5px] text-slate-600 mt-0.5">Juros compostos sobre R$ {formatBRL(saldo)} à taxa de {cdiRate.toFixed(2)}%/mês</p>
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Curva de Crescimento CDI</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                Projeção em 36 meses · juros compostos a {cdiRate.toFixed(2)}%/mês
+              </p>
+            </div>
+            {saldo > 0 && (
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Em 36 meses</p>
+                <p className="text-[14px] font-bold text-emerald-400 tabular-nums">
+                  R$ {formatBRL(saldo * Math.pow(1 + cdiRate / 100, 36))}
+                </p>
+              </div>
+            )}
           </div>
-          {saldo === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-700">
-              <p className="text-[12.5px] font-medium">Sem saldo para projetar</p>
-              <p className="text-[11px] text-slate-800 mt-1">Quando seu saldo for liberado, a projeção aparecerá aqui.</p>
+          <div className="px-4 pt-3 pb-0">
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 130 }} preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="cdiAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.20" />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.01" />
+                </linearGradient>
+              </defs>
+              {[0.25, 0.5, 0.75].map((f, i) => (
+                <line key={i} x1={PAD} y1={PAD + f * (H - PAD * 2)} x2={W - PAD} y2={PAD + f * (H - PAD * 2)} stroke="#1e293b" strokeWidth={1} />
+              ))}
+              <path d={areaPath} fill="url(#cdiAreaGrad)" />
+              <path d={linePath} fill="none" stroke="#10b981" strokeWidth={2.5} strokeLinejoin="round" />
+              {milestones.map((m) => (
+                <circle
+                  key={m}
+                  cx={svgPts[m]?.x ?? 0}
+                  cy={svgPts[m]?.y ?? 0}
+                  r={m === 0 || m === 36 ? 4 : 3}
+                  fill="#10b981"
+                  stroke="#080c12"
+                  strokeWidth={1.5}
+                />
+              ))}
+            </svg>
+          </div>
+          <div className="px-5 pb-3 flex justify-between">
+            {['Agora', '6m', '12m', '24m', '36m'].map((l) => (
+              <span key={l} className="text-[9.5px] text-slate-700 font-medium">{l}</span>
+            ))}
+          </div>
+        </section>
+
+        {/* Simulator + Projection side by side */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Interactive Simulator */}
+          <CdiSimulator cdiRate={cdiRate} initialBalance={saldo} />
+
+          {/* Projection Table */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60">
+              <p className="text-[13px] font-semibold text-white">Projeção de Rendimento</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Juros compostos sobre R$ {formatBRL(saldo)}</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Período</th>
-                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Saldo Inicial</th>
-                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Rendimento</th>
-                    <th className="text-right px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Total Acumulado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40">
-                  {meses.map(({ label, n }) => {
-                    const rend = saldo * (Math.pow(1 + cdiRate / 100, n) - 1)
-                    const total = saldo + rend
-                    const pct = ((rend / saldo) * 100).toFixed(2)
-                    return (
-                      <tr key={label} className="hover:bg-slate-800/25 transition-colors">
-                        <td className="px-5 py-3.5">
-                          <span className="text-[12.5px] font-semibold text-slate-300">{label}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <span className="text-[12px] text-slate-500 tabular-nums">R$ {formatBRL(saldo)}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <div>
-                            <p className="text-[13px] font-semibold text-emerald-400 tabular-nums">+R$ {formatBRL(rend)}</p>
-                            <p className="text-[10px] text-slate-600">+{pct}%</p>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <span className="text-[14px] font-bold text-white tabular-nums">R$ {formatBRL(total)}</span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+            {saldo === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-700">
+                <p className="text-[12.5px] font-medium">Sem saldo para projetar</p>
+                <p className="text-[11px] text-slate-800 mt-1">Quando seu saldo for liberado, a projeção aparecerá aqui.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-800/40">
+                {meses.map(({ label, n }) => {
+                  const rend = saldo * (Math.pow(1 + cdiRate / 100, n) - 1)
+                  const total = saldo + rend
+                  const pct = ((rend / (maxRend || 1)) * 100)
+                  const rendPct = ((rend / saldo) * 100).toFixed(2)
+                  return (
+                    <div key={label} className="px-5 py-3 hover:bg-slate-800/25 transition-colors">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[12.5px] font-semibold text-slate-300">{label}</span>
+                        <div className="text-right">
+                          <p className="text-[13px] font-bold text-white tabular-nums">R$ {formatBRL(total)}</p>
+                          <p className="text-[10px] text-emerald-400 tabular-nums">+R$ {formatBRL(rend)} · +{rendPct}%</p>
+                        </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="h-0.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
         </section>
 
         {/* Info */}
