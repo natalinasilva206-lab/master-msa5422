@@ -1,18 +1,64 @@
 'use server'
 
 import { getServerSession } from 'next-auth'
+import { headers } from 'next/headers'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { processSalePayment } from '@/lib/processSalePayment'
 
-async function getAdminUserId() {
+/* ─── auth helpers ─────────────────────────────────────────── */
+async function getAdminSession() {
   const session = await getServerSession(authOptions)
   const user = session?.user as any
   if (user?.role !== 'ADMIN') throw new Error('Não autorizado')
-  return user.id as string
+  return { id: user.id as string, name: user.name as string, email: user.email as string }
 }
 
+function getIp(): string {
+  try {
+    const h = headers()
+    return (
+      h.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      h.get('x-real-ip') ??
+      'unknown'
+    )
+  } catch {
+    return 'unknown'
+  }
+}
+
+/* ─── audit log helper ──────────────────────────────────────── */
+interface AuditMeta {
+  action:     string
+  entityId:   string
+  entity:     string
+  before?:    Record<string, unknown>
+  after?:     Record<string, unknown>
+  amount?:    number
+  reason?:    string
+  notes?:     string
+  extra?:     Record<string, unknown>
+  adminName?: string
+  adminEmail?:string
+  ip?:        string
+}
+
+function buildMeta(m: AuditMeta, admin: { name: string; email: string }, ip: string): string {
+  return JSON.stringify({
+    ...m.extra,
+    before:     m.before,
+    after:      m.after,
+    amount:     m.amount,
+    reason:     m.reason,
+    notes:      m.notes,
+    adminName:  admin.name,
+    adminEmail: admin.email,
+    ip,
+  })
+}
+
+/* ─── setRiskBalance ─────────────────────────────────────────── */
 export type RiskAction = 'reserve' | 'block' | 'future' | 'release_reserved' | 'release_blocked' | 'release_future'
 
 export async function setRiskBalance(
@@ -23,102 +69,121 @@ export async function setRiskBalance(
   releaseDate?: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
+
     if (isNaN(amount) || amount < 0) return { error: 'Valor inválido.' }
     if (!reason.trim()) return { error: 'Motivo obrigatório.' }
 
     const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
     if (!merchant) return { error: 'Seller não encontrado.' }
 
-    const totalProtected = merchant.reservedBalance + merchant.blockedBalance + merchant.futureBalance
     const available = merchant.pendingBalance
 
     let update: Record<string, number> = {}
     let auditAction = ''
-    let meta: Record<string, unknown> = { amount, reason, releaseDate }
+    let from = ''
+    let to   = ''
+    let effectiveAmount = amount
 
     switch (action) {
       case 'reserve': {
-        // Move from pendingBalance to reservedBalance
         if (amount > available) return { error: `Saldo disponível insuficiente (R$ ${available.toFixed(2)}).` }
         update = {
-          pendingBalance: merchant.pendingBalance - amount,
+          pendingBalance:  merchant.pendingBalance  - amount,
           reservedBalance: merchant.reservedBalance + amount,
         }
         auditAction = 'RISK_RESERVE_SET'
-        meta = { ...meta, from: 'pendingBalance', to: 'reservedBalance' }
+        from = 'pendingBalance'
+        to   = 'reservedBalance'
         break
       }
       case 'block': {
-        // Move from pendingBalance to blockedBalance
         if (amount > available) return { error: `Saldo disponível insuficiente (R$ ${available.toFixed(2)}).` }
         update = {
-          pendingBalance: merchant.pendingBalance - amount,
-          blockedBalance: merchant.blockedBalance + amount,
+          pendingBalance: merchant.pendingBalance  - amount,
+          blockedBalance: merchant.blockedBalance  + amount,
         }
         auditAction = 'RISK_BLOCK_SET'
-        meta = { ...meta, from: 'pendingBalance', to: 'blockedBalance' }
+        from = 'pendingBalance'
+        to   = 'blockedBalance'
         break
       }
       case 'future': {
-        // Move from pendingBalance to futureBalance (with scheduled release date)
         if (amount > available) return { error: `Saldo disponível insuficiente (R$ ${available.toFixed(2)}).` }
         if (!releaseDate) return { error: 'Data de liberação obrigatória.' }
         update = {
           pendingBalance: merchant.pendingBalance - amount,
-          futureBalance: merchant.futureBalance + amount,
+          futureBalance:  merchant.futureBalance  + amount,
         }
         auditAction = 'RISK_FUTURE_SET'
-        meta = { ...meta, from: 'pendingBalance', to: 'futureBalance', releaseDate }
+        from = 'pendingBalance'
+        to   = 'futureBalance'
         break
       }
       case 'release_reserved': {
-        // Release back reservedBalance to pendingBalance
-        const rel = Math.min(amount, merchant.reservedBalance)
-        if (rel <= 0) return { error: 'Nenhum saldo reservado para liberar.' }
+        effectiveAmount = Math.min(amount, merchant.reservedBalance)
+        if (effectiveAmount <= 0) return { error: 'Nenhum saldo reservado para liberar.' }
         update = {
-          pendingBalance: merchant.pendingBalance + rel,
-          reservedBalance: merchant.reservedBalance - rel,
+          pendingBalance:  merchant.pendingBalance  + effectiveAmount,
+          reservedBalance: merchant.reservedBalance - effectiveAmount,
         }
         auditAction = 'RISK_RELEASE'
-        meta = { ...meta, amount: rel, from: 'reservedBalance', to: 'pendingBalance' }
+        from = 'reservedBalance'
+        to   = 'pendingBalance'
         break
       }
       case 'release_blocked': {
-        const rel = Math.min(amount, merchant.blockedBalance)
-        if (rel <= 0) return { error: 'Nenhum saldo bloqueado para liberar.' }
+        effectiveAmount = Math.min(amount, merchant.blockedBalance)
+        if (effectiveAmount <= 0) return { error: 'Nenhum saldo bloqueado para liberar.' }
         update = {
-          pendingBalance: merchant.pendingBalance + rel,
-          blockedBalance: merchant.blockedBalance - rel,
+          pendingBalance:  merchant.pendingBalance  + effectiveAmount,
+          blockedBalance:  merchant.blockedBalance  - effectiveAmount,
         }
         auditAction = 'RISK_RELEASE'
-        meta = { ...meta, amount: rel, from: 'blockedBalance', to: 'pendingBalance' }
+        from = 'blockedBalance'
+        to   = 'pendingBalance'
         break
       }
       case 'release_future': {
-        const rel = Math.min(amount, merchant.futureBalance)
-        if (rel <= 0) return { error: 'Nenhum saldo futuro para liberar.' }
+        effectiveAmount = Math.min(amount, merchant.futureBalance)
+        if (effectiveAmount <= 0) return { error: 'Nenhum saldo futuro para liberar.' }
         update = {
-          pendingBalance: merchant.pendingBalance + rel,
-          futureBalance: merchant.futureBalance - rel,
+          pendingBalance: merchant.pendingBalance + effectiveAmount,
+          futureBalance:  merchant.futureBalance  - effectiveAmount,
         }
         auditAction = 'RISK_RELEASE'
-        meta = { ...meta, amount: rel, from: 'futureBalance', to: 'pendingBalance' }
+        from = 'futureBalance'
+        to   = 'pendingBalance'
         break
       }
       default:
         return { error: 'Ação desconhecida.' }
     }
 
+    const before: Record<string, number> = {
+      pendingBalance:  merchant.pendingBalance,
+      reservedBalance: merchant.reservedBalance,
+      blockedBalance:  merchant.blockedBalance,
+      futureBalance:   merchant.futureBalance,
+    }
+    const after: Record<string, number> = { ...before, ...update }
+
     await prisma.$transaction([
       prisma.merchant.update({ where: { id: merchantId }, data: update }),
       prisma.auditLog.create({
         data: {
-          userId: adminUserId,
-          action: auditAction,
-          entity: 'Merchant',
+          userId:   admin.id,
+          action:   auditAction,
+          entity:   'Merchant',
           entityId: merchantId,
-          metadata: JSON.stringify(meta),
+          metadata: buildMeta({
+            action: auditAction, entity: 'Merchant', entityId: merchantId,
+            before, after,
+            amount: effectiveAmount,
+            reason,
+            extra: { from, to, releaseDate: releaseDate ?? null, merchantName: merchant.name },
+          }, admin, ip),
         },
       }),
     ])
@@ -132,13 +197,14 @@ export async function setRiskBalance(
   }
 }
 
+/* ─── saveRiskConfig ─────────────────────────────────────────── */
 export interface RiskConfigInput {
   riskReservePercent: number
-  riskReleaseDays: number
-  riskLevel: string
-  riskReserveMin: number
-  riskReserveMax: number
-  riskNotes: string
+  riskReleaseDays:    number
+  riskLevel:          string
+  riskReserveMin:     number
+  riskReserveMax:     number
+  riskNotes:          string
 }
 
 export async function saveRiskConfig(
@@ -146,20 +212,32 @@ export async function saveRiskConfig(
   config: RiskConfigInput,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
     const pct = config.riskReservePercent
     if (isNaN(pct) || pct < 0 || pct > 100) return { error: 'Percentual deve ser entre 0 e 100.' }
-    const days = config.riskReleaseDays
-    if (isNaN(days) || days < 0) return { error: 'Prazo inválido.' }
+    if (isNaN(config.riskReleaseDays) || config.riskReleaseDays < 0) return { error: 'Prazo inválido.' }
     if (!['LOW', 'MEDIUM', 'HIGH'].includes(config.riskLevel)) return { error: 'Nível de risco inválido.' }
+
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
+    if (!merchant) return { error: 'Seller não encontrado.' }
+
+    const before = {
+      riskReservePercent: merchant.riskReservePercent,
+      riskReleaseDays:    merchant.riskReleaseDays,
+      riskLevel:          merchant.riskLevel,
+      riskReserveMin:     merchant.riskReserveMin,
+      riskReserveMax:     merchant.riskReserveMax,
+      riskNotes:          merchant.riskNotes,
+    }
 
     await prisma.$transaction([
       prisma.merchant.update({
         where: { id: merchantId },
         data: {
           riskReservePercent: pct,
-          riskReleaseDays:    days,
+          riskReleaseDays:    config.riskReleaseDays,
           riskLevel:          config.riskLevel,
           riskReserveMin:     config.riskReserveMin,
           riskReserveMax:     config.riskReserveMax,
@@ -168,11 +246,16 @@ export async function saveRiskConfig(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'RISK_CONFIG_UPDATE',
           entity:   'Merchant',
           entityId: merchantId,
-          metadata: JSON.stringify(config),
+          metadata: buildMeta({
+            action: 'RISK_CONFIG_UPDATE', entity: 'Merchant', entityId: merchantId,
+            before,
+            after: { ...config },
+            extra: { merchantName: merchant.name },
+          }, admin, ip),
         },
       }),
     ])
@@ -186,6 +269,7 @@ export async function saveRiskConfig(
   }
 }
 
+/* ─── updateReserveStatus ───────────────────────────────────── */
 export type ReserveStatus = 'RESERVADO' | 'LIBERADO' | 'BLOQUEADO' | 'DISPUTA' | 'CANCELADO'
 
 export async function updateReserveStatus(
@@ -195,7 +279,8 @@ export async function updateReserveStatus(
   notes?: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
     const reserve = await prisma.reserveRelease.findUnique({ where: { id: releaseId } })
     if (!reserve || reserve.merchantId !== merchantId) return { error: 'Reserva não encontrada.' }
@@ -205,46 +290,48 @@ export async function updateReserveStatus(
     if (!merchant) return { error: 'Seller não encontrado.' }
 
     let merchantUpdate: Record<string, unknown> = {}
-    let auditMeta: Record<string, unknown> = {
-      reserveId: releaseId,
-      from: reserve.status,
-      to: newStatus,
-      amount: reserve.amount,
-      notes,
-    }
 
     if (newStatus === 'LIBERADO' && reserve.status === 'RESERVADO') {
-      // Move de reservedBalance para pendingBalance
       merchantUpdate = {
         pendingBalance:  { increment: reserve.amount },
         reservedBalance: { decrement: reserve.amount },
       }
     } else if (newStatus === 'RESERVADO' && reserve.status === 'LIBERADO') {
-      // Reverte liberação
       merchantUpdate = {
         pendingBalance:  { decrement: reserve.amount },
         reservedBalance: { increment: reserve.amount },
       }
     }
-    // BLOQUEADO / DISPUTA / CANCELADO: não move saldo (apenas muda status para rastreamento)
 
     const reserveUpdateOp = prisma.reserveRelease.update({
       where: { id: releaseId },
       data: {
         status:     newStatus,
         releasedAt: newStatus === 'LIBERADO' ? new Date() : null,
-        releasedBy: newStatus === 'LIBERADO' ? adminUserId : null,
+        releasedBy: newStatus === 'LIBERADO' ? admin.id : null,
         notes:      notes ?? reserve.notes,
       },
     })
 
     const auditOp = prisma.auditLog.create({
       data: {
-        userId:   adminUserId,
+        userId:   admin.id,
         action:   'RESERVE_STATUS_CHANGE',
         entity:   'ReserveRelease',
         entityId: releaseId,
-        metadata: JSON.stringify(auditMeta),
+        metadata: buildMeta({
+          action: 'RESERVE_STATUS_CHANGE', entity: 'ReserveRelease', entityId: releaseId,
+          before: { status: reserve.status, amount: reserve.amount },
+          after:  { status: newStatus,       amount: reserve.amount },
+          amount: reserve.amount,
+          notes,
+          extra:  {
+            merchantId,
+            merchantName: merchant.name,
+            saleLogId:    reserve.saleLogId,
+            saleDate:     reserve.saleDate,
+          },
+        }, admin, ip),
       },
     })
 
@@ -267,9 +354,10 @@ export async function updateReserveStatus(
   }
 }
 
+/* ─── triggerCronRelease ────────────────────────────────────── */
 export async function triggerCronRelease(): Promise<{ error?: string; processed?: number }> {
   try {
-    await getAdminUserId()
+    await getAdminSession()
     const res = await fetch(
       `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/api/cron/release-reserves`,
       { method: 'GET', headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ''}` } },
@@ -281,13 +369,14 @@ export async function triggerCronRelease(): Promise<{ error?: string; processed?
   }
 }
 
+/* ─── simulateSale ───────────────────────────────────────────── */
 export async function simulateSale(
   merchantId: string,
   saleAmount: number,
   description?: string,
 ): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
 
     if (!saleAmount || saleAmount <= 0) return { ok: false, error: 'Valor inválido.' }
 
@@ -295,7 +384,7 @@ export async function simulateSale(
       merchantId,
       saleAmount,
       description: description ?? 'Venda simulada pelo ADM',
-      triggeredBy: adminUserId,
+      triggeredBy: admin.id,
     })
 
     revalidatePath(`/admin/clientes/${merchantId}`)

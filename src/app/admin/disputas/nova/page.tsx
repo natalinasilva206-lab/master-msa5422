@@ -5,10 +5,15 @@ import { prisma } from '@/lib/prisma'
 import CreateDisputeForm from '../CreateDisputeForm'
 
 export default async function NovaDisputaPage() {
-  const merchants = await prisma.merchant.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  })
+  let merchants: { id: string; name: string }[] = []
+  try {
+    merchants = await prisma.merchant.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    })
+  } catch (e) {
+    console.error('[NovaDisputaPage]', e)
+  }
 
   return (
     <div>

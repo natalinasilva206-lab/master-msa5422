@@ -1,15 +1,34 @@
 'use server'
 
 import { getServerSession } from 'next-auth'
+import { headers } from 'next/headers'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 
-async function getAdminUserId() {
+/* ─── auth helpers ──────────────────────────────────────────── */
+async function getAdminSession() {
   const session = await getServerSession(authOptions)
   const user = session?.user as any
   if (user?.role !== 'ADMIN') throw new Error('Não autorizado')
-  return user.id as string
+  return { id: user.id as string, name: user.name as string, email: user.email as string }
+}
+
+function getIp(): string {
+  try {
+    const h = headers()
+    return (
+      h.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      h.get('x-real-ip') ??
+      'unknown'
+    )
+  } catch {
+    return 'unknown'
+  }
+}
+
+function buildMeta(data: Record<string, unknown>, admin: { name: string; email: string }, ip: string): string {
+  return JSON.stringify({ ...data, adminName: admin.name, adminEmail: admin.email, ip })
 }
 
 export type DisputeType =
@@ -43,7 +62,8 @@ export async function createDispute(
   input: CreateDisputeInput,
 ): Promise<{ error?: string; id?: string }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
     if (!input.merchantId) return { error: 'Seller obrigatório.' }
     if (!input.contestedAmount || input.contestedAmount <= 0) return { error: 'Valor contestado inválido.' }
@@ -67,11 +87,20 @@ export async function createDispute(
 
       await tx.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_OPENED',
           entity:   'Dispute',
           entityId: d.id,
-          metadata: JSON.stringify({ type: input.type, merchantId: input.merchantId, contestedAmount: input.contestedAmount }),
+          metadata: buildMeta({
+            merchantId:      input.merchantId,
+            merchantName:    merchant.name,
+            type:            input.type,
+            contestedAmount: input.contestedAmount,
+            deadline:        input.deadline ?? null,
+            assignedTo:      input.assignedTo ?? null,
+            notes:           input.notes ?? null,
+            after:           { status: 'ABERTO', contestedAmount: input.contestedAmount },
+          }, admin, ip),
         },
       })
 
@@ -80,6 +109,7 @@ export async function createDispute(
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/clientes/${input.merchantId}`)
+    revalidatePath(`/admin/clientes/${input.merchantId}/historico`)
     return { id: dispute.id }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -94,9 +124,13 @@ export async function updateDisputeStatus(
   notes?: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } })
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true } } },
+    })
     if (!dispute) return { error: 'Caso não encontrado.' }
 
     const isResolved = ['RESOLVIDO_SELLER', 'RESOLVIDO_CONTRA', 'DEVOLVIDO_PARCIAL', 'FINALIZADO'].includes(newStatus)
@@ -112,17 +146,24 @@ export async function updateDisputeStatus(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_STATUS_CHANGE',
           entity:   'Dispute',
           entityId: disputeId,
-          metadata: JSON.stringify({ from: dispute.status, to: newStatus, notes }),
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            before:       { status: dispute.status },
+            after:        { status: newStatus },
+            notes,
+          }, admin, ip),
         },
       }),
     ])
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
+    revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -137,16 +178,24 @@ export async function blockForDispute(
   amount: number,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } })
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true, pendingBalance: true, blockedBalance: true } } },
+    })
     if (!dispute) return { error: 'Caso não encontrado.' }
 
-    const merchant = await prisma.merchant.findUnique({ where: { id: dispute.merchantId } })
-    if (!merchant) return { error: 'Seller não encontrado.' }
-
     if (amount <= 0 || isNaN(amount)) return { error: 'Valor inválido.' }
-    if (amount > merchant.pendingBalance) return { error: `Saldo disponível insuficiente (R$ ${merchant.pendingBalance.toFixed(2)}).` }
+    if (amount > dispute.merchant.pendingBalance) {
+      return { error: `Saldo disponível insuficiente (R$ ${dispute.merchant.pendingBalance.toFixed(2)}).` }
+    }
+
+    const before = {
+      pendingBalance: dispute.merchant.pendingBalance,
+      blockedBalance: dispute.merchant.blockedBalance,
+    }
 
     await prisma.$transaction([
       prisma.merchant.update({
@@ -162,11 +211,22 @@ export async function blockForDispute(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_BLOCK',
           entity:   'Dispute',
           entityId: disputeId,
-          metadata: JSON.stringify({ amount, from: 'pendingBalance', to: 'blockedBalance' }),
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            amount,
+            from: 'pendingBalance',
+            to:   'blockedBalance',
+            before,
+            after: {
+              pendingBalance: before.pendingBalance - amount,
+              blockedBalance: before.blockedBalance + amount,
+            },
+          }, admin, ip),
         },
       }),
     ])
@@ -174,6 +234,7 @@ export async function blockForDispute(
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}`)
+    revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -188,16 +249,24 @@ export async function useReserveForDispute(
   amount: number,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } })
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true, reservedBalance: true, blockedBalance: true } } },
+    })
     if (!dispute) return { error: 'Caso não encontrado.' }
 
-    const merchant = await prisma.merchant.findUnique({ where: { id: dispute.merchantId } })
-    if (!merchant) return { error: 'Seller não encontrado.' }
-
     if (amount <= 0 || isNaN(amount)) return { error: 'Valor inválido.' }
-    if (amount > merchant.reservedBalance) return { error: `Saldo reservado insuficiente (R$ ${merchant.reservedBalance.toFixed(2)}).` }
+    if (amount > dispute.merchant.reservedBalance) {
+      return { error: `Saldo reservado insuficiente (R$ ${dispute.merchant.reservedBalance.toFixed(2)}).` }
+    }
+
+    const before = {
+      reservedBalance: dispute.merchant.reservedBalance,
+      blockedBalance:  dispute.merchant.blockedBalance,
+    }
 
     await prisma.$transaction([
       prisma.merchant.update({
@@ -213,11 +282,22 @@ export async function useReserveForDispute(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_USE_RESERVE',
           entity:   'Dispute',
           entityId: disputeId,
-          metadata: JSON.stringify({ amount, from: 'reservedBalance', to: 'blockedBalance' }),
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            amount,
+            from: 'reservedBalance',
+            to:   'blockedBalance',
+            before,
+            after: {
+              reservedBalance: before.reservedBalance - amount,
+              blockedBalance:  before.blockedBalance  + amount,
+            },
+          }, admin, ip),
         },
       }),
     ])
@@ -225,6 +305,7 @@ export async function useReserveForDispute(
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}`)
+    revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -239,17 +320,23 @@ export async function releaseBlockedForDispute(
   amount: number,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } })
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true, pendingBalance: true, blockedBalance: true } } },
+    })
     if (!dispute) return { error: 'Caso não encontrado.' }
 
-    const merchant = await prisma.merchant.findUnique({ where: { id: dispute.merchantId } })
-    if (!merchant) return { error: 'Seller não encontrado.' }
-
     if (amount <= 0 || isNaN(amount)) return { error: 'Valor inválido.' }
-    const canRelease = Math.min(amount, dispute.blockedAmount, merchant.blockedBalance)
+    const canRelease = Math.min(amount, dispute.blockedAmount, dispute.merchant.blockedBalance)
     if (canRelease <= 0) return { error: 'Nenhum saldo bloqueado para liberar neste caso.' }
+
+    const before = {
+      pendingBalance: dispute.merchant.pendingBalance,
+      blockedBalance: dispute.merchant.blockedBalance,
+    }
 
     await prisma.$transaction([
       prisma.merchant.update({
@@ -265,11 +352,22 @@ export async function releaseBlockedForDispute(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_RELEASE',
           entity:   'Dispute',
           entityId: disputeId,
-          metadata: JSON.stringify({ amount: canRelease, from: 'blockedBalance', to: 'pendingBalance' }),
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            amount: canRelease,
+            from: 'blockedBalance',
+            to:   'pendingBalance',
+            before,
+            after: {
+              blockedBalance: before.blockedBalance - canRelease,
+              pendingBalance: before.pendingBalance + canRelease,
+            },
+          }, admin, ip),
         },
       }),
     ])
@@ -277,6 +375,7 @@ export async function releaseBlockedForDispute(
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}`)
+    revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -290,9 +389,13 @@ export async function addDisputeNote(
   note: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } })
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true } } },
+    })
     if (!dispute) return { error: 'Caso não encontrado.' }
     if (!note.trim()) return { error: 'Observação não pode ser vazia.' }
 
@@ -307,11 +410,15 @@ export async function addDisputeNote(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_NOTE',
           entity:   'Dispute',
           entityId: disputeId,
-          metadata: JSON.stringify({ note }),
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            note,
+          }, admin, ip),
         },
       }),
     ])
@@ -330,9 +437,13 @@ export async function addDisputeDocument(
   docName: string,
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    const adminUserId = await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } })
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true } } },
+    })
     if (!dispute) return { error: 'Caso não encontrado.' }
     if (!docName.trim()) return { error: 'Nome do documento obrigatório.' }
 
@@ -346,11 +457,15 @@ export async function addDisputeDocument(
       }),
       prisma.auditLog.create({
         data: {
-          userId:   adminUserId,
+          userId:   admin.id,
           action:   'DISPUTE_DOCUMENT',
           entity:   'Dispute',
           entityId: disputeId,
-          metadata: JSON.stringify({ docName }),
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            docName,
+          }, admin, ip),
         },
       }),
     ])
@@ -369,16 +484,45 @@ export async function updateDisputeFields(
   fields: { assignedTo?: string; deadline?: string; saleLogId?: string },
 ): Promise<{ error?: string; ok?: boolean }> {
   try {
-    await getAdminUserId()
+    const admin = await getAdminSession()
+    const ip    = getIp()
 
-    await prisma.dispute.update({
+    const dispute = await prisma.dispute.findUnique({
       where: { id: disputeId },
-      data: {
-        assignedTo: fields.assignedTo,
-        deadline:   fields.deadline ? new Date(fields.deadline) : undefined,
-        saleLogId:  fields.saleLogId !== undefined ? fields.saleLogId || null : undefined,
-      },
+      include: { merchant: { select: { id: true, name: true } } },
     })
+    if (!dispute) return { error: 'Caso não encontrado.' }
+
+    const before = {
+      assignedTo: dispute.assignedTo,
+      deadline:   dispute.deadline?.toISOString() ?? null,
+      saleLogId:  dispute.saleLogId,
+    }
+
+    await prisma.$transaction([
+      prisma.dispute.update({
+        where: { id: disputeId },
+        data: {
+          assignedTo: fields.assignedTo,
+          deadline:   fields.deadline ? new Date(fields.deadline) : undefined,
+          saleLogId:  fields.saleLogId !== undefined ? fields.saleLogId || null : undefined,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:   admin.id,
+          action:   'DISPUTE_FIELDS_UPDATE',
+          entity:   'Dispute',
+          entityId: disputeId,
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            before,
+            after: fields,
+          }, admin, ip),
+        },
+      }),
+    ])
 
     revalidatePath(`/admin/disputas/${disputeId}`)
     return { ok: true }

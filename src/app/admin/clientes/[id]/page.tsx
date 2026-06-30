@@ -10,6 +10,9 @@ import { RiskPanel } from './risk/RiskPanel'
 import RiskConfigForm from './risk/RiskConfigForm'
 import SimularVendaForm from './risk/SimularVendaForm'
 import ReserveCalendar, { ReserveEntry } from './risk/ReserveCalendar'
+import RiskSuggestions from './risk/RiskSuggestions'
+import SellerTabs from './SellerTabs'
+import { computeRiskSuggestions } from '@/lib/computeRiskSuggestions'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -114,6 +117,9 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     notes:          r.notes ?? null,
   }))
 
+  // Compute risk suggestions
+  const riskSuggestions = await computeRiskSuggestions(merchant).catch(() => [])
+
   // Fetch risk audit history
   const riskLogs = await prisma.auditLog.findMany({
     where: {
@@ -145,6 +151,8 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
           <span>/</span>
           <span className="text-white">{merchant.name}</span>
         </nav>
+
+        <SellerTabs merchantId={merchant.id} />
 
         {/* Action buttons */}
         <div className="flex flex-wrap items-center gap-3">
@@ -262,6 +270,38 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
                 riskReserveMax:     merchant.riskReserveMax,
                 riskNotes:          merchant.riskNotes,
               }}
+            />
+          </div>
+        </div>
+
+        {/* ══ Sugestões Automáticas de Risco ══ */}
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-700/40 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-[13px] font-semibold text-white">Sugestões Automáticas de Risco</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Analisadas automaticamente — o ADM decide se aplica ou ignora</p>
+            </div>
+            {riskSuggestions.length > 0 && (
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                {riskSuggestions.length} sugestão{riskSuggestions.length !== 1 ? 'ões' : ''}
+              </span>
+            )}
+          </div>
+          <div className="p-5">
+            <RiskSuggestions
+              merchantId={merchant.id}
+              suggestions={riskSuggestions}
+              currentPercent={merchant.riskReservePercent}
+              currentDays={merchant.riskReleaseDays}
+              currentLevel={merchant.riskLevel}
+              currentMin={merchant.riskReserveMin}
+              currentMax={merchant.riskReserveMax}
+              currentNotes={merchant.riskNotes}
             />
           </div>
         </div>
