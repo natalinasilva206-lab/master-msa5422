@@ -45,8 +45,7 @@ const adminGroups: NavGroup[] = [
     items: [
       {
         label: 'Solicitações KYC',
-        href: '#',
-        soon: true,
+        href: '/admin/kyc',
         icon: <I d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />,
       },
       {
@@ -61,24 +60,21 @@ const adminGroups: NavGroup[] = [
     items: [
       {
         label: 'Transações',
-        href: '#',
-        soon: true,
+        href: '/admin/transacoes',
         icon: <I d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />,
       },
       {
         label: 'Saques',
-        href: '#',
-        soon: true,
+        href: '/admin/saques',
         icon: <I d="M5 10l7-7m0 0l7 7m-7-7v18" />,
       },
       {
         label: 'Antecipações',
-        href: '#',
-        soon: true,
+        href: '/admin/antecipacoes',
         icon: <I d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />,
       },
       {
-        label: 'Ajuste de Saldo',
+        label: 'CDI e Rendimentos',
         href: '/admin/cdi',
         icon: <I d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />,
       },
