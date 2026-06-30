@@ -90,7 +90,7 @@ export default async function ClienteSaquesPage() {
               <p className="text-[13px] font-semibold text-white">Nova Solicitação de Saque</p>
               <p className="text-[10.5px] text-slate-600 mt-0.5">Prazo de liquidação: <strong className="text-slate-400">{prazo}</strong> · Sem taxa</p>
             </div>
-            <WithdrawForm saldo={pendente} plano={plano} />
+            <WithdrawForm saldo={pendente} cdiBalance={saldo} plano={plano} />
           </div>
 
           {/* Histórico */}

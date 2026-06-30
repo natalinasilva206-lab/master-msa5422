@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { requestWithdrawal } from './actions'
 
 function formatBRL(v: number) {
@@ -8,11 +9,12 @@ function formatBRL(v: number) {
 }
 
 interface Props {
-  saldo: number
+  saldo: number       // pendingBalance — disponível para saque
+  cdiBalance: number  // balance — em CDI (não sacável diretamente)
   plano: string
 }
 
-export function WithdrawForm({ saldo, plano }: Props) {
+export function WithdrawForm({ saldo, cdiBalance, plano }: Props) {
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -20,8 +22,14 @@ export function WithdrawForm({ saldo, plano }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (!success && saldo > 0) {
+      setTimeout(() => inputRef.current?.focus(), 80)
+    }
+  }, [])
+
+  useEffect(() => {
     if (success) {
-      const t = setTimeout(() => setSuccess(false), 3000)
+      const t = setTimeout(() => setSuccess(false), 3500)
       return () => clearTimeout(t)
     }
   }, [success])
@@ -45,21 +53,9 @@ export function WithdrawForm({ saldo, plano }: Props) {
     })
   }
 
-  if (saldo === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 text-slate-700">
-        <svg className="w-10 h-10 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-        <p className="text-[12.5px] font-medium">Saldo insuficiente</p>
-        <p className="text-[11px] text-slate-800 mt-1">Você não possui saldo disponível para saque.</p>
-      </div>
-    )
-  }
-
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-center">
+      <div className="flex flex-col items-center justify-center py-10 text-center px-6">
         <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4">
           <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -67,14 +63,71 @@ export function WithdrawForm({ saldo, plano }: Props) {
         </div>
         <p className="text-[16px] font-bold text-white">Solicitação enviada!</p>
         <p className="text-[12px] text-slate-500 mt-1.5">
-          Seu saque está sendo processado. Prazo: 1 dia útil.
+          Seu saque está sendo processado.<br />Prazo de liquidação: plano {plano}.
         </p>
+      </div>
+    )
+  }
+
+  if (saldo === 0) {
+    return (
+      <div className="p-5 space-y-4">
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-slate-800/60 text-slate-600 flex items-center justify-center mb-4">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <p className="text-[13px] font-semibold text-slate-400">Sem saldo disponível para saque</p>
+          {cdiBalance > 0 ? (
+            <p className="text-[11px] text-slate-600 mt-2 max-w-[240px]">
+              Você tem <span className="text-emerald-400 font-semibold">R$ {formatBRL(cdiBalance)}</span> em CDI rendendo. Para sacar, entre em contato com o suporte ou aguarde a liberação do saldo disponível.
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-700 mt-2">
+              Quando houver saldo disponível, o formulário de saque aparecerá aqui.
+            </p>
+          )}
+        </div>
+
+        {cdiBalance > 0 && (
+          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10.5px] font-bold text-emerald-500 uppercase tracking-wider mb-0.5">Saldo em CDI</p>
+              <p className="text-[16px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(cdiBalance)}</p>
+              <p className="text-[10px] text-slate-600 mt-0.5">Rendendo juros mensalmente</p>
+            </div>
+            <Link
+              href="/cliente/cdi"
+              className="shrink-0 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Ver CDI →
+            </Link>
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <div className="p-5 space-y-4">
+
+      {/* Context: CDI balance */}
+      {cdiBalance > 0 && (
+        <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Saldo em CDI (rendendo)</p>
+            <p className="text-[14px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(cdiBalance)}</p>
+          </div>
+          <Link
+            href="/cliente/cdi"
+            className="shrink-0 text-[10.5px] font-semibold text-slate-400 hover:text-white bg-slate-700/50 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            Ver CDI
+          </Link>
+        </div>
+      )}
+
       {/* Amount input */}
       <div>
         <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -98,8 +151,9 @@ export function WithdrawForm({ saldo, plano }: Props) {
             Tudo
           </button>
         </div>
-        <p className="text-[10.5px] text-slate-600 mt-1">
-          Disponível: R$ {formatBRL(saldo)} · Plano {plano}
+        <p className="text-[10.5px] text-slate-600 mt-1.5 flex items-center justify-between">
+          <span>Disponível: <span className="text-emerald-400 font-semibold">R$ {formatBRL(saldo)}</span></span>
+          <span className="text-slate-700">Plano {plano}</span>
         </p>
         {error && (
           <p className="text-[11.5px] text-red-400 mt-1.5 flex items-center gap-1">
@@ -111,7 +165,7 @@ export function WithdrawForm({ saldo, plano }: Props) {
         )}
       </div>
 
-      {/* Conta destino placeholder */}
+      {/* Conta destino */}
       <div>
         <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
           Conta de Destino
@@ -139,6 +193,12 @@ export function WithdrawForm({ saldo, plano }: Props) {
           <div className="flex justify-between text-[11.5px] border-t border-slate-800/60 pt-1.5 mt-0.5">
             <span className="text-slate-300 font-semibold">Você receberá</span>
             <span className="text-white font-bold tabular-nums">R$ {formatBRL(parsed)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10.5px] text-slate-500 pt-0.5">
+            <svg className="w-3 h-3 text-slate-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Saldo restante: R$ {formatBRL(saldo - parsed)}
           </div>
         </div>
       )}
