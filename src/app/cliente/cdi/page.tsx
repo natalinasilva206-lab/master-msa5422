@@ -7,6 +7,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import { CdiSimulator } from './CdiSimulator'
 import { AddToCdiButton } from './AddToCdiButton'
 import { WithdrawFromCdiButton } from './WithdrawFromCdiButton'
+import { CdiLockButton } from './CdiLockButton'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -50,6 +51,49 @@ export default async function ClienteCdiPage() {
   const cdiAnual = anualizarTaxa(cdiRate)
   const plano    = merchant?.plan      ?? '—'
 
+  // Busca lock ativo e solicitação pendente
+  const [lockLogs, earlyRequestLogs, earlyResolvedLogs] = merchant
+    ? await Promise.all([
+        prisma.auditLog.findMany({
+          where: { entityId: merchant.id, action: { in: ['CDI_LOCK_SET', 'CDI_LIMIT_SET'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        }),
+        prisma.auditLog.findMany({
+          where: { entityId: merchant.id, action: 'CDI_EARLY_REQUEST' },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        prisma.auditLog.findMany({
+          where: { entityId: merchant.id, action: { in: ['CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        }),
+      ])
+    : [[], [], []]
+
+  const resolvedReqIds = new Set<string>()
+  for (const log of earlyResolvedLogs) {
+    try { const m = JSON.parse(log.metadata ?? '{}'); if (m.requestLogId) resolvedReqIds.add(m.requestLogId) } catch {}
+  }
+
+  let lockExpiresAt: string | null = null
+  if (lockLogs[0]) {
+    try {
+      const m = JSON.parse(lockLogs[0].metadata ?? '{}')
+      const exp = m.expiresAt as string | null
+      if (exp && new Date(exp + 'T23:59:59') > new Date()) lockExpiresAt = exp
+    } catch {}
+  }
+
+  const pendingEarlyReq = earlyRequestLogs.find((r) => !resolvedReqIds.has(r.id))
+  let pendingRequest: { id: string; amount: number } | null = null
+  if (pendingEarlyReq) {
+    try { const m = JSON.parse(pendingEarlyReq.metadata ?? '{}'); pendingRequest = { id: pendingEarlyReq.id, amount: parseFloat(m.amount || 0) } } catch {}
+  }
+
+  const isLocked = lockExpiresAt !== null
+
   const rendimentoMes = saldo * (cdiRate / 100)
   const rendimento12m = saldo * (Math.pow(1 + cdiRate / 100, 12) - 1)
   const maxRend = rendimento12m // largest period for bar scaling
@@ -79,7 +123,7 @@ export default async function ClienteCdiPage() {
         subtitle={`Taxa atual: ${cdiRate.toFixed(2)}%/mês · ${cdiAnual.toFixed(2)}% a.a.`}
         actions={
           <div className="flex items-center gap-2">
-            <WithdrawFromCdiButton cdiBalance={saldo} cdiRate={cdiRate} />
+            {!isLocked && <WithdrawFromCdiButton cdiBalance={saldo} cdiRate={cdiRate} />}
             <AddToCdiButton
               pendingBalance={pendente}
               currentBalance={saldo}
@@ -119,8 +163,18 @@ export default async function ClienteCdiPage() {
           />
         </div>
 
-        {/* Resgatar CDI — visível quando há saldo em CDI */}
+        {/* Lock / Resgate CDI */}
         {saldo > 0 && (
+          <CdiLockButton
+            cdiBalance={saldo}
+            cdiRate={cdiRate}
+            lockExpiresAt={lockExpiresAt}
+            pendingRequest={pendingRequest}
+          />
+        )}
+
+        {/* Resgatar CDI — só aparece quando NÃO bloqueado */}
+        {saldo > 0 && !isLocked && !pendingRequest && (
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-slate-800/60 text-slate-400">

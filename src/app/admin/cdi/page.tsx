@@ -7,6 +7,7 @@ import { CdiRateInput } from './CdiRateInput'
 import { BalanceInput } from './BalanceInput'
 import { GlobalRateForm } from './GlobalRateForm'
 import { CdiPrazoInput } from './CdiPrazoInput'
+import { EarlyWithdrawRequests, type EarlyRequest } from './EarlyWithdrawRequests'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -43,11 +44,20 @@ function getInitials(name: string) {
 }
 
 export default async function CdiPage() {
-  const [merchants, prazoLogs] = await Promise.all([
+  const [merchants, prazoLogs, earlyRequests, earlyResolved] = await Promise.all([
     prisma.merchant.findMany({ orderBy: { balance: 'desc' } }),
     prisma.auditLog.findMany({
-      where: { action: 'CDI_LIMIT_SET' },
+      where: { action: { in: ['CDI_LIMIT_SET', 'CDI_LOCK_SET'] } },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.auditLog.findMany({
+      where: { action: 'CDI_EARLY_REQUEST' },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { merchant: { select: { name: true, balance: true } } } } },
+    }),
+    prisma.auditLog.findMany({
+      where: { action: { in: ['CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] } },
+      select: { metadata: true },
     }),
   ])
 
@@ -61,6 +71,29 @@ export default async function CdiPage() {
       } catch {}
     }
   }
+
+  // IDs de solicitações já resolvidas
+  const resolvedIds = new Set<string>()
+  for (const log of earlyResolved) {
+    try {
+      const m = JSON.parse(log.metadata ?? '{}')
+      if (m.requestLogId) resolvedIds.add(m.requestLogId)
+    } catch {}
+  }
+
+  // Mapa merchantId → merchant para lookup rápido
+  const merchantMap = new Map(merchants.map((m) => [m.id, m]))
+
+  // Solicitações pendentes (não resolvidas)
+  const pendingRequests: EarlyRequest[] = earlyRequests
+    .filter((r) => !resolvedIds.has(r.id))
+    .map((r) => {
+      const sellerName = r.user?.merchant?.name ?? '—'
+      const cdiBalance = merchantMap.get(r.entityId ?? '')?.balance ?? 0
+      let amount = 0
+      try { amount = parseFloat(JSON.parse(r.metadata ?? '{}').amount || 0) } catch {}
+      return { id: r.id, merchantId: r.entityId ?? '', sellerName, amount, createdAt: r.createdAt, cdiBalance }
+    })
 
   const totalBalance = merchants.reduce((s, m) => s + m.balance, 0)
   const totalRendimento = merchants.reduce((s, m) => s + m.balance * (m.cdiRate / 100), 0)
@@ -134,6 +167,9 @@ export default async function CdiPage() {
           </div>
 
         </section>
+
+        {/* ── Solicitações de resgate antecipado ── */}
+        <EarlyWithdrawRequests requests={pendingRequests} />
 
         {/* ── Taxa Global ── */}
         <GlobalRateForm merchantCounts={merchantCounts} />

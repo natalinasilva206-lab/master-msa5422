@@ -86,3 +86,55 @@ export async function withdrawFromCdi(amount: number): Promise<{ error?: string 
   revalidatePath('/cliente/saques')
   return {}
 }
+
+export async function setCdiLock(months: number, expiresAt: string): Promise<{ error?: string }> {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/login')
+  const userId = (session.user as any)?.id as string | undefined
+  if (!userId) return { error: 'Sessão inválida.' }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
+  const merchant = user?.merchant
+  if (!merchant) return { error: 'Merchant não encontrado.' }
+  if (merchant.balance <= 0) return { error: 'Nenhum saldo em CDI para bloquear.' }
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   'CDI_LOCK_SET',
+      entity:   'Merchant',
+      entityId: merchant.id,
+      metadata: JSON.stringify({ expiresAt, months, setBy: 'seller' }),
+    },
+  })
+
+  revalidatePath('/cliente/cdi')
+  return {}
+}
+
+export async function requestEarlyWithdraw(amount: number): Promise<{ error?: string }> {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/login')
+  const userId = (session.user as any)?.id as string | undefined
+  if (!userId) return { error: 'Sessão inválida.' }
+  if (!amount || amount <= 0) return { error: 'Informe um valor válido.' }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
+  const merchant = user?.merchant
+  if (!merchant) return { error: 'Merchant não encontrado.' }
+  if (amount > merchant.balance) return { error: 'Valor maior que o saldo em CDI.' }
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   'CDI_EARLY_REQUEST',
+      entity:   'Merchant',
+      entityId: merchant.id,
+      metadata: JSON.stringify({ amount, status: 'PENDING' }),
+    },
+  })
+
+  revalidatePath('/cliente/cdi')
+  revalidatePath('/admin/cdi')
+  return {}
+}

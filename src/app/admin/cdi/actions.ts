@@ -39,6 +39,46 @@ export async function setCdiPrazo(merchantId: string, expiresAt: string | null) 
   revalidatePath('/admin/cdi')
 }
 
+export async function resolveEarlyWithdraw(
+  requestLogId: string,
+  merchantId: string,
+  amount: number,
+  approve: boolean
+): Promise<{ error?: string }> {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/login')
+  const userId = (session.user as any)?.id as string
+
+  if (approve) {
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
+    if (!merchant) return { error: 'Merchant não encontrado.' }
+    if (amount > merchant.balance) return { error: 'Saldo insuficiente em CDI.' }
+
+    await prisma.merchant.update({
+      where: { id: merchantId },
+      data: {
+        balance:        { decrement: amount },
+        pendingBalance: { increment: amount },
+      },
+    })
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   approve ? 'CDI_EARLY_APPROVED' : 'CDI_EARLY_DENIED',
+      entity:   'Merchant',
+      entityId: merchantId,
+      metadata: JSON.stringify({ requestLogId, amount }),
+    },
+  })
+
+  revalidatePath('/admin/cdi')
+  revalidatePath('/cliente/cdi')
+  revalidatePath('/cliente/dashboard')
+  return {}
+}
+
 export async function applyGlobalRate(rate: number, plan?: string) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') redirect('/login')
