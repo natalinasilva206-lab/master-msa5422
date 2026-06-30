@@ -92,7 +92,7 @@ export default async function CdiPage() {
             </div>
             <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Saldo Total em Custódia</p>
             <p className="text-[26px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(totalBalance)}</p>
-            <p className="text-[11px] text-slate-600 mt-2">Soma dos saldos disponíveis</p>
+            <p className="text-[11px] text-slate-600 mt-2">Total em CDI rendendo</p>
           </div>
 
           <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 hover:bg-slate-800/40 transition-all duration-200">
@@ -157,7 +157,7 @@ export default async function CdiPage() {
                     <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                     <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Plano</th>
                     <th className="text-right px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
-                      Saldo Disponível
+                      Saldo em CDI
                       <span className="ml-1 text-slate-700 normal-case tracking-normal font-normal">(editável)</span>
                     </th>
                     <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">

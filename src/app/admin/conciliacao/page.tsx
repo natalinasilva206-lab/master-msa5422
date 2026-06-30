@@ -25,20 +25,27 @@ export default async function ConciliacaoPage() {
     include: { user: { select: { name: true, email: true, merchant: { select: { name: true } } } } },
   })
 
-  const totalActions = logs.length
-  const addToCdiLogs = logs.filter((l) => l.action === 'ADD_TO_CDI')
-  const totalAportado = addToCdiLogs.reduce((s, l) => {
+  const totalActions     = logs.length
+  const addToCdiLogs     = logs.filter((l) => l.action === 'ADD_TO_CDI')
+  const antecipacaoLogs  = logs.filter((l) => l.action === 'ANTECIPACAO_REQUEST')
+  const withdrawLogs     = logs.filter((l) => l.action === 'WITHDRAW_REQUEST')
+  const totalAportado    = addToCdiLogs.reduce((s, l) => {
+    try { const m = JSON.parse(l.metadata ?? '{}'); return s + (parseFloat(m.amount) || 0) } catch { return s }
+  }, 0)
+  const totalAntecipado  = antecipacaoLogs.reduce((s, l) => {
     try { const m = JSON.parse(l.metadata ?? '{}'); return s + (parseFloat(m.amount) || 0) } catch { return s }
   }, 0)
 
   const actionMeta: Record<string, { label: string; dot: string }> = {
-    ADD_TO_CDI:        { label: 'Aporte CDI',      dot: 'bg-emerald-500' },
-    WITHDRAW_REQUEST:  { label: 'Saque Solicitado', dot: 'bg-amber-500' },
-    WITHDRAW_APPROVED: { label: 'Saque Aprovado',   dot: 'bg-blue-500' },
-    KYC_APPROVED:      { label: 'KYC Aprovado',     dot: 'bg-emerald-500' },
-    KYC_BLOCKED:       { label: 'KYC Bloqueado',    dot: 'bg-red-500' },
-    MERCHANT_CREATED:  { label: 'Empresa Criada',   dot: 'bg-slate-400' },
-    CDI_RATE_UPDATED:  { label: 'Taxa CDI Atualizada', dot: 'bg-purple-500' },
+    ADD_TO_CDI:           { label: 'Aporte CDI',          dot: 'bg-emerald-500' },
+    ANTECIPACAO_REQUEST:  { label: 'Antecipação',          dot: 'bg-blue-500' },
+    WITHDRAW_REQUEST:     { label: 'Saque Solicitado',     dot: 'bg-amber-500' },
+    WITHDRAW_APPROVED:    { label: 'Saque Aprovado',       dot: 'bg-blue-500' },
+    KYC_APPROVED:         { label: 'KYC Aprovado',         dot: 'bg-emerald-500' },
+    KYC_BLOCKED:          { label: 'KYC Bloqueado',        dot: 'bg-red-500' },
+    MERCHANT_CREATED:     { label: 'Empresa Criada',       dot: 'bg-slate-400' },
+    CDI_RATE_UPDATED:     { label: 'Taxa CDI Atualizada',  dot: 'bg-purple-500' },
+    BALANCE_ADJUST:       { label: 'Ajuste de Saldo',      dot: 'bg-slate-500' },
   }
 
   return (
@@ -51,11 +58,12 @@ export default async function ConciliacaoPage() {
 
       <div className="p-4 xl:p-6 space-y-4">
 
-        <section className="grid grid-cols-3 gap-3">
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total de Registros',  value: `${totalActions}`, color: 'text-white',    border: 'border-slate-800/70' },
-            { label: 'Aportes CDI',         value: `${addToCdiLogs.length}`, color: 'text-emerald-400', border: 'border-emerald-500/20' },
-            { label: 'Total Aportado CDI',  value: `R$ ${formatBRL(totalAportado)}`, color: 'text-emerald-400', border: 'border-emerald-500/20' },
+            { label: 'Total de Registros', value: `${totalActions}`,                    color: 'text-white',        border: 'border-slate-800/70' },
+            { label: 'Aportes CDI',        value: `R$ ${formatBRL(totalAportado)}`,     color: 'text-emerald-400',  border: 'border-emerald-500/20' },
+            { label: 'Antecipações',       value: `R$ ${formatBRL(totalAntecipado)}`,   color: 'text-blue-400',     border: 'border-blue-500/20' },
+            { label: 'Saques Solicitados', value: `${withdrawLogs.length}`,             color: 'text-amber-400',    border: 'border-amber-500/20' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
               <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
