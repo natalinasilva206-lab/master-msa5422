@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useCallback, useEffect } from 'react'
+import React, { useState, useTransition, useCallback, useEffect } from 'react'
 import { signOut } from 'next-auth/react'
 import {
   updateSellerProfile,
@@ -26,6 +26,7 @@ type User = {
   id: string; name: string; email: string; phone: string | null
   theme: string; accentColor: string
   lastLoginAt: Date | null; lastLoginIp: string | null; lastLoginUa: string | null
+  passwordChangedAt: Date | null
   createdAt: Date
 }
 
@@ -68,7 +69,7 @@ export function ClienteContaTabs({
       {activeTab === 'Meu Perfil'   && <PerfilTab user={user} merchant={merchant} />}
       {activeTab === 'Empresa'      && <EmpresaTab merchant={merchant} securityLogs={securityLogs} />}
       {activeTab === 'Alterar Senha' && <SenhaTab />}
-      {activeTab === 'Segurança'    && <SegurancaTab user={user} securityLogs={securityLogs} tokenIat={tokenIat} />}
+      {activeTab === 'Segurança'    && <SegurancaTab user={user} securityLogs={securityLogs} tokenIat={tokenIat} goToSenha={() => setActiveTab('Alterar Senha')} />}
       {activeTab === 'Preferências' && <PreferenciasTab user={user} />}
     </div>
   )
@@ -715,10 +716,10 @@ function fmtDT(d: Date | null | undefined) {
 function fmtRel(d: Date | null | undefined) {
   if (!d) return '—'
   const diff = (Date.now() - new Date(d).getTime()) / 1000
-  if (diff < 60)    return 'agora mesmo'
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m atrás`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`
-  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d atrás`
+  if (diff < 60)           return 'agora mesmo'
+  if (diff < 3600)         return `${Math.floor(diff / 60)}m atrás`
+  if (diff < 86400)        return `${Math.floor(diff / 3600)}h atrás`
+  if (diff < 86400 * 30)  return `${Math.floor(diff / 86400)}d atrás`
   return fmtDT(d)
 }
 function parseMeta(m: string | null): Record<string, string> {
@@ -740,33 +741,170 @@ function parseUa(ua: string) {
   return os ? `${b} · ${os}` : b
 }
 
-const SEC_META: Record<string, { label: string; icon: string; color: string }> = {
-  LOGIN_SUCCESS:        { label: 'Login realizado',          icon: '→', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-  LOGIN_FAILED:         { label: 'Tentativa de login falha', icon: '✕', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
-  CHANGE_PASSWORD:      { label: 'Senha alterada',           icon: '🔑',color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
-  UPDATE_PROFILE:       { label: 'Perfil atualizado',        icon: '✎', color: 'text-slate-400 bg-slate-700/30 border-slate-700/30' },
-  UPDATE_MERCHANT_INFO: { label: 'Empresa atualizada',       icon: '✎', color: 'text-slate-400 bg-slate-700/30 border-slate-700/30' },
-  UPDATE_THEME:         { label: 'Tema alterado',            icon: '◑', color: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
-  SESSION_REVOKED:      { label: 'Sessões encerradas',       icon: '⊘', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+const SEC_META: Record<string, { label: string; icon: React.ReactNode; color: string; dot: string }> = {
+  LOGIN_SUCCESS: {
+    label: 'Login realizado',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>,
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    dot:   'bg-emerald-400',
+  },
+  LOGIN_FAILED: {
+    label: 'Tentativa falha',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>,
+    color: 'text-red-400 bg-red-500/10 border-red-500/20',
+    dot:   'bg-red-400',
+  },
+  CHANGE_PASSWORD: {
+    label: 'Senha alterada',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>,
+    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    dot:   'bg-blue-400',
+  },
+  UPDATE_PROFILE: {
+    label: 'Perfil atualizado',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>,
+    color: 'text-slate-400 bg-slate-700/30 border-slate-700/40',
+    dot:   'bg-slate-400',
+  },
+  UPDATE_MERCHANT_INFO: {
+    label: 'Empresa atualizada',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>,
+    color: 'text-slate-400 bg-slate-700/30 border-slate-700/40',
+    dot:   'bg-slate-400',
+  },
+  UPDATE_THEME: {
+    label: 'Tema alterado',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>,
+    color: 'text-violet-400 bg-violet-500/10 border-violet-500/20',
+    dot:   'bg-violet-400',
+  },
+  SESSION_REVOKED: {
+    label: 'Sessões encerradas',
+    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>,
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    dot:   'bg-amber-400',
+  },
 }
 
-function SegurancaTab({ user, securityLogs, tokenIat }: {
-  user: User; securityLogs: SecurityLog[]; tokenIat: number | null
+type HistoryFilter = 'todos' | 'logins' | 'falhas' | 'alteracoes'
+
+function InlinePwForm({ onSuccess }: { onSuccess: () => void }) {
+  const [isPending, startTransition] = useTransition()
+  const [current,  setCurrent]  = useState('')
+  const [newPw,    setNewPw]    = useState('')
+  const [confirm,  setConfirm]  = useState('')
+  const [msg,      setMsg]      = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  const strength = getStrength(newPw)
+  const mismatch = confirm.length > 0 && newPw !== confirm
+  const matchOk  = confirm.length > 0 && newPw === confirm
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (newPw !== confirm) { setMsg({ type: 'error', text: 'As senhas não coincidem.' }); return }
+    if (newPw.length < 8)  { setMsg({ type: 'error', text: 'Mínimo 8 caracteres.' }); return }
+    setMsg(null)
+    const fd = new FormData(e.currentTarget)
+    startTransition(async () => {
+      const res = await changeSellerPassword(fd)
+      if (res?.error) setMsg({ type: 'error', text: res.error })
+      else { onSuccess(); setTimeout(() => signOut({ callbackUrl: '/login' }), 3000) }
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 pt-1">
+      <PwField name="currentPassword" label="Senha atual"          placeholder="Digite sua senha atual" value={current}  onChange={setCurrent} />
+      <div>
+        <PwField name="newPassword"     label="Nova senha"           placeholder="Mínimo 8 caracteres"   value={newPw}    onChange={setNewPw} />
+        {newPw.length > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="flex gap-1">
+              {[1,2,3,4,5].map(s => (
+                <div key={s} className={`h-1 flex-1 rounded-full transition-all ${(strength.score ?? 0) >= s ? strength.color : 'bg-slate-800'}`} />
+              ))}
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-slate-500">{strength.label}</p>
+              <div className="flex gap-2.5 text-[9.5px] text-slate-600">
+                {([['8+','length'],['A–Z','upper'],['0–9','digit'],['!@#','special']] as [string,string][]).map(([lbl, key]) => (
+                  <span key={key} className={
+                    (key === 'length'  && newPw.length >= 8)             ? 'text-emerald-400' :
+                    (key === 'upper'   && /[A-Z]/.test(newPw))           ? 'text-emerald-400' :
+                    (key === 'digit'   && /[0-9]/.test(newPw))           ? 'text-emerald-400' :
+                    (key === 'special' && /[^A-Za-z0-9]/.test(newPw))   ? 'text-emerald-400' : ''
+                  }>{lbl}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div>
+        <PwField name="confirmPassword" label="Confirmar senha"      placeholder="Repita a nova senha"   value={confirm}  onChange={setConfirm} />
+        {confirm.length > 0 && (
+          <p className={`mt-1 text-[10px] font-medium flex items-center gap-1 ${matchOk ? 'text-emerald-400' : 'text-red-400'}`}>
+            {matchOk
+              ? <><svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>Senhas coincidem</>
+              : <><svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Senhas não coincidem</>
+            }
+          </p>
+        )}
+      </div>
+      {msg && <Alert type={msg.type} text={msg.text} />}
+      <div className="pt-1">
+        <button
+          type="submit"
+          disabled={isPending || mismatch || newPw.length < 8 || !current}
+          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg transition-colors"
+        >
+          {isPending
+            ? <><svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Alterando…</>
+            : <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>Confirmar Alteração</>
+          }
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
+  user: User
+  securityLogs: SecurityLog[]
+  tokenIat: number | null
+  goToSenha: () => void
 }) {
-  const [isPending, startTransition]  = useTransition()
-  const [revoked,   setRevoked]       = useState(false)
-  const [clientUa,  setClientUa]      = useState('')
+  const [isPendingRevoke, startRevoke] = useTransition()
+  const [revoked,         setRevoked]  = useState(false)
+  const [clientUa,    setClientUa]     = useState('')
   const [sessionStart, setSessionStart] = useState('')
+  const [pwFormOpen,  setPwFormOpen]   = useState(false)
+  const [pwSuccess,   setPwSuccess]    = useState(false)
+  const [histFilter,  setHistFilter]   = useState<HistoryFilter>('todos')
 
   useEffect(() => {
     setClientUa(parseUa(navigator.userAgent))
     if (tokenIat) setSessionStart(fmtDT(new Date(tokenIat * 1000)))
   }, [tokenIat])
 
-  const lastLoginMeta = parseMeta(securityLogs.find(l => l.action === 'LOGIN_SUCCESS')?.metadata ?? null)
+  const lastLoginMeta  = parseMeta(securityLogs.find(l => l.action === 'LOGIN_SUCCESS')?.metadata ?? null)
+  const failedLogs     = securityLogs.filter(l => l.action === 'LOGIN_FAILED')
+  const recentFailed   = failedLogs.filter(l => Date.now() - new Date(l.createdAt).getTime() < 30 * 86400 * 1000)
+
+  const lastPwChange   = securityLogs.find(l => l.action === 'CHANGE_PASSWORD')?.createdAt ?? user.passwordChangedAt
+
+  const FILTER_ACTIONS: Record<HistoryFilter, string[] | null> = {
+    todos:      null,
+    logins:     ['LOGIN_SUCCESS'],
+    falhas:     ['LOGIN_FAILED'],
+    alteracoes: ['CHANGE_PASSWORD', 'UPDATE_PROFILE', 'UPDATE_MERCHANT_INFO', 'UPDATE_THEME', 'SESSION_REVOKED'],
+  }
+  const filteredLogs = histFilter === 'todos'
+    ? securityLogs
+    : securityLogs.filter(l => FILTER_ACTIONS[histFilter]?.includes(l.action))
 
   function handleRevoke() {
-    startTransition(async () => {
+    startRevoke(async () => {
       await revokeSellerSessions()
       setRevoked(true)
       setTimeout(() => signOut({ callbackUrl: '/login' }), 2500)
@@ -776,117 +914,326 @@ function SegurancaTab({ user, securityLogs, tokenIat }: {
   return (
     <div className="space-y-4 max-w-2xl">
 
-      {/* Status + last login */}
+      {/* ── Alert: failed attempts in last 30 days ── */}
+      {recentFailed.length >= 3 && (
+        <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <p className="text-[12px] text-red-400">
+            <span className="font-bold">{recentFailed.length} tentativas falhas</span> detectadas nos últimos 30 dias.
+            Se não foi você, altere sua senha imediatamente.
+          </p>
+          <button onClick={() => { setPwFormOpen(true); document.getElementById('sec-pw-section')?.scrollIntoView({ behavior: 'smooth' }) }}
+            className="ml-auto shrink-0 text-[11px] font-semibold text-red-300 underline hover:text-red-200 whitespace-nowrap"
+          >
+            Alterar senha
+          </button>
+        </div>
+      )}
+
+      {/* ── Status da Conta ── */}
       <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 space-y-3">
-        <p className="text-[13px] font-semibold text-white">Status da Conta</p>
+        <div className="flex items-center justify-between">
+          <p className="text-[13px] font-semibold text-white">Status da Conta</p>
+          <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />Ativa
+          </span>
+        </div>
         <div className="border-t border-slate-800/50" />
         <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Status',         node: <span className="flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />Ativa</span> },
-            { label: 'Função',         node: <span className="text-[9.5px] font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Seller</span> },
-            { label: 'Último login',   node: <div><p className="text-[12px] font-semibold text-slate-200">{fmtRel(user.lastLoginAt)}</p><p className="text-[10px] text-slate-600">{fmtDT(user.lastLoginAt)}</p></div> },
-            { label: 'IP',             node: <span className="text-[12px] font-semibold text-slate-200 font-mono">{user.lastLoginIp ?? '—'}</span> },
-          ].map(({ label, node }) => (
-            <div key={label} className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">{label}</p>
-              {node}
-            </div>
-          ))}
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Função</p>
+            <span className="text-[9.5px] font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Seller</span>
+          </div>
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Conta criada em</p>
+            <p className="text-[11.5px] font-semibold text-slate-300">{fmtDT(user.createdAt)}</p>
+          </div>
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Último login</p>
+            <p className="text-[12px] font-semibold text-slate-200">{fmtRel(user.lastLoginAt)}</p>
+            <p className="text-[9.5px] text-slate-600 mt-0.5">{fmtDT(user.lastLoginAt)}</p>
+          </div>
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">IP do último login</p>
+            <p className="text-[12px] font-semibold text-slate-200 font-mono">{user.lastLoginIp ?? '—'}</p>
+          </div>
           <div className="col-span-2 bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
-            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Dispositivo do Último Login</p>
-            <p className="text-[12px] font-semibold text-slate-200">{user.lastLoginUa ? parseUa(user.lastLoginUa) : '—'}</p>
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Dispositivo do último login</p>
+            <p className="text-[12px] font-semibold text-slate-200">
+              {user.lastLoginUa ? parseUa(user.lastLoginUa) : '—'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* 2FA */}
-      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 flex items-center gap-4">
-        <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-          <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-[13px] font-semibold text-slate-200">Autenticação em Dois Fatores</p>
-            <span className="text-[9.5px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Em breve</span>
+      {/* ── Tentativas de login falhadas ── */}
+      {failedLogs.length > 0 && (
+        <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-[13px] font-semibold text-white">Tentativas de Login Falhadas</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">{failedLogs.length} tentativa{failedLogs.length !== 1 ? 's' : ''} registrada{failedLogs.length !== 1 ? 's' : ''}</p>
+            </div>
+            {recentFailed.length > 0 && (
+              <span className="text-[9.5px] font-bold uppercase tracking-widest text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+                {recentFailed.length} nos últimos 30d
+              </span>
+            )}
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Proteção extra com app autenticador (TOTP). Disponível em breve.</p>
+          <div className="divide-y divide-slate-800/40">
+            {failedLogs.slice(0, 5).map((log) => {
+              const meta = parseMeta(log.metadata)
+              return (
+                <div key={log.id} className="flex items-center gap-3.5 px-5 py-3 hover:bg-slate-800/20 transition-colors">
+                  <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                  <div className="flex-1 min-w-0 grid grid-cols-3 gap-2 items-center">
+                    <div>
+                      <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">IP</p>
+                      <p className="text-[11.5px] font-mono text-slate-300 mt-0.5">{meta.ip ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">Dispositivo</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{meta.browser ?? '—'}{meta.os ? ` · ${meta.os}` : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10.5px] text-slate-500">{fmtRel(new Date(log.createdAt))}</p>
+                      <p className="text-[9.5px] text-slate-700 mt-0.5">{fmtDT(new Date(log.createdAt))}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            {failedLogs.length > 5 && (
+              <div className="px-5 py-2.5 text-center text-[10.5px] text-slate-600">
+                + {failedLogs.length - 5} tentativas mais antigas — veja o histórico completo abaixo
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Senha & 2FA ── */}
+      <div id="sec-pw-section" className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+        {/* Senha row */}
+        <div className="px-5 py-4 flex items-center gap-4 border-b border-slate-800/60">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-slate-200">Senha de Acesso</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {lastPwChange
+                ? <>Última alteração: <span className="text-slate-400">{fmtDT(lastPwChange)} ({fmtRel(lastPwChange)})</span></>
+                : 'Nunca alterada desde o cadastro'}
+            </p>
+          </div>
+          {pwSuccess ? (
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+              Alterada!
+            </span>
+          ) : (
+            <button
+              onClick={() => setPwFormOpen(o => !o)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg border transition-colors ${
+                pwFormOpen
+                  ? 'text-slate-400 bg-slate-800/60 border-slate-700/50 hover:bg-slate-800'
+                  : 'text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              {pwFormOpen ? 'Cancelar' : 'Alterar senha'}
+            </button>
+          )}
+        </div>
+
+        {/* Inline password form */}
+        {pwFormOpen && !pwSuccess && (
+          <div className="px-5 py-4 bg-slate-800/20 border-b border-slate-800/60">
+            {/* Success screen */}
+            <InlinePwForm onSuccess={() => { setPwSuccess(true); setPwFormOpen(false) }} />
+          </div>
+        )}
+        {pwSuccess && (
+          <div className="px-5 py-4 bg-emerald-500/5 border-b border-emerald-500/10 flex items-center gap-3">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <p className="text-[12px] font-semibold text-emerald-400">
+              Senha alterada com sucesso! Todas as sessões serão encerradas. Redirecionando…
+            </p>
+          </div>
+        )}
+
+        {/* 2FA row */}
+        <div className="px-5 py-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[13px] font-semibold text-slate-200">Autenticação em Dois Fatores (2FA)</p>
+              <span className="text-[9.5px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Em breve</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Proteção extra via app autenticador (TOTP/Authenticator). Disponível em breve.
+            </p>
+          </div>
+          <button disabled
+            className="px-3 py-1.5 text-[11px] font-semibold text-slate-600 bg-slate-800/40 border border-slate-700/30 rounded-lg cursor-not-allowed opacity-50"
+          >
+            Ativar
+          </button>
         </div>
       </div>
 
-      {/* Active session */}
+      {/* ── Sessão Ativa ── */}
       <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
-          <p className="text-[13px] font-semibold text-white">Sessão Ativa</p>
+          <div>
+            <p className="text-[13px] font-semibold text-white">Sessão Ativa</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Dispositivos com acesso à sua conta agora</p>
+          </div>
           <button
             onClick={handleRevoke}
-            disabled={isPending || revoked}
+            disabled={isPendingRevoke || revoked}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
             {revoked ? 'Encerrando…' : 'Encerrar sessão'}
           </button>
         </div>
-        {revoked ? (
-          <div className="px-5 py-6 text-center">
-            <p className="text-[12px] font-semibold text-amber-400">Sessão encerrada. Redirecionando para o login…</p>
-          </div>
-        ) : (
-          <div className="px-5 py-4">
-            <div className="flex items-start gap-3.5 p-4 bg-slate-800/30 border border-emerald-500/20 rounded-xl">
-              <div className="w-10 h-10 rounded-xl bg-slate-800/60 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="px-5 py-4">
+          {revoked ? (
+            <div className="py-4 text-center">
+              <p className="text-[12px] font-semibold text-amber-400">Sessão encerrada. Redirecionando para o login…</p>
+            </div>
+          ) : (
+            <div className="flex items-start gap-4 p-4 bg-slate-800/30 border border-emerald-500/20 rounded-xl">
+              <div className="w-10 h-10 rounded-xl bg-slate-800/60 border border-slate-700/40 flex items-center justify-center shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-[12.5px] font-semibold text-slate-200">{clientUa || 'Detectando…'}</p>
                   <span className="flex items-center gap-1 text-[9.5px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Ativa
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Esta sessão
                   </span>
                 </div>
-                <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
-                  <div><span className="text-[9.5px] text-slate-600">Login em</span><p className="text-[11px] text-slate-400">{sessionStart || '—'}</p></div>
-                  <div><span className="text-[9.5px] text-slate-600">IP</span><p className="text-[11px] text-slate-400 font-mono">{lastLoginMeta.ip ?? user.lastLoginIp ?? '—'}</p></div>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[9.5px] text-slate-600 uppercase tracking-widest font-bold">Login em</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{sessionStart || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9.5px] text-slate-600 uppercase tracking-widest font-bold">IP</p>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{lastLoginMeta.ip ?? user.lastLoginIp ?? '—'}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* History */}
+      {/* ── Histórico de Acessos ── */}
       <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-800/60">
-          <p className="text-[13px] font-semibold text-white">Histórico de Segurança</p>
-          <p className="text-[10.5px] text-slate-500 mt-0.5">Últimos {securityLogs.length} eventos registrados</p>
+        <div className="px-5 py-3.5 border-b border-slate-800/60 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[13px] font-semibold text-white">Histórico de Acessos</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">{securityLogs.length} eventos registrados</p>
+          </div>
+          {/* Filter pills */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {(['todos', 'logins', 'falhas', 'alteracoes'] as HistoryFilter[]).map((f) => {
+              const labels: Record<HistoryFilter, string> = { todos: 'Todos', logins: 'Logins', falhas: 'Falhas', alteracoes: 'Alterações' }
+              const counts: Record<HistoryFilter, number> = {
+                todos:      securityLogs.length,
+                logins:     securityLogs.filter(l => l.action === 'LOGIN_SUCCESS').length,
+                falhas:     failedLogs.length,
+                alteracoes: securityLogs.filter(l => FILTER_ACTIONS.alteracoes?.includes(l.action)).length,
+              }
+              return (
+                <button key={f} onClick={() => setHistFilter(f)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10.5px] font-semibold transition-all ${
+                    histFilter === f
+                      ? f === 'falhas' ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
+                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                  }`}
+                >
+                  {labels[f]}
+                  {counts[f] > 0 && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                      histFilter === f
+                        ? f === 'falhas' ? 'bg-red-500/30 text-red-200' : 'bg-blue-500/30 text-blue-200'
+                        : 'bg-slate-700/60 text-slate-500'
+                    }`}>{counts[f]}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
-        {securityLogs.length === 0 ? (
+
+        {filteredLogs.length === 0 ? (
           <div className="px-5 py-10 text-center text-[12px] text-slate-600">
-            Nenhum evento registrado. Os eventos aparecerão após o próximo login.
+            {securityLogs.length === 0
+              ? 'Nenhum evento registrado. Aparecerão após o próximo login.'
+              : 'Nenhum evento nesta categoria.'}
           </div>
         ) : (
           <div className="divide-y divide-slate-800/40">
-            {securityLogs.map((log) => {
+            {filteredLogs.map((log) => {
               const meta = parseMeta(log.metadata)
-              const info = SEC_META[log.action] ?? { label: log.action, icon: '•', color: 'text-slate-500 bg-slate-800/40 border-slate-700/30' }
+              const info = SEC_META[log.action] ?? {
+                label: log.action,
+                icon: <span>•</span>,
+                color: 'text-slate-500 bg-slate-800/40 border-slate-700/30',
+                dot: 'bg-slate-500',
+              }
               return (
                 <div key={log.id} className="flex items-start gap-3.5 px-5 py-3.5 hover:bg-slate-800/20 transition-colors">
-                  <div className={`mt-0.5 w-7 h-7 rounded-lg border flex items-center justify-center text-[11px] shrink-0 ${info.color}`}>
+                  <div className={`mt-0.5 w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${info.color}`}>
                     {info.icon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-[12px] font-semibold text-slate-200">{info.label}</p>
-                      {meta.ip && <span className="text-[9.5px] text-slate-600 font-mono bg-slate-800/60 px-1.5 py-0.5 rounded">{meta.ip}</span>}
+                      {meta.ip && (
+                        <span className="text-[9.5px] text-slate-600 font-mono bg-slate-800/60 px-1.5 py-0.5 rounded">
+                          {meta.ip}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      {meta.browser && <span className="text-[10.5px] text-slate-500">{meta.browser}{meta.os ? ` · ${meta.os}` : ''}</span>}
+                      {meta.browser && (
+                        <span className="text-[10.5px] text-slate-500">
+                          {meta.browser}{meta.os ? ` · ${meta.os}` : ''}
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-700">{fmtDT(new Date(log.createdAt))}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-700 shrink-0 mt-0.5">{fmtRel(new Date(log.createdAt))}</span>
+                  <span className="text-[10px] text-slate-600 shrink-0 mt-0.5 whitespace-nowrap">
+                    {fmtRel(new Date(log.createdAt))}
+                  </span>
                 </div>
               )
             })}

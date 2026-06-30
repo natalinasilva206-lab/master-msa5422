@@ -25,6 +25,7 @@ export default async function ClienteMinhaContaPage() {
         id: true, name: true, email: true, phone: true,
         theme: true, accentColor: true,
         lastLoginAt: true, lastLoginIp: true, lastLoginUa: true,
+        passwordChangedAt: true,
         createdAt: true,
         merchant: {
           select: {
@@ -42,7 +43,7 @@ export default async function ClienteMinhaContaPage() {
     prisma.auditLog.findMany({
       where:   { userId, action: { in: SECURITY_ACTIONS } },
       orderBy: { createdAt: 'desc' },
-      take:    30,
+      take:    50,
       select:  { id: true, action: true, metadata: true, createdAt: true },
     }),
   ])
