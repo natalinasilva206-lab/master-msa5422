@@ -69,11 +69,21 @@ function smoothPath(pts: number[], w: number, h: number, pad = 10): string {
 }
 
 
-export default async function AdminDashboardPage() {
+interface PageProps {
+  searchParams: { periodo?: string; status?: string }
+}
+
+export default async function AdminDashboardPage({ searchParams }: PageProps) {
+  const periodo = searchParams?.periodo ?? '7d'
+  const statusFilter = searchParams?.status ?? 'todos'
+
+  const daysMap: Record<string, number> = { hoje: 1, '7d': 7, '30d': 30 }
+  const days = daysMap[periodo] ?? 7
+  const periodStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
   // Wrap all DB calls so a migration-lag error doesn't crash the entire dashboard
-  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, pendingWithdrawLogs, cdiEarlyLogs, recentSales] =
+  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, pendingWithdrawLogs, cdiEarlyLogs, recentSales, recentDisputes, todaySales] =
     await Promise.all([
       prisma.merchant.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
       prisma.merchant.count({ where: { status: 'REVIEW' } }).catch(() => 0),
@@ -94,9 +104,23 @@ export default async function AdminDashboardPage() {
         select: { id: true, metadata: true, entityId: true },
       }).catch(() => []),
       prisma.saleLog.findMany({
-        where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: sevenDaysAgo } },
+        where: {
+          type: 'VENDA',
+          ...(statusFilter === 'pagos' ? { status: 'APROVADO' } : statusFilter === 'pendentes' ? { status: 'PENDENTE' } : {}),
+          createdAt: { gte: sevenDaysAgo },
+        },
         select: { amount: true, createdAt: true },
       }).catch(() => []),
+      prisma.dispute.findMany({
+        where: { status: { notIn: ['RESOLVIDO_SELLER', 'RESOLVIDO_CONTRA', 'DEVOLVIDO_PARCIAL', 'FINALIZADO'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { merchant: { select: { name: true } } },
+      }).catch(() => []),
+      prisma.saleLog.aggregate({
+        where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+        _sum: { amount: true },
+      }).catch(() => ({ _sum: { amount: 0 } })),
     ])
 
   const resolvedWithdrawIds = new Set(
@@ -119,7 +143,7 @@ export default async function AdminDashboardPage() {
 
   const totalBalance    = allMerchants.reduce((s, m) => s + m.balance, 0)
   const totalPending    = allMerchants.reduce((s, m) => s + m.pendingBalance, 0)
-  const totalRendimento = allMerchants.reduce((s, m) => s + m.balance * (m.cdiRate / 100), 0)
+  const lucroHoje       = todaySales._sum.amount ?? 0
   const topSellers = [...allMerchants]
     .filter((m) => m.balance > 0)
     .sort((a, b) => b.balance - a.balance)
@@ -167,7 +191,7 @@ export default async function AdminDashboardPage() {
         title="Painel"
         breadcrumb="Casa › Administração"
         actions={topbarActions}
-        lucroHoje={totalRendimento}
+        lucroHoje={lucroHoje}
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -175,31 +199,41 @@ export default async function AdminDashboardPage() {
         {/* ── Filtros ── */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-0.5 bg-slate-900/70 border border-slate-800/70 rounded-xl p-1">
-            {['Hoje', '7 dias', '30 dias', 'Personalizado'].map((label) => (
-              <button
-                key={label}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
-                  label === '7 dias'
+            {[
+              { label: 'Hoje',   value: 'hoje' },
+              { label: '7 dias', value: '7d' },
+              { label: '30 dias',value: '30d' },
+            ].map(({ label, value }) => (
+              <Link
+                key={value}
+                href={`/admin/dashboard?periodo=${value}&status=${statusFilter}`}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                  periodo === value
                     ? 'bg-blue-600 text-white shadow shadow-blue-500/30'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
                 }`}
               >
                 {label}
-              </button>
+              </Link>
             ))}
           </div>
           <div className="flex items-center gap-0.5 bg-slate-900/70 border border-slate-800/70 rounded-xl p-1">
-            {['Todos', 'Pagos', 'Pendentes'].map((label) => (
-              <button
-                key={label}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
-                  label === 'Todos'
+            {[
+              { label: 'Todos',     value: 'todos' },
+              { label: 'Pagos',     value: 'pagos' },
+              { label: 'Pendentes', value: 'pendentes' },
+            ].map(({ label, value }) => (
+              <Link
+                key={value}
+                href={`/admin/dashboard?periodo=${periodo}&status=${value}`}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                  statusFilter === value
                     ? 'bg-slate-700 text-slate-100'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
                 }`}
               >
                 {label}
-              </button>
+              </Link>
             ))}
           </div>
         </div>
@@ -317,8 +351,14 @@ export default async function AdminDashboardPage() {
             <div className="px-5 pt-3 pb-0 relative">
               {/* Y-axis labels */}
               <div className="absolute left-5 top-3 flex flex-col justify-between h-[110px] pointer-events-none">
-                {['R$', 'R$', 'R$', 'R$', 'R$ 0'].map((l, i) => (
-                  <span key={i} className="text-[9px] text-slate-800 font-mono leading-none">{l}</span>
+                {[
+                  formatBRLShort(maxVol),
+                  formatBRLShort(maxVol * 0.75),
+                  formatBRLShort(maxVol * 0.5),
+                  formatBRLShort(maxVol * 0.25),
+                  'R$ 0',
+                ].map((l, i) => (
+                  <span key={i} className="text-[9px] text-slate-700 font-mono leading-none">{l}</span>
                 ))}
               </div>
               {/* SVG chart */}
@@ -487,26 +527,53 @@ export default async function AdminDashboardPage() {
             )}
           </div>
 
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+          <div className={`rounded-xl overflow-hidden border ${recentDisputes.length > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
+            <div className={`px-5 py-3.5 border-b flex items-center justify-between ${recentDisputes.length > 0 ? 'border-red-500/15' : 'border-slate-800/60'}`}>
               <div>
                 <p className="text-[13px] font-semibold text-white">Chargebacks Recentes</p>
                 <p className="text-[10.5px] text-slate-600 mt-0.5">Disputas em andamento</p>
               </div>
-              <button className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
-                Veja todos
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <div className="flex items-center gap-2">
+                {recentDisputes.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                    {recentDisputes.length} ativa{recentDisputes.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                <Link href="/admin/disputas" className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+                  Ver todas
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+            {recentDisputes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-700">
+                <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-              </button>
-            </div>
-            <div className="flex flex-col items-center justify-center py-10 text-slate-700">
-              <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <p className="text-[12.5px] font-medium">Nenhum estorno</p>
-              <p className="text-[11px] text-slate-800 mt-0.5">Os chargebacks aparecerão aqui.</p>
-            </div>
+                <p className="text-[12.5px] font-medium">Nenhum chargeback ativo</p>
+                <p className="text-[11px] text-slate-800 mt-0.5">Disputas abertas aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-800/40">
+                {recentDisputes.map((d) => (
+                  <div key={d.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div className="shrink-0 w-7 h-7 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-semibold text-slate-200 truncate">{d.merchant.name}</p>
+                      <p className="text-[10px] text-slate-600">{d.type} · {d.status}</p>
+                    </div>
+                    <p className="text-[13px] font-bold text-red-400 tabular-nums shrink-0">R$ {formatBRL(d.contestedAmount)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </section>
