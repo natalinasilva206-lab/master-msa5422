@@ -103,9 +103,9 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
         q
           ? {
               OR: [
-                { name: { contains: q } },
-                { email: { contains: q } },
-                { document: { contains: q } },
+                { name: { contains: q, mode: 'insensitive' } },
+                { email: { contains: q, mode: 'insensitive' } },
+                { document: { contains: q, mode: 'insensitive' } },
               ],
             }
           : {},

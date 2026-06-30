@@ -5,7 +5,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
+async function requireAdminSession() {
+  const session = await getServerSession(authOptions)
+  if (!session || (session.user as any)?.role !== 'ADMIN') redirect('/login')
+  return session
+}
+
 export async function updateCdiRate(merchantId: string, rate: number) {
+  await requireAdminSession()
   if (rate < 0 || rate > 100) throw new Error('Taxa inválida')
   await prisma.merchant.update({
     where: { id: merchantId },
@@ -15,6 +22,7 @@ export async function updateCdiRate(merchantId: string, rate: number) {
 }
 
 export async function updateBalance(merchantId: string, balance: number) {
+  await requireAdminSession()
   if (balance < 0) throw new Error('Saldo inválido')
   await prisma.merchant.update({
     where: { id: merchantId },
@@ -24,8 +32,7 @@ export async function updateBalance(merchantId: string, balance: number) {
 }
 
 export async function setCdiPrazo(merchantId: string, expiresAt: string | null) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  const session = await requireAdminSession()
   const userId = (session.user as any)?.id as string
   await prisma.auditLog.create({
     data: {
@@ -45,8 +52,7 @@ export async function resolveEarlyWithdraw(
   amount: number,
   approve: boolean
 ): Promise<{ error?: string }> {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  const session = await requireAdminSession()
   const userId = (session.user as any)?.id as string
 
   if (approve) {
