@@ -55,13 +55,17 @@ export function AddToCdiButton({ pendingBalance, currentBalance, cdiRate }: Prop
       <button
         onClick={() => setOpen(true)}
         disabled={pendingBalance <= 0}
-        className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-[12.5px] font-semibold rounded-lg transition-colors"
+        className={`flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-semibold rounded-lg transition-colors ${
+          pendingBalance > 0
+            ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            : 'bg-slate-800/80 border border-slate-700/60 text-slate-500 cursor-not-allowed'
+        }`}
         title={pendingBalance <= 0 ? 'Sem saldo pendente disponível' : undefined}
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
         </svg>
-        Aportar no CDI
+        {pendingBalance > 0 ? 'Aportar no CDI' : 'Sem saldo pendente'}
       </button>
 
       {/* Modal */}
