@@ -161,7 +161,7 @@ const clientGroups: NavGroup[] = [
     label: 'Visão Geral',
     items: [
       {
-        label: 'Painel',
+        label: 'Dashboard',
         href: '/cliente/dashboard',
         icon: <I d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
       },
@@ -171,22 +171,48 @@ const clientGroups: NavGroup[] = [
     label: 'Financeiro',
     items: [
       {
+        label: 'Transações',
+        href: '/cliente/transacoes',
+        icon: <I d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />,
+      },
+      {
+        label: 'Saques',
+        href: '/cliente/saques',
+        icon: <I d="M5 10l7-7m0 0l7 7m-7-7v18" />,
+      },
+      {
+        label: 'CDI e Rendimentos',
+        href: '/cliente/cdi',
+        icon: <I d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />,
+      },
+      {
         label: 'Extrato',
         href: '#',
         soon: true,
         icon: <I d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
       },
+    ],
+  },
+  {
+    label: 'Minha Conta',
+    items: [
       {
-        label: 'Saques',
+        label: 'Meu Plano',
         href: '#',
         soon: true,
-        icon: <I d="M5 10l7-7m0 0l7 7m-7-7v18" />,
+        icon: <I d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />,
       },
       {
-        label: 'Rendimento CDI',
+        label: 'Integrações / API',
         href: '#',
         soon: true,
-        icon: <I d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />,
+        icon: <I d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />,
+      },
+      {
+        label: 'Suporte',
+        href: '#',
+        soon: true,
+        icon: <I d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />,
       },
     ],
   },
