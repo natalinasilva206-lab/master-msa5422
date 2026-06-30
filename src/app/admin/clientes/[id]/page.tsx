@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
 import { ToggleStatusButton } from './ToggleStatusButton'
 import { CreateAccessForm } from './CreateAccessForm'
+import { RiskPanel } from './risk/RiskPanel'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -24,6 +25,10 @@ const typeLabel: Record<string, string> = {
   INFOPRODUTOR: 'Infoprodutor',
 }
 
+function formatBRL(v: number) {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-1 py-3 border-b border-slate-700/40 last:border-0">
@@ -32,7 +37,6 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   )
 }
-
 
 interface PageProps {
   params: { id: string }
@@ -72,16 +76,46 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     )
   }
 
+  // Fetch release schedule logs
+  const futureLogs = await prisma.auditLog.findMany({
+    where: { entityId: merchant.id, action: 'RISK_FUTURE_SET' },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const releaseLogs = futureLogs
+    .map((l) => {
+      try {
+        const m = JSON.parse(l.metadata ?? '{}')
+        return { id: l.id, amount: parseFloat(m.amount || 0), releaseDate: m.releaseDate ?? '', reason: m.reason ?? '' }
+      } catch { return null }
+    })
+    .filter((l): l is NonNullable<typeof l> => l !== null && !!l.releaseDate)
+
+  // Fetch risk audit history
+  const riskLogs = await prisma.auditLog.findMany({
+    where: {
+      entityId: merchant.id,
+      action: { in: ['RISK_RESERVE_SET', 'RISK_BLOCK_SET', 'RISK_FUTURE_SET', 'RISK_RELEASE'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  })
+
+  const riskActionLabel: Record<string, string> = {
+    RISK_RESERVE_SET: 'Reserva separada',
+    RISK_BLOCK_SET:   'Saldo bloqueado',
+    RISK_FUTURE_SET:  'Liberação agendada',
+    RISK_RELEASE:     'Saldo liberado',
+  }
+
   return (
     <div>
       <Topbar title={merchant.name} subtitle="Detalhes do cliente" />
 
-      <div className="p-6 space-y-6 max-w-4xl">
+      <div className="p-6 space-y-6 max-w-5xl">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-slate-400">
-          <Link href="/admin/clientes" className="hover:text-white transition-colors">
-            Clientes
-          </Link>
+          <Link href="/admin/clientes" className="hover:text-white transition-colors">Clientes</Link>
           <span>/</span>
           <span className="text-white">{merchant.name}</span>
         </nav>
@@ -109,6 +143,97 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
           <ToggleStatusButton id={merchant.id} status={merchant.status} />
         </div>
 
+        {/* ══ Saldos completos ══ */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-white font-semibold text-[13.5px]">Saldos do Seller</h3>
+            <span className="text-[10px] font-semibold text-slate-500 bg-slate-800 border border-slate-700/50 px-2 py-0.5 rounded-full uppercase tracking-wide">Visão Financeira Completa</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {[
+              { label: 'Disponível',        value: merchant.pendingBalance,  color: 'text-emerald-400', border: 'border-emerald-500/20', sub: 'livre para saque' },
+              { label: 'Em CDI',            value: merchant.balance,         color: 'text-amber-400',   border: 'border-amber-500/20',   sub: 'rendendo juros' },
+              { label: 'Saldo Reservado',   value: merchant.reservedBalance, color: 'text-amber-400',   border: 'border-amber-500/15',   sub: 'reserva de risco' },
+              { label: 'Saldo Bloqueado',   value: merchant.blockedBalance,  color: 'text-red-400',     border: 'border-red-500/15',     sub: 'chargeback/MED' },
+              { label: 'Liberação Futura',  value: merchant.futureBalance,   color: 'text-blue-400',    border: 'border-blue-500/15',    sub: 'agendado' },
+            ].map((c) => (
+              <div key={c.label} className={`bg-slate-800/50 border ${c.border} rounded-xl p-4`}>
+                <p className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">{c.label}</p>
+                <p className={`text-[17px] font-bold tabular-nums leading-none ${c.color}`}>R$ {formatBRL(c.value)}</p>
+                <p className="text-[9.5px] text-slate-600 mt-1">{c.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ══ Reserva Inteligente de Risco ══ */}
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-700/40 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Reserva Inteligente de Risco</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Gerencie reservas, bloqueios e liberações agendadas do seller</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <RiskPanel
+              merchantId={merchant.id}
+              pendingBalance={merchant.pendingBalance}
+              reservedBalance={merchant.reservedBalance}
+              blockedBalance={merchant.blockedBalance}
+              futureBalance={merchant.futureBalance}
+              releaseLogs={releaseLogs}
+            />
+          </div>
+        </div>
+
+        {/* ══ Histórico de Ações de Risco ══ */}
+        {riskLogs.length > 0 && (
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-700/40">
+              <p className="text-[13px] font-semibold text-white">Histórico de Ações de Risco</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">{riskLogs.length} ação{riskLogs.length !== 1 ? 'ões' : ''} registrada{riskLogs.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="divide-y divide-slate-700/30">
+              {riskLogs.map((log) => {
+                let meta: Record<string, string> = {}
+                try { meta = JSON.parse(log.metadata ?? '{}') } catch {}
+                const isRelease = log.action === 'RISK_RELEASE'
+                return (
+                  <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/30 transition-colors">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isRelease ? 'bg-emerald-500/10 text-emerald-400' : log.action === 'RISK_BLOCK_SET' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={isRelease ? 'M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z' : 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'} />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[12px] font-medium text-slate-200">{riskActionLabel[log.action] ?? log.action}</p>
+                        {meta.reason && (
+                          <span className="text-[10px] text-slate-600 truncate">· {meta.reason}</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-600">
+                        {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
+                        {meta.from && meta.to && <span className="ml-1.5 text-slate-700">{meta.from} → {meta.to}</span>}
+                      </p>
+                    </div>
+                    {meta.amount && (
+                      <p className={`text-[12.5px] font-bold tabular-nums shrink-0 ${isRelease ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {isRelease ? '+' : '-'}R$ {formatBRL(parseFloat(meta.amount))}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Main info card */}
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
@@ -120,43 +245,17 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
           <div className="px-6 py-2">
             <InfoRow label="Nome" value={merchant.name} />
             <InfoRow label="E-mail" value={merchant.email} />
-            <InfoRow
-              label="Documento"
-              value={<span className="font-mono">{merchant.document}</span>}
-            />
+            <InfoRow label="Documento" value={<span className="font-mono">{merchant.document}</span>} />
             <InfoRow label="Tipo" value={typeLabel[merchant.type] ?? merchant.type} />
-            <InfoRow
-              label="Status"
-              value={
-                <Badge variant={statusVariant[merchant.status] ?? 'neutral'}>
-                  {statusLabel[merchant.status] ?? merchant.status}
-                </Badge>
-              }
-            />
-            <InfoRow
-              label="Plano"
-              value={
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300">
-                  {merchant.plan}
-                </span>
-              }
-            />
-            <InfoRow
-              label="Criado em"
-              value={new Date(merchant.createdAt).toLocaleString('pt-BR')}
-            />
-            <InfoRow
-              label="Atualizado em"
-              value={new Date(merchant.updatedAt).toLocaleString('pt-BR')}
-            />
-            <InfoRow
-              label="ID"
-              value={<span className="font-mono text-slate-500 text-xs">{merchant.id}</span>}
-            />
+            <InfoRow label="Status" value={<Badge variant={statusVariant[merchant.status] ?? 'neutral'}>{statusLabel[merchant.status] ?? merchant.status}</Badge>} />
+            <InfoRow label="Plano" value={<span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300">{merchant.plan}</span>} />
+            <InfoRow label="Taxa CDI" value={<span className="text-emerald-400 font-mono">{merchant.cdiRate.toFixed(2)}%/mês</span>} />
+            <InfoRow label="Criado em" value={new Date(merchant.createdAt).toLocaleString('pt-BR')} />
+            <InfoRow label="ID" value={<span className="font-mono text-slate-500 text-xs">{merchant.id}</span>} />
           </div>
         </div>
 
-        {/* Login access section */}
+        {/* Login access */}
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
             <div>
@@ -169,9 +268,7 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
                 Acesso ativo
               </span>
             ) : (
-              <span className="text-xs font-semibold text-slate-500 bg-slate-700/40 border border-slate-600/30 px-2.5 py-1 rounded-full">
-                Sem acesso
-              </span>
+              <span className="text-xs font-semibold text-slate-500 bg-slate-700/40 border border-slate-600/30 px-2.5 py-1 rounded-full">Sem acesso</span>
             )}
           </div>
           <div className="px-6 py-5">
@@ -179,46 +276,10 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
               <div className="text-sm text-slate-400 space-y-1">
                 <p><span className="text-slate-500">Login:</span> <span className="text-slate-200 font-mono">{merchant.users[0].email}</span></p>
                 <p><span className="text-slate-500">Nome:</span> <span className="text-slate-200">{merchant.users[0].name}</span></p>
-                <p className="text-xs text-slate-600 mt-2">Para redefinir a senha, use o banco de dados ou crie uma nova entrada manualmente.</p>
               </div>
             ) : (
               <CreateAccessForm merchantId={merchant.id} email={merchant.email} />
             )}
-          </div>
-        </div>
-
-        {/* Financial summary */}
-        <div>
-          <h3 className="text-white font-semibold mb-3">Resumo financeiro</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                </div>
-                <p className="text-slate-400 text-sm">Saldo disponível</p>
-              </div>
-              <p className="text-2xl font-bold text-emerald-400">
-                R$ {merchant.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-slate-500 text-xs mt-1">Disponível para saque</p>
-            </div>
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <p className="text-slate-400 text-sm">Saldo pendente</p>
-              </div>
-              <p className="text-2xl font-bold text-amber-400">
-                R$ {merchant.pendingBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-slate-500 text-xs mt-1">Aguardando liberação</p>
-            </div>
           </div>
         </div>
 

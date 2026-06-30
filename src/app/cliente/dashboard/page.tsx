@@ -102,12 +102,16 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
   const merchant    = user?.merchant
   const firstName   = session?.user?.name?.split(' ')[0] ?? 'Seller'
-  const saldo       = merchant?.balance       ?? 0
-  const pendente    = merchant?.pendingBalance ?? 0
-  const cdiRate     = merchant?.cdiRate        ?? 1.0
+  const saldo       = merchant?.balance         ?? 0
+  const pendente    = merchant?.pendingBalance  ?? 0
+  const cdiRate     = merchant?.cdiRate          ?? 1.0
   const cdiAnual    = anualizarTaxa(cdiRate)
   const plano       = merchant?.plan ?? '—'
-  const merchantStatus = merchant?.status ?? 'ACTIVE'
+  const merchantStatus   = merchant?.status ?? 'ACTIVE'
+  const reservedBalance  = merchant?.reservedBalance ?? 0
+  const blockedBalance   = merchant?.blockedBalance  ?? 0
+  const futureBalance    = merchant?.futureBalance   ?? 0
+  const totalProtected   = reservedBalance + blockedBalance + futureBalance
 
   const periodo     = searchParams?.periodo ?? '30d'
   const periodoStart = getPeriodStart(periodo)
@@ -272,6 +276,73 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
             </div>
           ))}
         </section>
+
+        {/* ── Aviso de saldo protegido (só exibe quando há algum) ── */}
+        {totalProtected > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-5 py-3.5 flex items-start gap-3">
+            <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-amber-300">Saldo sob proteção de risco</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                R$ {formatBRL(totalProtected)} do seu saldo está em reserva ou bloqueio de proteção da plataforma.
+                {blockedBalance > 0 && <> <span className="text-red-400 font-semibold">R$ {formatBRL(blockedBalance)} bloqueados</span> por disputa/chargeback.</> }
+                {futureBalance > 0 && <> <span className="text-blue-400 font-semibold">R$ {formatBRL(futureBalance)} com liberação agendada.</span></>}
+                {' '}Entre em contato com o suporte para mais informações.
+              </p>
+            </div>
+            <div className="shrink-0 text-right hidden sm:block">
+              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">Total protegido</p>
+              <p className="text-[16px] font-bold text-amber-400 tabular-nums">R$ {formatBRL(totalProtected)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Reserva de Risco (detalhes — só exibe quando há algum saldo protegido) ── */}
+        {totalProtected > 0 && (
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              {
+                label: 'Saldo Reservado',
+                value: reservedBalance,
+                color: reservedBalance > 0 ? 'text-amber-400' : 'text-slate-700',
+                border: reservedBalance > 0 ? 'border-amber-500/20' : 'border-slate-800/40',
+                icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+                sub: 'reserva de risco da plataforma',
+              },
+              {
+                label: 'Saldo Bloqueado',
+                value: blockedBalance,
+                color: blockedBalance > 0 ? 'text-red-400' : 'text-slate-700',
+                border: blockedBalance > 0 ? 'border-red-500/20' : 'border-slate-800/40',
+                icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636',
+                sub: 'chargeback / MED / disputa',
+              },
+              {
+                label: 'Liberação Futura',
+                value: futureBalance,
+                color: futureBalance > 0 ? 'text-blue-400' : 'text-slate-700',
+                border: futureBalance > 0 ? 'border-blue-500/15' : 'border-slate-800/40',
+                icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+                sub: 'com data prevista de liberação',
+              },
+            ].map((c) => (
+              <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 flex items-center gap-3`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${c.value > 0 ? 'bg-slate-800/60' : 'bg-slate-800/30'} text-slate-500`}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={c.icon} />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">{c.label}</p>
+                  <p className={`text-[16px] font-bold tabular-nums leading-tight ${c.color}`}>R$ {formatBRL(c.value)}</p>
+                  <p className="text-[9.5px] text-slate-700 mt-0.5">{c.sub}</p>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* ── Chart + Actions Row ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
