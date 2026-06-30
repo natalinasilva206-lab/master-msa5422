@@ -48,6 +48,13 @@ model Merchant {
   riskReserveMin       Float    @default(0)
   riskReserveMax       Float    @default(0)
   riskNotes            String   @default("")
+  tradeName            String?
+  commercialPhone      String?
+  website              String?
+  instagram            String?
+  segment              String?
+  address              String?
+  legalRepresentative  String?
   users           User[]
   reserveReleases ReserveRelease[]
   disputes        Dispute[]

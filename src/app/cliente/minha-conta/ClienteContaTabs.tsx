@@ -16,6 +16,10 @@ type Merchant = {
   id: string; name: string; email: string; document: string
   type: string; status: string; plan: string
   balance: number; pendingBalance: number; cdiRate: number
+  tradeName: string | null; commercialPhone: string | null
+  website: string | null; instagram: string | null
+  segment: string | null; address: string | null
+  legalRepresentative: string | null
   createdAt: Date
 }
 type User = {
@@ -62,7 +66,7 @@ export function ClienteContaTabs({
       </div>
 
       {activeTab === 'Meu Perfil'   && <PerfilTab user={user} merchant={merchant} />}
-      {activeTab === 'Empresa'      && <EmpresaTab merchant={merchant} />}
+      {activeTab === 'Empresa'      && <EmpresaTab merchant={merchant} securityLogs={securityLogs} />}
       {activeTab === 'Alterar Senha' && <SenhaTab />}
       {activeTab === 'Segurança'    && <SegurancaTab user={user} securityLogs={securityLogs} tokenIat={tokenIat} />}
       {activeTab === 'Preferências' && <PreferenciasTab user={user} />}
@@ -244,10 +248,23 @@ function PerfilTab({ user, merchant }: { user: User; merchant: Merchant | null }
 }
 
 /* ──────────── Empresa ──────────── */
-function EmpresaTab({ merchant }: { merchant: Merchant | null }) {
+
+type ChangeEntry = { field: string; label: string; from: string | null; to: string | null }
+type EmpresaAuditLog = { id: string; action: string; metadata: string | null; createdAt: Date }
+
+function EmpresaTab({
+  merchant,
+  securityLogs,
+}: {
+  merchant: Merchant | null
+  securityLogs: EmpresaAuditLog[]
+}) {
   const [isPending, startTransition] = useTransition()
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+
   const sm = STATUS_META[merchant?.status ?? 'REVIEW'] ?? STATUS_META['REVIEW']
+  const isApproved = merchant?.status === 'ACTIVE'
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -255,8 +272,13 @@ function EmpresaTab({ merchant }: { merchant: Merchant | null }) {
     const fd = new FormData(e.currentTarget)
     startTransition(async () => {
       const res = await updateMerchantInfo(fd)
-      if (res?.error) setMsg({ type: 'error', text: res.error })
-      else            setMsg({ type: 'success', text: 'Informações da empresa atualizadas!' })
+      if (res?.error) {
+        setMsg({ type: 'error', text: res.error })
+      } else if ((res as any)?.statusChangedToReview) {
+        setMsg({ type: 'success', text: 'Alterações salvas. Dados sensíveis entrarão em análise antes de serem aplicados.' })
+      } else {
+        setMsg({ type: 'success', text: 'Informações da empresa atualizadas com sucesso!' })
+      }
     })
   }
 
@@ -268,23 +290,18 @@ function EmpresaTab({ merchant }: { merchant: Merchant | null }) {
     )
   }
 
-  const infoRows = [
-    { label: 'Razão Social / Nome', value: merchant.name },
-    { label: 'CNPJ / CPF',         value: merchant.document },
-    { label: 'E-mail da empresa',  value: merchant.email },
-    { label: 'Plano atual',        value: merchant.plan },
-    { label: 'Taxa CDI/mês',       value: `${merchant.cdiRate.toFixed(2)}%` },
-    { label: 'Membro desde',       value: new Date(merchant.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) },
-  ]
+  // Audit logs specifically for merchant changes
+  const merchantLogs = securityLogs.filter(l => l.action === 'UPDATE_MERCHANT_INFO')
 
   return (
     <div className="space-y-4 max-w-2xl">
-      {/* Read-only company info */}
+
+      {/* ── KYC / read-only header ── */}
       <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
           <div>
-            <p className="text-[13px] font-semibold text-white">Dados da Empresa</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">Para alterar dados cadastrais, contate o suporte</p>
+            <p className="text-[13px] font-semibold text-white">Dados Cadastrais</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Validados pelo KYC — somente leitura</p>
           </div>
           <div className={`flex items-center gap-1.5 text-[10.5px] font-semibold ${sm.color}`}>
             <span className={`w-2 h-2 rounded-full ${sm.dot}`} />
@@ -292,52 +309,218 @@ function EmpresaTab({ merchant }: { merchant: Merchant | null }) {
           </div>
         </div>
         <div className="divide-y divide-slate-800/40">
-          {infoRows.map((row) => (
-            <div key={row.label} className="px-5 py-3 flex items-center justify-between gap-3">
-              <p className="text-[11px] text-slate-600 shrink-0">{row.label}</p>
-              <p className="text-[12.5px] text-slate-300 font-medium text-right">{row.value}</p>
+          {[
+            { label: 'Razão Social',    value: merchant.name },
+            { label: 'CNPJ / CPF',     value: merchant.document },
+            { label: 'E-mail da empresa', value: merchant.email },
+            { label: 'Plano atual',     value: merchant.plan },
+            { label: 'Taxa CDI/mês',   value: `${merchant.cdiRate.toFixed(2)}%` },
+            { label: 'Membro desde',   value: new Date(merchant.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) },
+          ].map(({ label, value }) => (
+            <div key={label} className="px-5 py-3 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-slate-600 shrink-0">{label}</p>
+              <p className="text-[12.5px] text-slate-300 font-medium text-right">{value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Editable field: type */}
+      {/* ── Editable fields ── */}
       <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 space-y-4">
         <div>
-          <p className="text-[13px] font-semibold text-white">Tipo de Negócio</p>
-          <p className="text-[11px] text-slate-500 mt-0.5">Selecione o segmento que melhor descreve sua empresa</p>
+          <p className="text-[13px] font-semibold text-white">Informações Editáveis</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Alterações em endereço e responsável legal podem gerar revisão de cadastro
+          </p>
         </div>
         <div className="border-t border-slate-800/50" />
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
-              Tipo de negócio
-            </label>
-            <select
-              name="type"
-              defaultValue={merchant.type}
-              className="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-4 py-2.5 text-[13px] text-slate-200 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
-            >
-              {Object.entries(TYPE_LABELS).map(([val, label]) => (
-                <option key={val} value={val} className="bg-slate-900">{label}</option>
-              ))}
-            </select>
+          {/* Row 1 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Nome Fantasia"
+              name="tradeName"
+              defaultValue={merchant.tradeName ?? ''}
+              placeholder="Ex.: Loja ABC"
+            />
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+                Tipo de Negócio
+              </label>
+              <select
+                name="type"
+                defaultValue={merchant.type}
+                className="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-4 py-2.5 text-[13px] text-slate-200 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
+              >
+                {Object.entries(TYPE_LABELS).map(([val, lbl]) => (
+                  <option key={val} value={val} className="bg-slate-900">{lbl}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 2 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Segmento"
+              name="segment"
+              defaultValue={merchant.segment ?? ''}
+              placeholder="Ex.: Moda feminina"
+            />
+            <Field
+              label="Telefone Comercial"
+              name="commercialPhone"
+              defaultValue={merchant.commercialPhone ?? ''}
+              placeholder="+55 (11) 3000-0000"
+            />
+          </div>
+
+          {/* Row 3 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field
+              label="Site"
+              name="website"
+              defaultValue={merchant.website ?? ''}
+              placeholder="https://exemplo.com.br"
+            />
+            <Field
+              label="Instagram"
+              name="instagram"
+              defaultValue={merchant.instagram ?? ''}
+              placeholder="@seuinstagram"
+            />
+          </div>
+
+          {/* Sensitive fields — shown with warning */}
+          <div className="rounded-xl bg-slate-800/20 border border-slate-800/40 p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-[10.5px] text-amber-400 font-semibold">
+                Campos abaixo são sensíveis — alterações geram revisão de cadastro{isApproved ? '' : ' (conta já em análise)'}
+              </p>
+            </div>
+            <Field
+              label="Endereço Comercial"
+              name="address"
+              defaultValue={merchant.address ?? ''}
+              placeholder="Rua, número, bairro, cidade — UF"
+            />
+            <Field
+              label="Responsável Legal"
+              name="legalRepresentative"
+              defaultValue={merchant.legalRepresentative ?? ''}
+              placeholder="Nome completo do sócio/responsável"
+            />
           </div>
 
           {msg && <Alert type={msg.type} text={msg.text} />}
-          <SaveButton isPending={isPending} label="Atualizar Tipo" />
+
+          <div className="pt-1">
+            <SaveButton isPending={isPending} />
+          </div>
         </form>
       </div>
+
+      {/* ── Change history ── */}
+      {merchantLogs.length > 0 && (
+        <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(o => !o)}
+            className="w-full px-5 py-3.5 flex items-center justify-between text-left border-b border-slate-800/60 hover:bg-slate-800/20 transition-colors"
+          >
+            <div>
+              <p className="text-[13px] font-semibold text-white">Histórico de Alterações</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">{merchantLogs.length} registro{merchantLogs.length !== 1 ? 's' : ''}</p>
+            </div>
+            <svg
+              className={`w-4 h-4 text-slate-500 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {historyOpen && (
+            <div className="divide-y divide-slate-800/40">
+              {merchantLogs.map((log) => {
+                let meta: { changes?: ChangeEntry[]; updatedAt?: string; sensitiveReview?: boolean } = {}
+                try { meta = JSON.parse(log.metadata ?? '{}') } catch {}
+                const changes: ChangeEntry[] = meta.changes ?? []
+
+                return (
+                  <div key={log.id} className="px-5 py-4">
+                    {/* Header row */}
+                    <div className="flex items-center justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="w-6 h-6 rounded-md bg-slate-700/50 flex items-center justify-center shrink-0">
+                          <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </div>
+                        <p className="text-[12px] font-semibold text-slate-200">
+                          {changes.length} campo{changes.length !== 1 ? 's' : ''} alterado{changes.length !== 1 ? 's' : ''}
+                        </p>
+                        {meta.sensitiveReview && (
+                          <span className="text-[9.5px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            Em análise
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-slate-600">
+                          {new Date(log.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Field-level diff */}
+                    {changes.length > 0 && (
+                      <div className="rounded-lg overflow-hidden border border-slate-800/50">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="bg-slate-800/40">
+                              <th className="text-left px-3 py-2 text-[9.5px] font-bold uppercase tracking-widest text-slate-600">Campo</th>
+                              <th className="text-left px-3 py-2 text-[9.5px] font-bold uppercase tracking-widest text-slate-600">Anterior</th>
+                              <th className="text-left px-3 py-2 text-[9.5px] font-bold uppercase tracking-widest text-slate-600">Novo</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/30">
+                            {changes.map((c, i) => (
+                              <tr key={i} className="hover:bg-slate-800/20 transition-colors">
+                                <td className="px-3 py-2 font-semibold text-slate-400 whitespace-nowrap">{c.label}</td>
+                                <td className="px-3 py-2 text-red-400/70 max-w-[160px] truncate">
+                                  {c.from ?? <span className="text-slate-700 italic">vazio</span>}
+                                </td>
+                                <td className="px-3 py-2 text-emerald-400 max-w-[160px] truncate">
+                                  {c.to ?? <span className="text-slate-700 italic">removido</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Support note */}
       <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl px-4 py-3.5 flex items-start gap-3">
         <svg className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
         <div>
-          <p className="text-[12px] font-semibold text-amber-400">Dados protegidos</p>
+          <p className="text-[12px] font-semibold text-amber-400">Dados protegidos pelo KYC</p>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Nome, CNPJ/CPF e e-mail da empresa são validados pelo KYC e só podem ser alterados pelo suporte.
+            Razão Social, CNPJ/CPF e e-mail da empresa só podem ser alterados pelo suporte.
             {' '}<a href="/cliente/suporte" className="text-amber-400 hover:underline">Abrir chamado</a>
           </p>
         </div>

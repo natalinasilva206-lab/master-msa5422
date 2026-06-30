@@ -47,37 +47,107 @@ export async function updateMerchantInfo(formData: FormData) {
   const session  = await requireClient()
   const userId   = (session.user as any).id as string
 
-  const type = (formData.get('type') as string | null)?.trim() ?? ''
-
   const user = await prisma.user.findUnique({
     where:   { id: userId },
-    include: { merchant: { select: { id: true } } },
+    include: {
+      merchant: {
+        select: {
+          id: true, status: true, type: true,
+          tradeName: true, commercialPhone: true, website: true,
+          instagram: true, segment: true, address: true,
+          legalRepresentative: true,
+        },
+      },
+    },
   })
-  const merchantId = user?.merchant?.id
-  if (!merchantId) return { error: 'Empresa não encontrada.' }
+  const merchant = user?.merchant
+  if (!merchant) return { error: 'Empresa não encontrada.' }
+
+  // Fields that can be edited
+  const editableFields: Record<string, string | null> = {
+    type:               (formData.get('type')               as string | null)?.trim() || null,
+    tradeName:          (formData.get('tradeName')           as string | null)?.trim() || null,
+    commercialPhone:    (formData.get('commercialPhone')     as string | null)?.trim() || null,
+    website:            (formData.get('website')             as string | null)?.trim() || null,
+    instagram:          (formData.get('instagram')           as string | null)?.trim() || null,
+    segment:            (formData.get('segment')             as string | null)?.trim() || null,
+    address:            (formData.get('address')             as string | null)?.trim() || null,
+    legalRepresentative:(formData.get('legalRepresentative') as string | null)?.trim() || null,
+  }
 
   const validTypes = ['ECOMMERCE', 'INFOPRODUTOR', 'SERVICOS', 'MARKETPLACE']
-  if (type && !validTypes.includes(type)) return { error: 'Tipo inválido.' }
+  if (editableFields.type && !validTypes.includes(editableFields.type))
+    return { error: 'Tipo de negócio inválido.' }
 
-  if (type) {
-    await prisma.merchant.update({
-      where: { id: merchantId },
-      data:  { type },
-    })
+  // Build diff for audit log
+  const fieldLabels: Record<string, string> = {
+    type:               'Tipo de negócio',
+    tradeName:          'Nome fantasia',
+    commercialPhone:    'Telefone comercial',
+    website:            'Site',
+    instagram:          'Instagram',
+    segment:            'Segmento',
+    address:            'Endereço',
+    legalRepresentative:'Responsável legal',
   }
+  const prev: Record<string, string | null> = {
+    type:               merchant.type,
+    tradeName:          merchant.tradeName,
+    commercialPhone:    merchant.commercialPhone,
+    website:            merchant.website,
+    instagram:          merchant.instagram,
+    segment:            merchant.segment,
+    address:            merchant.address,
+    legalRepresentative:merchant.legalRepresentative,
+  }
+
+  const changes: Array<{ field: string; label: string; from: string | null; to: string | null }> = []
+  for (const [key, newVal] of Object.entries(editableFields)) {
+    const oldVal = prev[key] ?? null
+    if (newVal !== oldVal) {
+      changes.push({ field: key, label: fieldLabels[key] ?? key, from: oldVal, to: newVal })
+    }
+  }
+
+  if (changes.length === 0) return { success: true }
+
+  // Sensitive fields that trigger a review status when changed
+  const sensitiveFields = ['address', 'legalRepresentative']
+  const hasSensitiveChange = changes.some(c => sensitiveFields.includes(c.field))
+
+  const updateData: Record<string, string | null | undefined> = {}
+  for (const [key, val] of Object.entries(editableFields)) {
+    updateData[key] = val ?? null
+  }
+  if (hasSensitiveChange && merchant.status === 'ACTIVE') {
+    updateData.status = 'REVIEW'
+  }
+
+  await prisma.merchant.update({
+    where: { id: merchant.id },
+    data:  updateData as any,
+  })
 
   await prisma.auditLog.create({
     data: {
       userId,
       action:   'UPDATE_MERCHANT_INFO',
       entity:   'Merchant',
-      entityId: merchantId,
-      metadata: JSON.stringify({ type, updatedAt: new Date().toISOString() }),
+      entityId: merchant.id,
+      metadata: JSON.stringify({
+        changes,
+        sensitiveReview: hasSensitiveChange && merchant.status === 'ACTIVE',
+        updatedAt: new Date().toISOString(),
+      }),
     },
   })
 
   revalidatePath('/cliente/minha-conta')
-  return { success: true }
+  return {
+    success: true,
+    changesCount: changes.length,
+    statusChangedToReview: hasSensitiveChange && merchant.status === 'ACTIVE',
+  }
 }
 
 /* ── Alterar senha ── */
