@@ -77,16 +77,15 @@ export default async function ClienteDashboardPage() {
       })
     : []
 
-  const totalCdiCredits = merchant
+  const cdiCreditLogs = merchant
     ? await prisma.auditLog.findMany({
         where: { entityId: merchant.id, action: 'CDI_CREDIT' },
         select: { metadata: true },
-      }).then((logs) =>
-        logs.reduce((s, l) => {
-          try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
-        }, 0)
-      )
-    : 0
+      })
+    : []
+  const totalCdiCredits = cdiCreditLogs.reduce((s, l) => {
+    try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
+  }, 0)
 
   const merchantStatus = merchant?.status ?? 'ACTIVE'
 
