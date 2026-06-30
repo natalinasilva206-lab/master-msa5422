@@ -51,23 +51,19 @@ export default async function ClienteCdiPage() {
   const cdiAnual = anualizarTaxa(cdiRate)
   const plano    = merchant?.plan      ?? '—'
 
-  // Busca lock ativo e solicitação pendente
+  // Busca títulos de bloqueio e solicitações pendentes
   const [lockLogs, earlyRequestLogs, earlyResolvedLogs] = merchant
     ? await Promise.all([
         prisma.auditLog.findMany({
-          where: { entityId: merchant.id, action: { in: ['CDI_LOCK_SET', 'CDI_LIMIT_SET'] } },
+          where: { entityId: merchant.id, action: 'CDI_LOCK_SET' },
           orderBy: { createdAt: 'desc' },
-          take: 1,
         }),
         prisma.auditLog.findMany({
           where: { entityId: merchant.id, action: 'CDI_EARLY_REQUEST' },
           orderBy: { createdAt: 'desc' },
-          take: 5,
         }),
         prisma.auditLog.findMany({
           where: { entityId: merchant.id, action: { in: ['CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] } },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
         }),
       ])
     : [[], [], []]
@@ -77,22 +73,46 @@ export default async function ClienteCdiPage() {
     try { const m = JSON.parse(log.metadata ?? '{}'); if (m.requestLogId) resolvedReqIds.add(m.requestLogId) } catch {}
   }
 
-  let lockExpiresAt: string | null = null
-  if (lockLogs[0]) {
+  // Monta os títulos ativos (não vencidos)
+  const pendingByLock = new Map<string, { id: string; amount: number }>()
+  for (const r of earlyRequestLogs) {
+    if (resolvedReqIds.has(r.id)) continue
     try {
-      const m = JSON.parse(lockLogs[0].metadata ?? '{}')
-      const exp = m.expiresAt as string | null
-      if (exp && new Date(exp + 'T23:59:59') > new Date()) lockExpiresAt = exp
+      const m = JSON.parse(r.metadata ?? '{}')
+      if (m.lockId && !pendingByLock.has(m.lockId)) {
+        pendingByLock.set(m.lockId, { id: r.id, amount: parseFloat(m.amount || 0) })
+      }
     } catch {}
   }
 
-  const pendingEarlyReq = earlyRequestLogs.find((r) => !resolvedReqIds.has(r.id))
-  let pendingRequest: { id: string; amount: number } | null = null
-  if (pendingEarlyReq) {
-    try { const m = JSON.parse(pendingEarlyReq.metadata ?? '{}'); pendingRequest = { id: pendingEarlyReq.id, amount: parseFloat(m.amount || 0) } } catch {}
+  type CdiTituloData = { id: string; amount: number; expiresAt: string; rate: number; createdAt: string; pendingRequestId?: string; pendingAmount?: number }
+  const titulos: CdiTituloData[] = []
+  let lockedTotal = 0
+
+  for (const log of lockLogs) {
+    try {
+      const m = JSON.parse(log.metadata ?? '{}')
+      if (!m.expiresAt || !m.amount) continue
+      const exp = m.expiresAt as string
+      if (new Date(exp + 'T23:59:59') <= new Date()) continue // vencido
+      const pending = pendingByLock.get(log.id)
+      titulos.push({
+        id: log.id,
+        amount: parseFloat(m.amount),
+        expiresAt: exp,
+        rate: parseFloat(m.rate ?? cdiRate),
+        createdAt: log.createdAt.toISOString(),
+        pendingRequestId: pending?.id,
+        pendingAmount: pending?.amount,
+      })
+      lockedTotal += parseFloat(m.amount)
+    } catch {}
   }
 
-  const isLocked = lockExpiresAt !== null
+  const freeCdiBalance = Math.max(0, saldo - lockedTotal)
+  const isLocked = lockedTotal > 0 && freeCdiBalance === 0
+  const lockExpiresAt: string | null = null // mantido para compatibilidade
+  const pendingRequest: { id: string; amount: number } | null = null
 
   const rendimentoMes = saldo * (cdiRate / 100)
   const rendimento12m = saldo * (Math.pow(1 + cdiRate / 100, 12) - 1)
@@ -123,7 +143,7 @@ export default async function ClienteCdiPage() {
         subtitle={`Taxa atual: ${cdiRate.toFixed(2)}%/mês · ${cdiAnual.toFixed(2)}% a.a.`}
         actions={
           <div className="flex items-center gap-2">
-            {!isLocked && <WithdrawFromCdiButton cdiBalance={saldo} cdiRate={cdiRate} />}
+            {freeCdiBalance > 0 && <WithdrawFromCdiButton cdiBalance={freeCdiBalance} cdiRate={cdiRate} />}
             <AddToCdiButton
               pendingBalance={pendente}
               currentBalance={saldo}
@@ -163,18 +183,8 @@ export default async function ClienteCdiPage() {
           />
         </div>
 
-        {/* Lock / Resgate CDI */}
-        {saldo > 0 && (
-          <CdiLockButton
-            cdiBalance={saldo}
-            cdiRate={cdiRate}
-            lockExpiresAt={lockExpiresAt}
-            pendingRequest={pendingRequest}
-          />
-        )}
-
-        {/* Resgatar CDI — só aparece quando NÃO bloqueado */}
-        {saldo > 0 && !isLocked && !pendingRequest && (
+        {/* Resgatar saldo livre */}
+        {freeCdiBalance > 0 && (
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-slate-800/60 text-slate-400">
@@ -184,15 +194,27 @@ export default async function ClienteCdiPage() {
               </div>
               <div>
                 <p className="text-[12.5px] font-semibold text-slate-300">
-                  R$ {formatBRL(saldo)} em CDI — resgatar para disponível
+                  R$ {formatBRL(freeCdiBalance)} CDI livre — resgatar para disponível
                 </p>
                 <p className="text-[10.5px] text-slate-500 mt-0.5">
-                  O valor resgatado vai para seu saldo disponível e pode ser sacado
+                  {lockedTotal > 0
+                    ? `R$ ${formatBRL(lockedTotal)} bloqueados em títulos`
+                    : 'O valor resgatado vai para seu saldo disponível'}
                 </p>
               </div>
             </div>
-            <WithdrawFromCdiButton cdiBalance={saldo} cdiRate={cdiRate} />
+            <WithdrawFromCdiButton cdiBalance={freeCdiBalance} cdiRate={cdiRate} />
           </div>
+        )}
+
+        {/* Títulos de bloqueio */}
+        {saldo > 0 && (
+          <CdiLockButton
+            cdiBalance={saldo}
+            freeCdiBalance={freeCdiBalance}
+            cdiRate={cdiRate}
+            titulos={titulos}
+          />
         )}
 
         {/* KPIs */}

@@ -87,16 +87,19 @@ export async function withdrawFromCdi(amount: number): Promise<{ error?: string 
   return {}
 }
 
-export async function setCdiLock(months: number, expiresAt: string): Promise<{ error?: string }> {
+export async function setCdiLock(amount: number, expiresAt: string): Promise<{ error?: string }> {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
   const userId = (session.user as any)?.id as string | undefined
   if (!userId) return { error: 'Sessão inválida.' }
+  if (!amount || amount <= 0) return { error: 'Informe um valor válido.' }
 
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
   const merchant = user?.merchant
   if (!merchant) return { error: 'Merchant não encontrado.' }
-  if (merchant.balance <= 0) return { error: 'Nenhum saldo em CDI para bloquear.' }
+  if (amount > merchant.balance) return { error: 'Valor maior que o saldo em CDI.' }
+  if (!expiresAt) return { error: 'Informe uma data de vencimento.' }
+  if (new Date(expiresAt) <= new Date()) return { error: 'A data deve ser no futuro.' }
 
   await prisma.auditLog.create({
     data: {
@@ -104,7 +107,7 @@ export async function setCdiLock(months: number, expiresAt: string): Promise<{ e
       action:   'CDI_LOCK_SET',
       entity:   'Merchant',
       entityId: merchant.id,
-      metadata: JSON.stringify({ expiresAt, months, setBy: 'seller' }),
+      metadata: JSON.stringify({ amount, expiresAt, rate: merchant.cdiRate, setBy: 'seller', createdAt: new Date().toISOString() }),
     },
   })
 
@@ -112,7 +115,7 @@ export async function setCdiLock(months: number, expiresAt: string): Promise<{ e
   return {}
 }
 
-export async function requestEarlyWithdraw(amount: number): Promise<{ error?: string }> {
+export async function requestEarlyWithdraw(lockId: string, amount: number): Promise<{ error?: string }> {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
   const userId = (session.user as any)?.id as string | undefined
@@ -130,7 +133,7 @@ export async function requestEarlyWithdraw(amount: number): Promise<{ error?: st
       action:   'CDI_EARLY_REQUEST',
       entity:   'Merchant',
       entityId: merchant.id,
-      metadata: JSON.stringify({ amount, status: 'PENDING' }),
+      metadata: JSON.stringify({ amount, lockId, status: 'PENDING' }),
     },
   })
 
