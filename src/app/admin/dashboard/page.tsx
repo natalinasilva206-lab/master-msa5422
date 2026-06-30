@@ -20,10 +20,10 @@ const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'neutral'
 }
 
 const planDot: Record<string, string> = {
-  Start:   'bg-slate-400',
-  Growth:  'bg-blue-400',
-  Prime:   'bg-purple-400',
-  Black:   'bg-slate-200',
+  Start:  'bg-slate-400',
+  Growth: 'bg-blue-400',
+  Prime:  'bg-purple-400',
+  Black:  'bg-slate-200',
 }
 
 const avatarGradients = [
@@ -37,6 +37,11 @@ const avatarGradients = [
   'from-teal-500 to-teal-700',
 ]
 
+const typeLabel: Record<string, string> = {
+  ECOMMERCE:    'E-commerce',
+  INFOPRODUTOR: 'Infoprodutor',
+}
+
 function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
 }
@@ -45,10 +50,28 @@ function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const typeLabel: Record<string, string> = {
-  ECOMMERCE:    'E-commerce',
-  INFOPRODUTOR: 'Infoprodutor',
+function formatBRLShort(v: number) {
+  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2).replace('.', ',')}M`
+  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(1).replace('.', ',')}K`
+  return `R$ ${formatBRL(v)}`
 }
+
+/* Decorative smooth area chart path (7 data points 0-100) */
+function smoothPath(pts: number[], w: number, h: number, pad = 10): string {
+  const xs = pts.map((_, i) => pad + (i / (pts.length - 1)) * (w - pad * 2))
+  const ys = pts.map((p) => h - pad - (p / 100) * (h - pad * 2))
+  let d = `M ${xs[0]} ${ys[0]}`
+  for (let i = 1; i < xs.length; i++) {
+    const cx = (xs[i - 1] + xs[i]) / 2
+    d += ` C ${cx} ${ys[i - 1]}, ${cx} ${ys[i]}, ${xs[i]} ${ys[i]}`
+  }
+  return d
+}
+
+const chartPts = [18, 35, 28, 72, 55, 88, 62]
+const W = 500, H = 120
+const linePath = smoothPath(chartPts, W, H)
+const areaPath = linePath + ` L ${W - 10} ${H - 10} L 10 ${H - 10} Z`
 
 export default async function AdminDashboardPage() {
   const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants] =
@@ -57,7 +80,9 @@ export default async function AdminDashboardPage() {
       prisma.merchant.count({ where: { status: 'REVIEW' } }),
       prisma.merchant.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }),
       prisma.merchant.count(),
-      prisma.merchant.findMany({ select: { id: true, name: true, balance: true, cdiRate: true, plan: true, status: true } }),
+      prisma.merchant.findMany({
+        select: { id: true, name: true, balance: true, cdiRate: true, plan: true, status: true },
+      }),
     ])
 
   const totalBalance = allMerchants.reduce((s, m) => s + m.balance, 0)
@@ -69,15 +94,15 @@ export default async function AdminDashboardPage() {
   const maxBalance = topSellers[0]?.balance ?? 1
 
   const topbarActions = (
-    <div className="flex items-center gap-2">
-      <button className="flex items-center gap-1.5 text-[12px] text-slate-400 hover:text-slate-200 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <div className="flex items-center gap-1.5">
+      <button className="flex items-center gap-1.5 text-[11.5px] text-slate-400 hover:text-slate-200 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         Atualizar
       </button>
-      <button className="flex items-center gap-1.5 text-[12px] text-slate-300 hover:text-white px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <button className="flex items-center gap-1.5 text-[11.5px] text-slate-300 hover:text-white px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         Exportar
@@ -88,22 +113,23 @@ export default async function AdminDashboardPage() {
   return (
     <div>
       <Topbar
-        title="Dashboard"
-        subtitle="Acompanhe a operação geral da Master Pagamentos."
+        title="Painel"
+        breadcrumb="Casa › Administração"
         actions={topbarActions}
+        lucroHoje={totalRendimento}
       />
 
-      <div className="p-5 xl:p-8 space-y-5">
+      <div className="p-4 xl:p-6 space-y-4">
 
-        {/* ── Filtros de período ── */}
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800/80 rounded-xl p-1">
+        {/* ── Filtros ── */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-0.5 bg-slate-900/70 border border-slate-800/70 rounded-xl p-1">
             {['Hoje', '7 dias', '30 dias', 'Personalizado'].map((label) => (
               <button
                 key={label}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                   label === '7 dias'
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                    ? 'bg-blue-600 text-white shadow shadow-blue-500/30'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
                 }`}
               >
@@ -111,13 +137,13 @@ export default async function AdminDashboardPage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1 bg-slate-900/60 border border-slate-800/80 rounded-xl p-1">
+          <div className="flex items-center gap-0.5 bg-slate-900/70 border border-slate-800/70 rounded-xl p-1">
             {['Todos', 'Pagos', 'Pendentes'].map((label) => (
               <button
                 key={label}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                   label === 'Todos'
-                    ? 'bg-slate-700/80 text-slate-200'
+                    ? 'bg-slate-700 text-slate-100'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
                 }`}
               >
@@ -127,169 +153,206 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* ── KPIs ── */}
+        {/* ── KPI Cards ── */}
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
 
           {/* Volume Processado */}
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 hover:bg-slate-800/40 hover:border-slate-700/60 transition-all duration-200 group">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Volume Processado</p>
+                <p className="text-[20px] font-bold text-white tabular-nums leading-none">—</p>
+                <p className="text-[10px] text-slate-700 mt-1.5">Em desenvolvimento</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
-              <span className="text-[10px] text-slate-700 font-medium uppercase tracking-wider">em breve</span>
             </div>
-            <p className="text-[22px] font-bold text-white tabular-nums leading-none">—</p>
-            <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Volume Processado</p>
           </div>
 
-          {/* Sellers Ativos */}
-          <div className="bg-slate-900/50 border border-emerald-500/20 rounded-xl p-4 hover:bg-slate-800/40 hover:border-emerald-500/30 transition-all duration-200">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+          {/* Empresas Ativas */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Empresas Ativas</p>
+                <p className="text-[20px] font-bold text-white tabular-nums leading-none">{activeMerchants}</p>
+                <p className="text-[10px] text-slate-500 mt-1.5">{totalMerchants} total cadastradas</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
-              <span className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">+{activeMerchants}</span>
             </div>
-            <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">{totalMerchants}</p>
-            <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Sellers Totais</p>
           </div>
 
-          {/* Saldo em Custódia */}
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 hover:bg-slate-800/40 hover:border-slate-700/60 transition-all duration-200">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+          {/* Transações */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Transações</p>
+                <p className="text-[20px] font-bold text-white tabular-nums leading-none">—</p>
+                <p className="text-[10px] text-slate-700 mt-1.5">Em desenvolvimento</p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0 ml-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Estornos */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Estornos</p>
+                <p className="text-[20px] font-bold text-white tabular-nums leading-none">0</p>
+                <p className="text-[10px] text-emerald-600 mt-1.5">Nenhum em aberto</p>
+              </div>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ml-2 ${reviewMerchants > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800/60 text-slate-600'}`}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Saldo Merchants */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors cursor-pointer group">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0">
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Merchants</p>
+                <p className="text-[17px] font-bold text-emerald-400 tabular-nums leading-none">{formatBRLShort(totalBalance)}</p>
+                <Link href="/admin/cdi" className="text-[10px] text-slate-600 group-hover:text-blue-400 mt-1.5 block transition-colors">
+                  Clique para ver detalhes
+                </Link>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
             </div>
-            <p className="text-[18px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(totalBalance)}</p>
-            <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Saldo em Custódia</p>
-          </div>
-
-          {/* Rendimento CDI */}
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 hover:bg-slate-800/40 hover:border-slate-700/60 transition-all duration-200">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-            </div>
-            <p className="text-[18px] font-bold text-amber-400 tabular-nums leading-none">R$ {formatBRL(totalRendimento)}</p>
-            <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Rendimento CDI/mês</p>
-          </div>
-
-          {/* Em Revisão */}
-          <div className={`bg-slate-900/50 border rounded-xl p-4 hover:bg-slate-800/40 transition-all duration-200 ${reviewMerchants > 0 ? 'border-amber-500/20 hover:border-amber-500/30' : 'border-slate-800/80'}`}>
-            <div className="flex items-start justify-between mb-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${reviewMerchants > 0 ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-800/60 text-slate-600'}`}>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              {reviewMerchants > 0 && (
-                <span className="flex h-2 w-2 relative mt-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-              )}
-            </div>
-            <p className={`text-[22px] font-bold tabular-nums leading-none ${reviewMerchants > 0 ? 'text-amber-400' : 'text-slate-600'}`}>{reviewMerchants}</p>
-            <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Em Revisão</p>
           </div>
 
         </section>
 
-        {/* ── Gráfico + Top Sellers ── */}
+        {/* ── Gráfico + Principais Empresas ── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-          {/* Gráfico de volume (decorativo) */}
-          <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+          {/* Gráfico area/line */}
+          <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
                 <p className="text-[13px] font-semibold text-white">Volume de Transações</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Últimos 7 dias · dados demonstrativos</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Últimos 7 dias · dados demonstrativos</p>
               </div>
-              <span className="text-[10.5px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full font-medium">
-                Em desenvolvimento
-              </span>
+              <button className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+                Ver relatório
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
-            <div className="px-5 pt-4 pb-2">
-              {/* Decorative SVG area chart */}
-              <div className="flex items-end gap-1 h-[120px] mb-2">
-                {[38, 55, 42, 70, 58, 85, 62].map((h, i) => (
-                  <div key={i} className="flex-1 flex flex-col justify-end gap-0.5">
-                    <div
-                      className="w-full rounded-t-sm bg-gradient-to-t from-blue-600/60 to-blue-400/30 border-t border-blue-500/40 transition-all duration-500"
-                      style={{ height: `${h}%` }}
-                    />
-                  </div>
+            <div className="px-5 pt-3 pb-0 relative">
+              {/* Y-axis labels */}
+              <div className="absolute left-5 top-3 flex flex-col justify-between h-[110px] pointer-events-none">
+                {['R$', 'R$', 'R$', 'R$', 'R$ 0'].map((l, i) => (
+                  <span key={i} className="text-[9px] text-slate-800 font-mono leading-none">{l}</span>
                 ))}
               </div>
-              <div className="flex justify-between">
-                {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map((d) => (
-                  <span key={d} className="flex-1 text-center text-[10px] text-slate-700 font-medium">{d}</span>
+              {/* SVG chart */}
+              <svg
+                viewBox={`0 0 ${W} ${H}`}
+                className="w-full"
+                style={{ height: 120 }}
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.01" />
+                  </linearGradient>
+                </defs>
+                {/* Grid lines */}
+                {[0.25, 0.5, 0.75].map((f, i) => (
+                  <line
+                    key={i}
+                    x1={10}
+                    y1={10 + f * (H - 20)}
+                    x2={W - 10}
+                    y2={10 + f * (H - 20)}
+                    stroke="#1e293b"
+                    strokeWidth={1}
+                  />
                 ))}
-              </div>
+                {/* Area fill */}
+                <path d={areaPath} fill="url(#areaGrad)" />
+                {/* Line */}
+                <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" />
+                {/* Dots */}
+                {chartPts.map((p, i) => {
+                  const x = 10 + (i / (chartPts.length - 1)) * (W - 20)
+                  const y = 10 + (1 - p / 100) * (H - 20)
+                  return (
+                    <circle key={i} cx={x} cy={y} r={3} fill="#3b82f6" stroke="#080c12" strokeWidth={1.5} />
+                  )
+                })}
+              </svg>
             </div>
-            <div className="px-5 py-3 border-t border-slate-800/60 grid grid-cols-3 divide-x divide-slate-800/60">
-              <div className="pr-4">
-                <p className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Pico</p>
-                <p className="text-[13px] font-bold text-white mt-0.5">Sábado</p>
-              </div>
-              <div className="px-4">
-                <p className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Aprovação</p>
-                <p className="text-[13px] font-bold text-emerald-400 mt-0.5">—%</p>
-              </div>
-              <div className="pl-4">
-                <p className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold">Chargebacks</p>
-                <p className="text-[13px] font-bold text-white mt-0.5">—</p>
-              </div>
+            {/* X-axis */}
+            <div className="px-5 pb-3 flex justify-between">
+              {['ter., 23', 'qua., 24', 'qui., 25', 'sex., 26', 'sáb., 27', 'dom., 28', 'seg., 29'].map((d) => (
+                <span key={d} className="text-[9.5px] text-slate-700 font-medium">{d}</span>
+              ))}
             </div>
           </div>
 
-          {/* Top Sellers */}
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
-              <p className="text-[13px] font-semibold text-white">Principais Sellers</p>
+          {/* Principais Empresas */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-4 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+              <p className="text-[13px] font-semibold text-white">Principais Empresas</p>
               <Link
                 href="/admin/cdi"
-                className="text-[11px] text-slate-500 hover:text-blue-400 transition-colors font-medium"
+                className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium"
               >
-                Ver CDI →
+                Ver todas
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </Link>
             </div>
             {topSellers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-slate-700">
+              <div className="flex flex-col items-center justify-center py-12 text-slate-700">
                 <p className="text-[12px]">Nenhum saldo cadastrado</p>
-                <Link href="/admin/cdi" className="text-[11px] text-blue-500 mt-1 hover:text-blue-400">Configurar CDI →</Link>
+                <Link href="/admin/cdi" className="text-[11px] text-blue-500 mt-1 hover:text-blue-400">Configurar saldos →</Link>
               </div>
             ) : (
-              <div className="divide-y divide-slate-800/50">
+              <div className="divide-y divide-slate-800/40">
                 {topSellers.map((m, i) => {
-                  const pct = maxBalance > 0 ? (m.balance / maxBalance) * 100 : 0
+                  const pct = (m.balance / maxBalance) * 100
                   return (
                     <div key={m.id} className="px-4 py-3 hover:bg-slate-800/30 transition-colors">
-                      <div className="flex items-center gap-2.5 mb-2">
-                        <span className="text-[11px] font-bold text-slate-600 w-4 shrink-0 tabular-nums">{i + 1}</span>
-                        <div className={`w-6 h-6 rounded-md bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[9px] font-bold text-white shrink-0`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[11px] font-bold text-slate-700 w-3 shrink-0 tabular-nums">{i + 1}</span>
+                        <div className={`w-6 h-6 rounded-md bg-gradient-to-br ${avatarGradients[i]} flex items-center justify-center text-[9px] font-bold text-white shrink-0`}>
                           {getInitials(m.name)}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[12px] font-medium text-white truncate">{m.name}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-semibold text-slate-200 truncate">{m.name}</p>
+                          <p className="text-[10px] text-slate-600">{m.plan} plan</p>
                         </div>
-                        <p className="text-[11.5px] font-semibold text-emerald-400 tabular-nums shrink-0">
-                          R$ {formatBRL(m.balance)}
-                        </p>
+                        <div className="text-right shrink-0">
+                          <p className="text-[12px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(m.balance)}</p>
+                          <p className="text-[10px] text-slate-600">{m.cdiRate.toFixed(1)}%/mês</p>
+                        </div>
                       </div>
-                      <div className="ml-[26px] h-1 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="ml-[46px] mt-1.5 h-0.5 bg-slate-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-700"
+                          className="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -302,57 +365,62 @@ export default async function AdminDashboardPage() {
 
         </section>
 
-        {/* ── Saques Pendentes + Chargebacks ── */}
+        {/* ── Saques + Chargebacks ── */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          {/* Saques Pendentes */}
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+              <div>
                 <p className="text-[13px] font-semibold text-white">Saques Pendentes</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Aguardando aprovação</p>
               </div>
-              <span className="text-[10px] font-semibold text-slate-700 uppercase tracking-wider">0 pendentes</span>
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                0 pendentes
+              </span>
             </div>
             <div className="flex flex-col items-center justify-center py-10 text-slate-700">
-              <svg className="w-8 h-8 mb-2 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <p className="text-[12px] font-medium">Nenhum saque pendente</p>
-              <p className="text-[11px] text-slate-800 mt-0.5">Módulo em desenvolvimento</p>
+              <p className="text-[12.5px] font-medium">Nenhum saque pendente</p>
+              <p className="text-[11px] text-slate-800 mt-0.5">Os saques pendentes aparecerão aqui.</p>
             </div>
           </div>
 
-          {/* Chargebacks Recentes */}
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+              <div>
                 <p className="text-[13px] font-semibold text-white">Chargebacks Recentes</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Disputas em andamento</p>
               </div>
-              <span className="text-[10px] font-semibold text-slate-700 uppercase tracking-wider">0 abertos</span>
+              <button className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+                Veja todos
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
             <div className="flex flex-col items-center justify-center py-10 text-slate-700">
-              <svg className="w-8 h-8 mb-2 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <p className="text-[12px] font-medium">Nenhum chargeback aberto</p>
-              <p className="text-[11px] text-slate-800 mt-0.5">Módulo em desenvolvimento</p>
+              <p className="text-[12.5px] font-medium">Nenhum estorno</p>
+              <p className="text-[11px] text-slate-800 mt-0.5">Os chargebacks aparecerão aqui.</p>
             </div>
           </div>
 
         </section>
 
-        {/* ── Clientes recentes ── */}
-        <section className="bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+        {/* ── Sellers recentes ── */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
               <p className="text-[13px] font-semibold text-white">Sellers recentes</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Últimos {recentMerchants.length} cadastros</p>
+              <p className="text-[10.5px] text-slate-600 mt-0.5">Últimos {recentMerchants.length} cadastros</p>
             </div>
             <Link
               href="/admin/clientes"
-              className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-400 hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded"
+              className="inline-flex items-center gap-1 text-[11.5px] font-medium text-slate-500 hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded"
             >
               Ver todos
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -362,55 +430,55 @@ export default async function AdminDashboardPage() {
           </div>
 
           {recentMerchants.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-slate-600">
+            <div className="flex flex-col items-center justify-center py-12 text-slate-700">
               <p className="text-[13px]">Nenhum cliente cadastrado</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-800/80">
-                    <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
-                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
-                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Plano</th>
-                    <th className="px-5 py-3" />
+                  <tr className="border-b border-slate-800/60">
+                    <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Plano</th>
+                    <th className="px-5 py-2.5" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
+                <tbody className="divide-y divide-slate-800/40">
                   {recentMerchants.map((m, i) => (
-                    <tr key={m.id} className="hover:bg-slate-800/30 transition-colors duration-100 group">
-                      <td className="px-5 py-3.5">
+                    <tr key={m.id} className="hover:bg-slate-800/25 transition-colors group">
+                      <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
                             {getInitials(m.name)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[13px] font-medium text-white truncate">{m.name}</p>
-                            <p className="text-[11px] text-slate-600 truncate">{m.email}</p>
+                            <p className="text-[12.5px] font-semibold text-white truncate">{m.name}</p>
+                            <p className="text-[10.5px] text-slate-600 truncate">{m.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 hidden sm:table-cell">
-                        <span className="text-[11px] font-medium text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded-md">
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="text-[11px] font-medium text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-md">
                           {typeLabel[m.type] ?? m.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3">
                         <Badge variant={statusVariant[m.status] ?? 'neutral'}>
                           {statusLabel[m.status] ?? m.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3.5 hidden md:table-cell">
-                        <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-slate-300">
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-400">
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${planDot[m.plan] ?? 'bg-slate-500'}`} />
                           {m.plan}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right">
+                      <td className="px-5 py-3 text-right">
                         <Link
                           href={`/admin/clientes/${m.id}`}
-                          className="inline-flex items-center gap-1 text-[12px] font-medium text-slate-600 hover:text-blue-400 group-hover:text-slate-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded"
+                          className="inline-flex items-center gap-1 text-[11.5px] font-medium text-slate-600 hover:text-blue-400 group-hover:text-slate-400 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
                         >
                           Ver
                           <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -422,14 +490,11 @@ export default async function AdminDashboardPage() {
                   ))}
                 </tbody>
               </table>
-              <div className="px-5 py-3 border-t border-slate-800/60 flex items-center justify-between">
-                <span className="text-[11px] text-slate-600">
-                  {recentMerchants.length} de {totalMerchants} seller{totalMerchants !== 1 ? 's' : ''}
+              <div className="px-5 py-2.5 border-t border-slate-800/50 flex items-center justify-between">
+                <span className="text-[11px] text-slate-700">
+                  {recentMerchants.length} de {totalMerchants} sellers
                 </span>
-                <Link
-                  href="/admin/clientes"
-                  className="text-[11px] font-medium text-slate-500 hover:text-blue-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 rounded"
-                >
+                <Link href="/admin/clientes" className="text-[11px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
                   Ver lista completa →
                 </Link>
               </div>
