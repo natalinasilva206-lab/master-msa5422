@@ -67,6 +67,9 @@ export default async function SaquesPage() {
           amount:         parseFloat(String(meta.amount ?? 0)),
           createdAt:      log.createdAt,
           pendingBalance: merchant?.pendingBalance ?? 0,
+          pixKey:         String(meta.pixKey  ?? ''),
+          pixType:        String(meta.pixType ?? ''),
+          bankName:       String(meta.bankName ?? ''),
         })
       }
     } else {

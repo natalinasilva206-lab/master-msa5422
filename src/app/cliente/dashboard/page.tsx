@@ -150,17 +150,30 @@ export default async function ClienteDashboardPage() {
             <p className="text-[10.5px] text-slate-600 mt-2">Total recebido em juros CDI</p>
           </div>
 
-          {/* Rendimento Previsto */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl p-5 hover:bg-slate-800/40 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
+          {/* Rendimento Previsto / CTA CDI */}
+          {saldo > 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl p-5 hover:bg-slate-800/40 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Rendimento Previsto</p>
+              <p className="text-[22px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(rendimentoMes)}</p>
+              <p className="text-[10.5px] text-slate-600 mt-2">Estimativa do mês · {cdiRate.toFixed(2)}%/mês</p>
             </div>
-            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Rendimento Previsto</p>
-            <p className="text-[22px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(rendimentoMes)}</p>
-            <p className="text-[10.5px] text-slate-600 mt-2">Estimativa do mês · {cdiRate.toFixed(2)}%/mês</p>
-          </div>
+          ) : (
+            <Link href="/cliente/cdi" className="bg-slate-900/60 border border-purple-500/15 rounded-2xl p-5 hover:bg-slate-800/40 hover:border-purple-500/30 transition-all block">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Rendimento CDI</p>
+              <p className="text-[15px] font-bold text-purple-400 leading-tight">Aportar no CDI</p>
+              <p className="text-[10.5px] text-slate-600 mt-2">Renda {cdiRate.toFixed(2)}%/mês sobre seu saldo →</p>
+            </Link>
+          )}
 
           {/* Plano Atual */}
           <div className={`rounded-2xl p-5 hover:opacity-90 transition-all ${planBg[plano] ?? 'bg-slate-900/60 border border-slate-800/70'}`}>

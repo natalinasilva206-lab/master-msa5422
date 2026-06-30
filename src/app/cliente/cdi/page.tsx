@@ -111,8 +111,6 @@ export default async function ClienteCdiPage() {
 
   const freeCdiBalance = Math.max(0, saldo - lockedTotal)
   const isLocked = lockedTotal > 0 && freeCdiBalance === 0
-  const lockExpiresAt: string | null = null // mantido para compatibilidade
-  const pendingRequest: { id: string; amount: number } | null = null
 
   const rendimentoMes = saldo * (cdiRate / 100)
   const rendimento12m = saldo * (Math.pow(1 + cdiRate / 100, 12) - 1)
@@ -242,8 +240,8 @@ export default async function ClienteCdiPage() {
           ))}
         </section>
 
-        {/* Growth Chart */}
-        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+        {/* Growth Chart — só exibe quando há saldo */}
+        {saldo === 0 ? null : <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
               <p className="text-[13px] font-semibold text-white">Curva de Crescimento CDI</p>
@@ -291,7 +289,7 @@ export default async function ClienteCdiPage() {
               <span key={l} className="text-[9.5px] text-slate-700 font-medium">{l}</span>
             ))}
           </div>
-        </section>
+        </section>}
 
         {/* Simulator + Projection side by side */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">

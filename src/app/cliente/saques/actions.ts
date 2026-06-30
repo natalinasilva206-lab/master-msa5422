@@ -6,14 +6,24 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function requestWithdrawal(amount: number): Promise<{ error?: string }> {
+export type WithdrawPayload = {
+  amount: number
+  pixType: 'CPF' | 'CNPJ' | 'EMAIL' | 'TELEFONE' | 'ALEATORIA'
+  pixKey: string
+  bankName?: string
+}
+
+export async function requestWithdrawal(payload: WithdrawPayload): Promise<{ error?: string }> {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
 
   const userId = (session.user as any)?.id as string | undefined
   if (!userId) return { error: 'Sessão inválida.' }
 
+  const { amount, pixType, pixKey, bankName } = payload
+
   if (!amount || amount <= 0) return { error: 'Informe um valor válido.' }
+  if (!pixKey?.trim()) return { error: 'Informe a chave Pix de destino.' }
 
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
   const merchant = user?.merchant
@@ -32,7 +42,7 @@ export async function requestWithdrawal(amount: number): Promise<{ error?: strin
       action:   'WITHDRAW_REQUEST',
       entity:   'Merchant',
       entityId: merchant.id,
-      metadata: JSON.stringify({ amount, status: 'PENDING' }),
+      metadata: JSON.stringify({ amount, status: 'PENDING', pixType, pixKey: pixKey.trim(), bankName: bankName?.trim() ?? '' }),
     },
   })
 

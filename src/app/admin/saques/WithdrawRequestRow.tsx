@@ -21,6 +21,9 @@ export interface WithdrawRequest {
   amount: number
   createdAt: Date
   pendingBalance: number
+  pixKey?: string
+  pixType?: string
+  bankName?: string
 }
 
 function RequestRow({ req }: { req: WithdrawRequest }) {
@@ -38,9 +41,18 @@ function RequestRow({ req }: { req: WithdrawRequest }) {
         <p className="text-[12.5px] font-semibold text-white">{req.sellerName}</p>
         <p className="text-[10.5px] text-slate-600 mt-0.5">{formatDate(req.createdAt)}</p>
       </td>
-      <td className="px-4 py-3.5 text-right">
+      <td className="px-4 py-3.5">
         <p className="text-[13px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(req.amount)}</p>
         <p className="text-[10.5px] text-slate-600 mt-0.5">Disp: R$ {formatBRL(req.pendingBalance)}</p>
+        {req.pixKey && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 uppercase tracking-wide">
+              Pix {req.pixType ?? ''}
+            </span>
+            <span className="text-[10.5px] text-slate-400 font-mono truncate max-w-[160px]">{req.pixKey}</span>
+            {req.bankName && <span className="text-[10px] text-slate-600">· {req.bankName}</span>}
+          </div>
+        )}
       </td>
       <td className="px-5 py-3.5 text-right">
         <div className="flex items-center justify-end gap-2">

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
+import Link from 'next/link'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -109,7 +110,7 @@ export default async function ClienteTransacoesPage() {
               <div className="mt-5 bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-3 max-w-sm">
                 <p className="text-[11px] text-blue-400 font-semibold mb-1">Como integrar?</p>
                 <p className="text-[10.5px] text-slate-600">
-                  Acesse <span className="text-slate-400 font-medium">Integrações</span> no menu para obter sua chave de API e webhooks de notificação de pagamento.
+                  Acesse <Link href="/cliente/integracoes" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">Integrações / API</Link> para obter sua chave de API e webhooks de notificação de pagamento.
                 </p>
               </div>
             </div>
