@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export async function createMerchant(formData: FormData) {
   const session = await getServerSession(authOptions)
@@ -32,6 +33,18 @@ export async function createMerchant(formData: FormData) {
   const merchant = await prisma.merchant.create({
     data: { name, email, document, type, status, plan },
   })
+
+  const userPassword = formData.get('user_password')?.toString().trim()
+  const userName = formData.get('user_name')?.toString().trim() || name
+  if (userPassword && userPassword.length >= 6) {
+    const existingUser = await prisma.user.findUnique({ where: { email } })
+    if (!existingUser) {
+      const hashed = await bcrypt.hash(userPassword, 10)
+      await prisma.user.create({
+        data: { name: userName, email, password: hashed, role: 'CLIENT', merchantId: merchant.id },
+      })
+    }
+  }
 
   await prisma.auditLog.create({
     data: {
@@ -92,6 +105,44 @@ export async function updateMerchant(id: string, formData: FormData) {
   revalidatePath(`/admin/clientes/${id}`)
   revalidatePath('/admin/clientes')
   redirect(`/admin/clientes/${id}`)
+}
+
+export async function createClientAccess(merchantId: string, formData: FormData) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+
+  const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
+  if (!merchant) redirect('/admin/clientes')
+
+  const userName = formData.get('user_name')?.toString().trim() || merchant.name
+  const userPassword = formData.get('user_password')?.toString().trim() ?? ''
+
+  if (userPassword.length < 6) {
+    redirect(`/admin/clientes/${merchantId}?error=senha_curta`)
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email: merchant.email } })
+  if (existingUser) {
+    redirect(`/admin/clientes/${merchantId}?error=acesso_existente`)
+  }
+
+  const hashed = await bcrypt.hash(userPassword, 10)
+  await prisma.user.create({
+    data: { name: userName, email: merchant.email, password: hashed, role: 'CLIENT', merchantId },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: 'CREATE_CLIENT_ACCESS',
+      entity: 'User',
+      entityId: merchantId,
+      metadata: JSON.stringify({ email: merchant.email }),
+    },
+  })
+
+  revalidatePath(`/admin/clientes/${merchantId}`)
+  redirect(`/admin/clientes/${merchantId}?success=acesso_criado`)
 }
 
 export async function toggleMerchantStatus(id: string) {

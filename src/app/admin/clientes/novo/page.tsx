@@ -148,6 +148,33 @@ export default function NovoClientePage() {
               </select>
             </Field>
 
+            {/* Acesso de login (opcional) */}
+            <div className="border-t border-slate-700/50 pt-5 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-200">Acesso ao painel do seller</p>
+                <p className="text-xs text-slate-500 mt-0.5">Opcional — preencha para criar login de acesso à área do seller.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <Field label="Nome de acesso">
+                  <input
+                    name="user_name"
+                    type="text"
+                    placeholder="Nome completo (opcional)"
+                    className={ok}
+                  />
+                </Field>
+                <Field label="Senha de acesso">
+                  <input
+                    name="user_password"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    className={ok}
+                    autoComplete="new-password"
+                  />
+                </Field>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-2">
               <Link
                 href="/admin/clientes"

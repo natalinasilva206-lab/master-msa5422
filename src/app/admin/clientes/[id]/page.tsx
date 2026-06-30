@@ -5,6 +5,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import { Badge } from '@/components/ui/Badge'
 import { prisma } from '@/lib/prisma'
 import { ToggleStatusButton } from './ToggleStatusButton'
+import { CreateAccessForm } from './CreateAccessForm'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -40,6 +41,7 @@ interface PageProps {
 export default async function ClienteDetalhesPage({ params }: PageProps) {
   const merchant = await prisma.merchant.findUnique({
     where: { id: params.id },
+    include: { users: { select: { id: true, email: true, name: true }, take: 1 } },
   })
 
   if (!merchant) {
@@ -151,6 +153,37 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
               label="ID"
               value={<span className="font-mono text-slate-500 text-xs">{merchant.id}</span>}
             />
+          </div>
+        </div>
+
+        {/* Login access section */}
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
+            <div>
+              <h2 className="text-white font-semibold">Acesso ao painel do seller</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Login para a área do seller em /cliente/dashboard</p>
+            </div>
+            {merchant.users.length > 0 ? (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                Acesso ativo
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-slate-500 bg-slate-700/40 border border-slate-600/30 px-2.5 py-1 rounded-full">
+                Sem acesso
+              </span>
+            )}
+          </div>
+          <div className="px-6 py-5">
+            {merchant.users.length > 0 ? (
+              <div className="text-sm text-slate-400 space-y-1">
+                <p><span className="text-slate-500">Login:</span> <span className="text-slate-200 font-mono">{merchant.users[0].email}</span></p>
+                <p><span className="text-slate-500">Nome:</span> <span className="text-slate-200">{merchant.users[0].name}</span></p>
+                <p className="text-xs text-slate-600 mt-2">Para redefinir a senha, use o banco de dados ou crie uma nova entrada manualmente.</p>
+              </div>
+            ) : (
+              <CreateAccessForm merchantId={merchant.id} email={merchant.email} />
+            )}
           </div>
         </div>
 
