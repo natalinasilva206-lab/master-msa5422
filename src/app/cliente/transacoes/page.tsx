@@ -10,75 +10,53 @@ function formatBRL(v: number) {
 }
 
 function formatDate(d: Date) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    day:    '2-digit',
-    month:  'short',
-    year:   'numeric',
-    hour:   '2-digit',
-    minute: '2-digit',
-  }).format(new Date(d))
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
 
-const actionMeta: Record<string, { label: string; sign: string; color: string; badge: string; method: string }> = {
-  ADD_TO_CDI:           { label: 'Aporte CDI',             sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
-  WITHDRAW_REQUEST:     { label: 'Saque Solicitado',        sign: '-', color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'Saque' },
-  WITHDRAW_APPROVED:    { label: 'Saque Aprovado',          sign: '-', color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',      method: 'Saque' },
-  WITHDRAW_DENIED:      { label: 'Saque Negado',            sign: '+', color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',        method: 'Saque' },
-  CDI_CREDIT:           { label: 'Rendimento CDI',          sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
-  CDI_WITHDRAW:         { label: 'Resgate CDI',             sign: '-', color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'CDI' },
-  CDI_LOCK_SET:         { label: 'Título CDI Criado',       sign: '',  color: 'text-purple-400',  badge: 'bg-purple-500/10 text-purple-400',  method: 'CDI' },
-  CDI_EARLY_REQUEST:    { label: 'Resgate Ant. Solicitado', sign: '',  color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'CDI' },
-  CDI_EARLY_APPROVED:   { label: 'Resgate Ant. Aprovado',   sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
-  CDI_EARLY_DENIED:     { label: 'Resgate Ant. Negado',     sign: '',  color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',        method: 'CDI' },
-  ANTECIPACAO_REQUEST:  { label: 'Antecipação',             sign: '+', color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',      method: 'Antecipação' },
-  BALANCE_ADJUST:       { label: 'Ajuste de Saldo',         sign: '±', color: 'text-slate-300',   badge: 'bg-slate-700/40 text-slate-400',    method: 'Admin' },
-  KYC_APPROVED:         { label: 'KYC Aprovado',            sign: '',  color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'Sistema' },
-  KYC_BLOCKED:          { label: 'KYC Bloqueado',           sign: '',  color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',        method: 'Sistema' },
-  MERCHANT_CREATED:     { label: 'Conta Criada',            sign: '',  color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',      method: 'Sistema' },
-  CDI_RATE_UPDATED:     { label: 'Taxa CDI Atualizada',     sign: '',  color: 'text-purple-400',  badge: 'bg-purple-500/10 text-purple-400',  method: 'Admin' },
-}
-
-function getAmount(action: string, metadata: string | null): number | null {
+function getAmount(metadata: string | null): number {
   try {
     const m = JSON.parse(metadata ?? '{}')
-    if (m.amount) return parseFloat(m.amount)
-    if (m.value)  return parseFloat(m.value)
-  } catch {}
-  return null
+    return parseFloat(m.amount || m.value || 0)
+  } catch { return 0 }
+}
+
+function getDescription(metadata: string | null): string {
+  try {
+    const m = JSON.parse(metadata ?? '{}')
+    return m.description || m.reason || m.obs || ''
+  } catch { return '' }
 }
 
 export default async function ClienteTransacoesPage() {
   const session = await getServerSession(authOptions)
-  const userId = (session?.user as any)?.id as string | undefined
+  const userId  = (session?.user as any)?.id as string | undefined
 
   const user = userId
     ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
     : null
 
   const merchant = user?.merchant
-  const saldo    = merchant?.balance        ?? 0
-  const pendente = merchant?.pendingBalance ?? 0
+  const plano    = merchant?.plan ?? '—'
 
-  const logs = merchant
+  // Vendas = BALANCE_ADJUST events que creditam o pendingBalance (recebimentos de vendas)
+  const vendas = merchant
     ? await prisma.auditLog.findMany({
-        where: { entityId: merchant.id, entity: 'Merchant' },
+        where: { entityId: merchant.id, entity: 'Merchant', action: 'BALANCE_ADJUST' },
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: 100,
       })
     : []
 
-  const creditLogs = logs.filter((l) => ['ADD_TO_CDI', 'CDI_CREDIT'].includes(l.action))
-  const debitLogs  = logs.filter((l) => ['WITHDRAW_REQUEST', 'WITHDRAW_APPROVED'].includes(l.action))
-
-  const totalCredito = creditLogs.reduce((s, l) => s + (getAmount(l.action, l.metadata) ?? 0), 0)
-  const totalDebito  = debitLogs.reduce((s, l) => s + (getAmount(l.action, l.metadata) ?? 0), 0)
+  const totalRecebido = vendas.reduce((s, l) => s + getAmount(l.metadata), 0)
+  const ticketMedio   = vendas.length > 0 ? totalRecebido / vendas.length : 0
+  const ultimaVenda   = vendas[0]
 
   return (
     <div>
       <Topbar
         title="Transações"
         breadcrumb="Financeiro"
-        subtitle="Histórico de movimentações da sua conta"
+        subtitle="Vendas recebidas pelo seu gateway de pagamento"
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -86,75 +64,92 @@ export default async function ClienteTransacoesPage() {
         {/* KPIs */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Saldo Disponível',  value: `R$ ${formatBRL(pendente)}`,     color: 'text-emerald-400', border: 'border-emerald-500/20' },
-            { label: 'Saldo em CDI',      value: `R$ ${formatBRL(saldo)}`,       color: 'text-amber-400',   border: 'border-amber-500/20' },
-            { label: 'Total Aportes CDI', value: `R$ ${formatBRL(totalCredito)}`, color: 'text-blue-400',    border: 'border-slate-800/70' },
-            { label: 'Total Saques',      value: `R$ ${formatBRL(totalDebito)}`,  color: 'text-slate-200',   border: 'border-slate-800/70' },
+            { label: 'Total Recebido', value: `R$ ${formatBRL(totalRecebido)}`,  color: 'text-emerald-400', border: 'border-emerald-500/20' },
+            { label: 'Nº de Vendas',   value: String(vendas.length),             color: 'text-blue-400',    border: 'border-slate-800/70' },
+            { label: 'Ticket Médio',   value: `R$ ${formatBRL(ticketMedio)}`,    color: 'text-purple-400',  border: 'border-slate-800/70' },
+            {
+              label: 'Última Venda',
+              value: ultimaVenda ? formatDate(ultimaVenda.createdAt) : '—',
+              color: 'text-slate-300',
+              border: 'border-slate-800/70',
+            },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
               <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[18px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+              <p className={`text-[17px] font-bold tabular-nums leading-tight ${c.color}`}>{c.value}</p>
             </div>
           ))}
         </section>
 
-        {/* Tabela */}
+        {/* Tabela de vendas */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-white">Histórico Completo</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">{logs.length} registros encontrados</p>
+              <p className="text-[13px] font-semibold text-white">Histórico de Vendas</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">{vendas.length} transaçõe{vendas.length !== 1 ? 's' : ''} · Plano {plano}</p>
             </div>
+            {totalRecebido > 0 && (
+              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                +R$ {formatBRL(totalRecebido)}
+              </span>
+            )}
           </div>
 
-          {logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-700">
-              <svg className="w-10 h-10 mb-3 text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-              <p className="text-[13px] font-medium">Nenhuma movimentação ainda</p>
-              <p className="text-[11px] text-slate-800 mt-1">
-                Use a plataforma para ver suas transações aqui.
+          {vendas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-700 px-6 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800/60 flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <p className="text-[13px] font-semibold text-slate-500">Nenhuma venda registrada ainda</p>
+              <p className="text-[11.5px] text-slate-700 mt-1.5 max-w-xs">
+                As transações dos seus clientes aparecerão aqui automaticamente após a integração com o gateway de pagamento.
               </p>
+              <div className="mt-5 bg-blue-500/5 border border-blue-500/15 rounded-xl px-4 py-3 max-w-sm">
+                <p className="text-[11px] text-blue-400 font-semibold mb-1">Como integrar?</p>
+                <p className="text-[10.5px] text-slate-600">
+                  Acesse <span className="text-slate-400 font-medium">Integrações</span> no menu para obter sua chave de API e webhooks de notificação de pagamento.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">Operação</th>
-                    <th className="text-left px-4 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Tipo</th>
+                    <th className="text-left px-5 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">Transação</th>
+                    <th className="text-left px-4 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Descrição</th>
                     <th className="text-right px-4 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">Valor</th>
                     <th className="text-right px-5 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Data</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {logs.map((log) => {
-                    const meta   = actionMeta[log.action] ?? { label: log.action, sign: '', color: 'text-slate-400', badge: 'bg-slate-800/60 text-slate-500', method: '—' }
-                    const amount = getAmount(log.action, log.metadata)
+                  {vendas.map((log, i) => {
+                    const amount = getAmount(log.metadata)
+                    const desc   = getDescription(log.metadata)
                     return (
                       <tr key={log.id} className="hover:bg-slate-800/25 transition-colors">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${meta.badge}`}>
-                              {meta.sign || '•'}
+                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              +
                             </div>
-                            <span className="text-[12.5px] text-slate-200 font-medium">{meta.label}</span>
+                            <div>
+                              <p className="text-[12.5px] text-slate-200 font-medium">Venda #{String(vendas.length - i).padStart(4, '0')}</p>
+                              <p className="text-[10px] text-slate-600">Aprovado · Gateway</p>
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3.5 hidden md:table-cell">
-                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${meta.badge}`}>
-                            {meta.method}
+                          <span className="text-[11.5px] text-slate-500 truncate max-w-[180px] block">
+                            {desc || 'Venda processada'}
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right">
-                          {amount !== null ? (
-                            <span className={`text-[13px] font-bold tabular-nums ${meta.color}`}>
-                              {meta.sign === '-' ? '−' : meta.sign === '+' ? '+' : ''}R$ {formatBRL(amount)}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-700">—</span>
-                          )}
+                          <span className="text-[13px] font-bold tabular-nums text-emerald-400">
+                            +R$ {formatBRL(amount)}
+                          </span>
                         </td>
                         <td className="px-5 py-3.5 text-right hidden sm:table-cell">
                           <span className="text-[11px] text-slate-600">{formatDate(log.createdAt)}</span>
@@ -167,6 +162,12 @@ export default async function ClienteTransacoesPage() {
             </div>
           )}
         </section>
+
+        {vendas.length > 0 && (
+          <p className="text-center text-[10.5px] text-slate-700">
+            Exibindo as últimas {vendas.length} vendas · Valores creditados no saldo disponível após compensação
+          </p>
+        )}
 
       </div>
     </div>
