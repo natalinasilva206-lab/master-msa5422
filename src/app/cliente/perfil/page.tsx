@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
+import { ChangePasswordForm } from './ChangePasswordForm'
 
 function formatDate(d: Date) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(d))
@@ -212,9 +213,7 @@ export default async function PerfilPage() {
           </div>
         )}
 
-        <p className="text-center text-[10.5px] text-slate-700">
-          Para alterar dados cadastrais ou senha, entre em contato com o suporte.
-        </p>
+        <ChangePasswordForm />
 
       </div>
     </div>

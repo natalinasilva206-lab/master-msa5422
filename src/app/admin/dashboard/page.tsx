@@ -68,14 +68,12 @@ function smoothPath(pts: number[], w: number, h: number, pad = 10): string {
   return d
 }
 
-const chartPts = [18, 35, 28, 72, 55, 88, 62]
-const W = 500, H = 120
-const linePath = smoothPath(chartPts, W, H)
-const areaPath = linePath + ` L ${W - 10} ${H - 10} L 10 ${H - 10} Z`
 
 export default async function AdminDashboardPage() {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+
   // Wrap all DB calls so a migration-lag error doesn't crash the entire dashboard
-  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, pendingWithdrawLogs, cdiEarlyLogs] =
+  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, pendingWithdrawLogs, cdiEarlyLogs, recentSales] =
     await Promise.all([
       prisma.merchant.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
       prisma.merchant.count({ where: { status: 'REVIEW' } }).catch(() => 0),
@@ -94,6 +92,10 @@ export default async function AdminDashboardPage() {
       prisma.auditLog.findMany({
         where: { action: 'CDI_EARLY_REQUEST' },
         select: { id: true, metadata: true, entityId: true },
+      }).catch(() => []),
+      prisma.saleLog.findMany({
+        where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: sevenDaysAgo } },
+        select: { amount: true, createdAt: true },
       }).catch(() => []),
     ])
 
@@ -124,20 +126,38 @@ export default async function AdminDashboardPage() {
     .slice(0, 5)
   const maxBalance = topSellers[0]?.balance ?? 1
 
+  // Build 7-day volume chart from real SaleLog data
+  const dayVolumes: number[] = []
+  const dayLabels: string[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+    const dateStr = d.toISOString().slice(0, 10)
+    const vol = (recentSales as any[])
+      .filter((s: any) => s.createdAt.toISOString().slice(0, 10) === dateStr)
+      .reduce((sum: number, s: any) => sum + s.amount, 0)
+    dayVolumes.push(vol)
+    dayLabels.push(d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' }))
+  }
+  const maxVol = Math.max(...dayVolumes, 1)
+  const chartPtsReal = dayVolumes.map((v) => Math.round((v / maxVol) * 90) + 5)
+  const W2 = 500, H2 = 120
+  const linePathReal = smoothPath(chartPtsReal, W2, H2)
+  const areaPathReal = linePathReal + ` L ${W2 - 10} ${H2 - 10} L 10 ${H2 - 10} Z`
+
   const topbarActions = (
     <div className="flex items-center gap-1.5">
-      <button className="flex items-center gap-1.5 text-[11.5px] text-slate-400 hover:text-slate-200 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
+      <a href="/admin/dashboard" className="flex items-center gap-1.5 text-[11.5px] text-slate-400 hover:text-slate-200 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         Atualizar
-      </button>
-      <button className="flex items-center gap-1.5 text-[11.5px] text-slate-300 hover:text-white px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+      </a>
+      <a href="/admin/faturamento" className="flex items-center gap-1.5 text-[11.5px] text-slate-300 hover:text-white px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         Exportar
-      </button>
+      </a>
     </div>
   )
 
@@ -285,14 +305,14 @@ export default async function AdminDashboardPage() {
             <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
                 <p className="text-[13px] font-semibold text-white">Volume de Transações</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Últimos 7 dias · dados demonstrativos</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Últimos 7 dias · volume de vendas aprovadas</p>
               </div>
-              <button className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+              <a href="/admin/analise" className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
                 Ver relatório
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-              </button>
+              </a>
             </div>
             <div className="px-5 pt-3 pb-0 relative">
               {/* Y-axis labels */}
@@ -303,7 +323,7 @@ export default async function AdminDashboardPage() {
               </div>
               {/* SVG chart */}
               <svg
-                viewBox={`0 0 ${W} ${H}`}
+                viewBox={`0 0 ${W2} ${H2}`}
                 className="w-full"
                 style={{ height: 120 }}
                 preserveAspectRatio="none"
@@ -319,21 +339,21 @@ export default async function AdminDashboardPage() {
                   <line
                     key={i}
                     x1={10}
-                    y1={10 + f * (H - 20)}
-                    x2={W - 10}
-                    y2={10 + f * (H - 20)}
+                    y1={10 + f * (H2 - 20)}
+                    x2={W2 - 10}
+                    y2={10 + f * (H2 - 20)}
                     stroke="#1e293b"
                     strokeWidth={1}
                   />
                 ))}
                 {/* Area fill */}
-                <path d={areaPath} fill="url(#areaGrad)" />
+                <path d={areaPathReal} fill="url(#areaGrad)" />
                 {/* Line */}
-                <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" />
+                <path d={linePathReal} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" />
                 {/* Dots */}
-                {chartPts.map((p, i) => {
-                  const x = 10 + (i / (chartPts.length - 1)) * (W - 20)
-                  const y = 10 + (1 - p / 100) * (H - 20)
+                {chartPtsReal.map((p, i) => {
+                  const x = 10 + (i / (chartPtsReal.length - 1)) * (W2 - 20)
+                  const y = 10 + (1 - p / 100) * (H2 - 20)
                   return (
                     <circle key={i} cx={x} cy={y} r={3} fill="#3b82f6" stroke="#080c12" strokeWidth={1.5} />
                   )
@@ -342,7 +362,7 @@ export default async function AdminDashboardPage() {
             </div>
             {/* X-axis */}
             <div className="px-5 pb-3 flex justify-between">
-              {['ter., 23', 'qua., 24', 'qui., 25', 'sex., 26', 'sáb., 27', 'dom., 28', 'seg., 29'].map((d) => (
+              {dayLabels.map((d) => (
                 <span key={d} className="text-[9.5px] text-slate-700 font-medium">{d}</span>
               ))}
             </div>
