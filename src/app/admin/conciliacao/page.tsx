@@ -27,7 +27,7 @@ export default async function ConciliacaoPage() {
 
   const totalActions     = logs.length
   const addToCdiLogs     = logs.filter((l) => l.action === 'ADD_TO_CDI')
-  const antecipacaoLogs  = logs.filter((l) => l.action === 'ANTECIPACAO_REQUEST')
+  const antecipacaoLogs  = logs.filter((l) => l.action === 'ANTECIPACAO_REQUEST' || l.action === 'ANTECIPACAO_APPROVED')
   const withdrawLogs     = logs.filter((l) => l.action === 'WITHDRAW_REQUEST')
   const totalAportado    = addToCdiLogs.reduce((s, l) => {
     try { const m = JSON.parse(l.metadata ?? '{}'); return s + (parseFloat(m.amount) || 0) } catch { return s }
@@ -37,16 +37,30 @@ export default async function ConciliacaoPage() {
   }, 0)
 
   const actionMeta: Record<string, { label: string; dot: string }> = {
-    ADD_TO_CDI:           { label: 'Aporte CDI',          dot: 'bg-emerald-500' },
-    ANTECIPACAO_REQUEST:  { label: 'Antecipação',          dot: 'bg-blue-500' },
-    WITHDRAW_REQUEST:     { label: 'Saque Solicitado',     dot: 'bg-amber-500' },
-    WITHDRAW_APPROVED:    { label: 'Saque Aprovado',       dot: 'bg-blue-500' },
-    KYC_APPROVED:         { label: 'KYC Aprovado',         dot: 'bg-emerald-500' },
-    KYC_BLOCKED:          { label: 'KYC Bloqueado',        dot: 'bg-red-500' },
-    MERCHANT_CREATED:     { label: 'Empresa Criada',       dot: 'bg-slate-400' },
-    CDI_RATE_UPDATED:     { label: 'Taxa CDI Atualizada',  dot: 'bg-purple-500' },
-    BALANCE_ADJUST:       { label: 'Ajuste de Saldo',      dot: 'bg-slate-500' },
-    CDI_WITHDRAW:         { label: 'Resgate CDI',          dot: 'bg-orange-500' },
+    ADD_TO_CDI:              { label: 'Aporte CDI',               dot: 'bg-emerald-500' },
+    ANTECIPACAO_REQUEST:     { label: 'Antecipação Solicitada',   dot: 'bg-blue-400' },
+    ANTECIPACAO_APPROVED:    { label: 'Antecipação Aprovada',     dot: 'bg-blue-500' },
+    WITHDRAW_REQUEST:        { label: 'Saque Solicitado',         dot: 'bg-amber-500' },
+    WITHDRAW_APPROVED:       { label: 'Saque Aprovado',           dot: 'bg-emerald-400' },
+    WITHDRAW_DENIED:         { label: 'Saque Negado',             dot: 'bg-red-400' },
+    KYC_APPROVED:            { label: 'KYC Aprovado',             dot: 'bg-emerald-500' },
+    KYC_BLOCKED:             { label: 'KYC Bloqueado',            dot: 'bg-red-500' },
+    MERCHANT_CREATED:        { label: 'Empresa Criada',           dot: 'bg-slate-400' },
+    MERCHANT_STATUS_CHANGE:  { label: 'Status Alterado',          dot: 'bg-amber-400' },
+    CDI_RATE_UPDATED:        { label: 'Taxa CDI Atualizada',      dot: 'bg-purple-500' },
+    CDI_WITHDRAW:            { label: 'Resgate CDI',              dot: 'bg-orange-500' },
+    CDI_EARLY_REQUEST:       { label: 'Resgate CDI Antecipado',   dot: 'bg-orange-400' },
+    CDI_EARLY_APPROVED:      { label: 'Resgate CDI Aprovado',     dot: 'bg-emerald-400' },
+    CDI_EARLY_DENIED:        { label: 'Resgate CDI Negado',       dot: 'bg-red-400' },
+    BALANCE_ADJUST:          { label: 'Ajuste de Saldo (Venda)',  dot: 'bg-emerald-600' },
+    RISK_AUTO_RESERVE:       { label: 'Reserva Automática',       dot: 'bg-violet-500' },
+    RISK_MANUAL_RESERVE:     { label: 'Reserva Manual',           dot: 'bg-violet-400' },
+    RISK_MANUAL_RELEASE:     { label: 'Liberação Manual',         dot: 'bg-teal-500' },
+    RISK_RESERVE_APPLIED:    { label: 'Reserva Aplicada',         dot: 'bg-violet-600' },
+    RISK_CONFIG_UPDATED:     { label: 'Config. Risco Atualizada', dot: 'bg-purple-400' },
+    DISPUTE_OPENED:          { label: 'Disputa Aberta',           dot: 'bg-orange-500' },
+    DISPUTE_RESOLVED:        { label: 'Disputa Resolvida',        dot: 'bg-teal-400' },
+    DISPUTE_STATUS_CHANGED:  { label: 'Status Disputa Alterado',  dot: 'bg-amber-400' },
   }
 
   return (
