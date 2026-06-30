@@ -74,7 +74,7 @@ const linePath = smoothPath(chartPts, W, H)
 const areaPath = linePath + ` L ${W - 10} ${H - 10} L 10 ${H - 10} Z`
 
 export default async function AdminDashboardPage() {
-  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, totalWithdrawLogs] =
+  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, pendingWithdrawLogs, cdiEarlyLogs] =
     await Promise.all([
       prisma.merchant.count({ where: { status: 'ACTIVE' } }),
       prisma.merchant.count({ where: { status: 'REVIEW' } }),
@@ -84,8 +84,35 @@ export default async function AdminDashboardPage() {
         select: { id: true, name: true, balance: true, pendingBalance: true, cdiRate: true, plan: true, status: true },
       }),
       prisma.auditLog.count(),
-      prisma.auditLog.count({ where: { action: 'WITHDRAW_REQUEST' } }),
+      prisma.auditLog.findMany({
+        where: { action: 'WITHDRAW_REQUEST' },
+        select: { id: true, metadata: true, createdAt: true, entityId: true, user: { select: { name: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+      prisma.auditLog.findMany({
+        where: { action: 'CDI_EARLY_REQUEST' },
+        select: { id: true, metadata: true, entityId: true },
+      }),
     ])
+
+  const resolvedWithdrawIds = new Set(
+    (await prisma.auditLog.findMany({
+      where: { action: { in: ['WITHDRAW_APPROVED', 'WITHDRAW_DENIED'] } },
+      select: { metadata: true },
+    })).flatMap((l) => { try { return [JSON.parse(l.metadata ?? '{}').requestLogId] } catch { return [] } }).filter(Boolean)
+  )
+  const unresolvedPendingLogs = pendingWithdrawLogs.filter((l) => {
+    try { return !JSON.parse(l.metadata ?? '{}').resolved } catch { return true }
+  }).filter((l) => !resolvedWithdrawIds.has(l.id))
+
+  const resolvedCdiEarlyIds = new Set(
+    (await prisma.auditLog.findMany({
+      where: { action: { in: ['CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] } },
+      select: { metadata: true },
+    })).flatMap((l) => { try { const m = JSON.parse(l.metadata ?? '{}'); return m.requestId ? [m.requestId] : [] } catch { return [] } })
+  )
+  const pendingCdiEarly = cdiEarlyLogs.filter((l) => !resolvedCdiEarlyIds.has(l.id))
 
   const totalBalance    = allMerchants.reduce((s, m) => s + m.balance, 0)
   const totalPending    = allMerchants.reduce((s, m) => s + m.pendingBalance, 0)
@@ -191,33 +218,39 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Eventos */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+          {/* Pendências */}
+          <div className={`rounded-xl p-4 transition-colors border ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Eventos Log</p>
-                <p className="text-[20px] font-bold text-white tabular-nums leading-none">{totalLogs}</p>
-                <p className="text-[10px] text-slate-500 mt-1.5">{totalWithdrawLogs} saques solicitados</p>
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Pendências</p>
+                <p className={`text-[20px] font-bold tabular-nums leading-none ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'text-amber-400' : 'text-white'}`}>
+                  {unresolvedPendingLogs.length + pendingCdiEarly.length}
+                </p>
+                <p className="text-[10px] text-slate-500 mt-1.5">
+                  {unresolvedPendingLogs.length} saques · {pendingCdiEarly.length} resgates CDI
+                </p>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0 ml-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ml-2 ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800/60 text-slate-600'}`}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
           </div>
 
-          {/* Estornos */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+          {/* KYC em revisão */}
+          <div className={`rounded-xl p-4 transition-colors border ${reviewMerchants > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Estornos</p>
-                <p className="text-[20px] font-bold text-white tabular-nums leading-none">0</p>
-                <p className="text-[10px] text-emerald-600 mt-1.5">Nenhum em aberto</p>
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">KYC em Revisão</p>
+                <p className={`text-[20px] font-bold tabular-nums leading-none ${reviewMerchants > 0 ? 'text-amber-400' : 'text-white'}`}>{reviewMerchants}</p>
+                <p className="text-[10px] text-slate-500 mt-1.5">
+                  {reviewMerchants > 0 ? `${reviewMerchants} seller${reviewMerchants !== 1 ? 's' : ''} aguardando` : 'Nenhum em revisão'}
+                </p>
               </div>
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ml-2 ${reviewMerchants > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800/60 text-slate-600'}`}>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               </div>
             </div>
@@ -371,23 +404,66 @@ export default async function AdminDashboardPage() {
         {/* ── Saques + Chargebacks ── */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+          <div className={`rounded-xl overflow-hidden border ${unresolvedPendingLogs.length > 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
+            <div className={`px-5 py-3.5 border-b flex items-center justify-between ${unresolvedPendingLogs.length > 0 ? 'border-emerald-500/15' : 'border-slate-800/60'}`}>
               <div>
                 <p className="text-[13px] font-semibold text-white">Saques Pendentes</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Aguardando aprovação</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Aguardando aprovação admin</p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
-                0 pendentes
-              </span>
+              <div className="flex items-center gap-2">
+                {unresolvedPendingLogs.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {unresolvedPendingLogs.length} pendente{unresolvedPendingLogs.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+                <Link href="/admin/saques" className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+                  Ver todos
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
             </div>
-            <div className="flex flex-col items-center justify-center py-10 text-slate-700">
-              <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="text-[12.5px] font-medium">Nenhum saque pendente</p>
-              <p className="text-[11px] text-slate-800 mt-0.5">Os saques pendentes aparecerão aqui.</p>
-            </div>
+            {unresolvedPendingLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-700">
+                <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-[12.5px] font-medium">Nenhum saque pendente</p>
+                <p className="text-[11px] text-slate-800 mt-0.5">Tudo em dia.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-800/40">
+                {unresolvedPendingLogs.slice(0, 5).map((log) => {
+                  let amount = 0
+                  try { amount = parseFloat(JSON.parse(log.metadata ?? '{}').amount || 0) } catch {}
+                  return (
+                    <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                      <div className="shrink-0 w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-slate-200 truncate">{log.user.name ?? log.user.email}</p>
+                        <p className="text-[10px] text-slate-600">
+                          {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
+                        </p>
+                      </div>
+                      <p className="text-[13px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(amount)}</p>
+                    </div>
+                  )
+                })}
+                {unresolvedPendingLogs.length > 5 && (
+                  <div className="px-5 py-2.5">
+                    <Link href="/admin/saques" className="text-[11px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
+                      +{unresolvedPendingLogs.length - 5} mais → Aprovar na página de Saques
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">

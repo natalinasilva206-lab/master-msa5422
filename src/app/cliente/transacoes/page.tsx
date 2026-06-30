@@ -20,15 +20,22 @@ function formatDate(d: Date) {
 }
 
 const actionMeta: Record<string, { label: string; sign: string; color: string; badge: string; method: string }> = {
-  ADD_TO_CDI:        { label: 'Aporte CDI',         sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
-  WITHDRAW_REQUEST:  { label: 'Saque Solicitado',    sign: '-', color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'Saque' },
-  WITHDRAW_APPROVED: { label: 'Saque Aprovado',      sign: '-', color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',     method: 'Saque' },
-  CDI_CREDIT:        { label: 'Rendimento CDI',      sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
-  BALANCE_ADJUST:    { label: 'Ajuste de Saldo',     sign: '±', color: 'text-slate-300',   badge: 'bg-slate-700/40 text-slate-400',    method: 'Admin' },
-  KYC_APPROVED:      { label: 'KYC Aprovado',        sign: '',  color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'Sistema' },
-  KYC_BLOCKED:       { label: 'KYC Bloqueado',       sign: '',  color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',       method: 'Sistema' },
-  MERCHANT_CREATED:  { label: 'Conta Criada',        sign: '',  color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',     method: 'Sistema' },
-  CDI_RATE_UPDATED:  { label: 'Taxa CDI Atualizada', sign: '',  color: 'text-purple-400',  badge: 'bg-purple-500/10 text-purple-400', method: 'Admin' },
+  ADD_TO_CDI:           { label: 'Aporte CDI',             sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
+  WITHDRAW_REQUEST:     { label: 'Saque Solicitado',        sign: '-', color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'Saque' },
+  WITHDRAW_APPROVED:    { label: 'Saque Aprovado',          sign: '-', color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',      method: 'Saque' },
+  WITHDRAW_DENIED:      { label: 'Saque Negado',            sign: '+', color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',        method: 'Saque' },
+  CDI_CREDIT:           { label: 'Rendimento CDI',          sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
+  CDI_WITHDRAW:         { label: 'Resgate CDI',             sign: '-', color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'CDI' },
+  CDI_LOCK_SET:         { label: 'Título CDI Criado',       sign: '',  color: 'text-purple-400',  badge: 'bg-purple-500/10 text-purple-400',  method: 'CDI' },
+  CDI_EARLY_REQUEST:    { label: 'Resgate Ant. Solicitado', sign: '',  color: 'text-amber-400',   badge: 'bg-amber-500/10 text-amber-400',    method: 'CDI' },
+  CDI_EARLY_APPROVED:   { label: 'Resgate Ant. Aprovado',   sign: '+', color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'CDI' },
+  CDI_EARLY_DENIED:     { label: 'Resgate Ant. Negado',     sign: '',  color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',        method: 'CDI' },
+  ANTECIPACAO_REQUEST:  { label: 'Antecipação',             sign: '+', color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',      method: 'Antecipação' },
+  BALANCE_ADJUST:       { label: 'Ajuste de Saldo',         sign: '±', color: 'text-slate-300',   badge: 'bg-slate-700/40 text-slate-400',    method: 'Admin' },
+  KYC_APPROVED:         { label: 'KYC Aprovado',            sign: '',  color: 'text-emerald-400', badge: 'bg-emerald-500/10 text-emerald-400', method: 'Sistema' },
+  KYC_BLOCKED:          { label: 'KYC Bloqueado',           sign: '',  color: 'text-red-400',     badge: 'bg-red-500/10 text-red-400',        method: 'Sistema' },
+  MERCHANT_CREATED:     { label: 'Conta Criada',            sign: '',  color: 'text-blue-400',    badge: 'bg-blue-500/10 text-blue-400',      method: 'Sistema' },
+  CDI_RATE_UPDATED:     { label: 'Taxa CDI Atualizada',     sign: '',  color: 'text-purple-400',  badge: 'bg-purple-500/10 text-purple-400',  method: 'Admin' },
 }
 
 function getAmount(action: string, metadata: string | null): number | null {
