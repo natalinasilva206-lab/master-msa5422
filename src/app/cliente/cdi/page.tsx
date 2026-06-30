@@ -342,6 +342,65 @@ export default async function ClienteCdiPage() {
 
         </section>
 
+        {/* Histórico de solicitações */}
+        {earlyRequestLogs.length > 0 && (
+          <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60">
+              <p className="text-[13px] font-semibold text-white">Histórico de Solicitações</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Suas solicitações de resgate antecipado de CDI</p>
+            </div>
+            <div className="divide-y divide-slate-800/40">
+              {earlyRequestLogs.map((req) => {
+                const isPending = !resolvedReqIds.has(req.id)
+                let amount = 0
+                try { amount = parseFloat(JSON.parse(req.metadata ?? '{}').amount || 0) } catch {}
+                const resolved = earlyResolvedLogs.find((r) => {
+                  try { return JSON.parse(r.metadata ?? '{}').requestLogId === req.id } catch { return false }
+                })
+                const approved = resolved?.action === 'CDI_EARLY_APPROVED'
+                return (
+                  <div key={req.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      isPending ? 'bg-amber-500/10' : approved ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                    }`}>
+                      {isPending ? (
+                        <svg className="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : approved ? (
+                        <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-semibold text-slate-200">
+                        Resgate antecipado · R$ {amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10.5px] text-slate-600">
+                        {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(req.createdAt))}
+                      </p>
+                    </div>
+                    <span className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full border ${
+                      isPending
+                        ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                        : approved
+                        ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                        : 'text-red-400 bg-red-500/10 border-red-500/20'
+                    }`}>
+                      {isPending ? 'Aguardando' : approved ? 'Aprovado' : 'Negado'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Info */}
         <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-5 py-4 flex items-start gap-3">
           <svg className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
