@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { CdiSimulator } from './CdiSimulator'
 import { AddToCdiButton } from './AddToCdiButton'
+import { WithdrawFromCdiButton } from './WithdrawFromCdiButton'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -77,11 +78,14 @@ export default async function ClienteCdiPage() {
         breadcrumb="Financeiro"
         subtitle={`Taxa atual: ${cdiRate.toFixed(2)}%/mês · ${cdiAnual.toFixed(2)}% a.a.`}
         actions={
-          <AddToCdiButton
-            pendingBalance={pendente}
-            currentBalance={saldo}
-            cdiRate={cdiRate}
-          />
+          <div className="flex items-center gap-2">
+            <WithdrawFromCdiButton cdiBalance={saldo} cdiRate={cdiRate} />
+            <AddToCdiButton
+              pendingBalance={pendente}
+              currentBalance={saldo}
+              cdiRate={cdiRate}
+            />
+          </div>
         }
       />
 
@@ -114,6 +118,28 @@ export default async function ClienteCdiPage() {
             cdiRate={cdiRate}
           />
         </div>
+
+        {/* Resgatar CDI — visível quando há saldo em CDI */}
+        {saldo > 0 && (
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-slate-800/60 text-slate-400">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[12.5px] font-semibold text-slate-300">
+                  R$ {formatBRL(saldo)} em CDI — resgatar para disponível
+                </p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">
+                  O valor resgatado vai para seu saldo disponível e pode ser sacado
+                </p>
+              </div>
+            </div>
+            <WithdrawFromCdiButton cdiBalance={saldo} cdiRate={cdiRate} />
+          </div>
+        )}
 
         {/* KPIs */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">

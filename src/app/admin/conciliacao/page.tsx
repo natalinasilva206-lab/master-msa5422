@@ -46,6 +46,7 @@ export default async function ConciliacaoPage() {
     MERCHANT_CREATED:     { label: 'Empresa Criada',       dot: 'bg-slate-400' },
     CDI_RATE_UPDATED:     { label: 'Taxa CDI Atualizada',  dot: 'bg-purple-500' },
     BALANCE_ADJUST:       { label: 'Ajuste de Saldo',      dot: 'bg-slate-500' },
+    CDI_WITHDRAW:         { label: 'Resgate CDI',          dot: 'bg-orange-500' },
   }
 
   return (
