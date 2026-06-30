@@ -75,7 +75,7 @@ export default async function ClienteDashboardPage() {
       <Topbar
         title="Meu Dashboard"
         subtitle="Resumo da sua conta"
-        breadcrumb={`Olá, ${firstName} 👋`}
+        breadcrumb={`Olá, ${firstName}`}
       />
 
       <div className="p-4 xl:p-6 space-y-4">

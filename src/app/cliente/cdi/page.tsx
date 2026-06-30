@@ -87,6 +87,32 @@ export default async function ClienteCdiPage() {
 
       <div className="p-4 xl:p-6 space-y-4">
 
+        {/* Pending balance CTA — always visible on page */}
+        {pendente > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+                <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[12.5px] font-semibold text-amber-300">
+                  R$ {formatBRL(pendente)} em saldo pendente disponível para aportar
+                </p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">
+                  Mova para o CDI e comece a render a {cdiRate.toFixed(2)}%/mês imediatamente
+                </p>
+              </div>
+            </div>
+            <AddToCdiButton
+              pendingBalance={pendente}
+              currentBalance={saldo}
+              cdiRate={cdiRate}
+            />
+          </div>
+        )}
+
         {/* KPIs */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[

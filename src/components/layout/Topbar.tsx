@@ -78,7 +78,7 @@ export function Topbar({ title, subtitle, breadcrumb, actions, lucroHoje }: Topb
 
           {/* Actions slot */}
           {actions && (
-            <div className="hidden sm:flex items-center gap-2 pl-1">
+            <div className="flex items-center gap-2 pl-1">
               {actions}
             </div>
           )}
