@@ -33,15 +33,22 @@ const planBg: Record<string, string> = {
 }
 
 const logMeta: Record<string, { label: string; sign: string; color: string; dot: string }> = {
-  ADD_TO_CDI:        { label: 'Aporte CDI',         sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
-  WITHDRAW_REQUEST:  { label: 'Saque Solicitado',    sign: '-', color: 'text-amber-400',   dot: 'bg-amber-500/10 text-amber-400' },
-  WITHDRAW_APPROVED: { label: 'Saque Aprovado',      sign: '-', color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
-  CDI_CREDIT:        { label: 'Rendimento CDI',      sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
-  KYC_APPROVED:      { label: 'KYC Aprovado',        sign: '',  color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
-  KYC_BLOCKED:       { label: 'KYC Bloqueado',       sign: '',  color: 'text-red-400',     dot: 'bg-red-500/10 text-red-400' },
-  MERCHANT_CREATED:  { label: 'Conta Criada',        sign: '',  color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
-  CDI_RATE_UPDATED:  { label: 'Taxa CDI Atualizada', sign: '',  color: 'text-purple-400',  dot: 'bg-purple-500/10 text-purple-400' },
-  BALANCE_ADJUST:    { label: 'Ajuste de Saldo',     sign: '±', color: 'text-slate-300',   dot: 'bg-slate-700/40 text-slate-400' },
+  ADD_TO_CDI:           { label: 'Aporte CDI',             sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  WITHDRAW_REQUEST:     { label: 'Saque Solicitado',        sign: '-', color: 'text-amber-400',   dot: 'bg-amber-500/10 text-amber-400' },
+  WITHDRAW_APPROVED:    { label: 'Saque Aprovado',          sign: '-', color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
+  WITHDRAW_DENIED:      { label: 'Saque Negado',            sign: '+', color: 'text-red-400',     dot: 'bg-red-500/10 text-red-400' },
+  CDI_CREDIT:           { label: 'Rendimento CDI',          sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  CDI_WITHDRAW:         { label: 'Resgate CDI',             sign: '-', color: 'text-amber-400',   dot: 'bg-amber-500/10 text-amber-400' },
+  CDI_LOCK_SET:         { label: 'Título CDI Criado',       sign: '',  color: 'text-purple-400',  dot: 'bg-purple-500/10 text-purple-400' },
+  CDI_EARLY_REQUEST:    { label: 'Resgate Ant. Solicitado', sign: '',  color: 'text-amber-400',   dot: 'bg-amber-500/10 text-amber-400' },
+  CDI_EARLY_APPROVED:   { label: 'Resgate Ant. Aprovado',   sign: '+', color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  CDI_EARLY_DENIED:     { label: 'Resgate Ant. Negado',     sign: '',  color: 'text-red-400',     dot: 'bg-red-500/10 text-red-400' },
+  ANTECIPACAO_REQUEST:  { label: 'Antecipação',             sign: '+', color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
+  KYC_APPROVED:         { label: 'KYC Aprovado',            sign: '',  color: 'text-emerald-400', dot: 'bg-emerald-500/10 text-emerald-400' },
+  KYC_BLOCKED:          { label: 'KYC Bloqueado',           sign: '',  color: 'text-red-400',     dot: 'bg-red-500/10 text-red-400' },
+  MERCHANT_CREATED:     { label: 'Conta Criada',            sign: '',  color: 'text-blue-400',    dot: 'bg-blue-500/10 text-blue-400' },
+  CDI_RATE_UPDATED:     { label: 'Taxa CDI Atualizada',     sign: '',  color: 'text-purple-400',  dot: 'bg-purple-500/10 text-purple-400' },
+  BALANCE_ADJUST:       { label: 'Ajuste de Saldo',         sign: '±', color: 'text-slate-300',   dot: 'bg-slate-700/40 text-slate-400' },
 }
 
 export default async function ClienteDashboardPage() {
@@ -66,9 +73,22 @@ export default async function ClienteDashboardPage() {
     ? await prisma.auditLog.findMany({
         where: { entityId: merchant.id, entity: 'Merchant' },
         orderBy: { createdAt: 'desc' },
-        take: 5,
+        take: 8,
       })
     : []
+
+  const totalCdiCredits = merchant
+    ? await prisma.auditLog.findMany({
+        where: { entityId: merchant.id, action: 'CDI_CREDIT' },
+        select: { metadata: true },
+      }).then((logs) =>
+        logs.reduce((s, l) => {
+          try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
+        }, 0)
+      )
+    : 0
+
+  const merchantStatus = merchant?.status ?? 'ACTIVE'
 
   return (
     <div>
@@ -79,6 +99,30 @@ export default async function ClienteDashboardPage() {
       />
 
       <div className="p-4 xl:p-6 space-y-4">
+
+        {/* ── Status Alert ── */}
+        {merchantStatus === 'REVIEW' && (
+          <div className="bg-amber-500/8 border border-amber-500/25 rounded-xl px-5 py-3.5 flex items-center gap-3">
+            <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p className="text-[12px] font-semibold text-amber-400">Conta em revisão</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Sua conta está em análise pela nossa equipe. Algumas operações podem estar temporariamente indisponíveis.</p>
+            </div>
+          </div>
+        )}
+        {merchantStatus === 'BLOCKED' && (
+          <div className="bg-red-500/8 border border-red-500/25 rounded-xl px-5 py-3.5 flex items-center gap-3">
+            <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <div>
+              <p className="text-[12px] font-semibold text-red-400">Conta bloqueada</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Sua conta foi bloqueada. Entre em contato com o suporte para regularizar sua situação.</p>
+            </div>
+          </div>
+        )}
 
         {/* ── KPI Cards ── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -95,19 +139,16 @@ export default async function ClienteDashboardPage() {
             <p className="text-[10.5px] text-slate-600 mt-2">Disponível para saque ou aporte</p>
           </div>
 
-          {/* Volume Transacionado */}
+          {/* Rendimento Acumulado CDI */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl p-5 hover:bg-slate-800/40 transition-all">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">↑ 14,2%</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-4">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
             </div>
-            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Volume Transacionado</p>
-            <p className="text-[22px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(pendente + saldo)}</p>
-            <p className="text-[10.5px] text-slate-600 mt-2">Mês atual</p>
+            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Rendimento Acumulado CDI</p>
+            <p className="text-[22px] font-bold text-blue-400 tabular-nums leading-none">R$ {formatBRL(totalCdiCredits)}</p>
+            <p className="text-[10.5px] text-slate-600 mt-2">Total recebido em juros CDI</p>
           </div>
 
           {/* Rendimento Previsto */}

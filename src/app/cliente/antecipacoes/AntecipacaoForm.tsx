@@ -7,22 +7,21 @@ function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const TAXA = 2.5
-
 interface Props {
   pendente: number
   saldo: number
+  taxa: number
 }
 
-export function AntecipacaoForm({ pendente, saldo }: Props) {
+export function AntecipacaoForm({ pendente, saldo, taxa }: Props) {
   const [amount, setAmount] = useState('')
   const [error, setError]   = useState('')
   const [success, setSuccess] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const parsed  = parseFloat(amount.replace(/\./g, '').replace(',', '.')) || 0
-  const taxa    = parsed * (TAXA / 100)
-  const liquido = parsed - taxa
+  const parsed   = parseFloat(amount.replace(/\./g, '').replace(',', '.')) || 0
+  const taxaVal  = parsed * (taxa / 100)
+  const liquido  = parsed - taxaVal
 
   function handleAll() {
     setAmount(pendente.toFixed(2).replace('.', ','))
@@ -113,8 +112,8 @@ export function AntecipacaoForm({ pendente, saldo }: Props) {
             <span className="text-slate-200 font-semibold tabular-nums">R$ {formatBRL(parsed)}</span>
           </div>
           <div className="flex justify-between text-[11.5px]">
-            <span className="text-slate-500">Taxa ({TAXA}%)</span>
-            <span className="text-red-400 font-semibold tabular-nums">−R$ {formatBRL(taxa)}</span>
+            <span className="text-slate-500">Taxa ({taxa}%)</span>
+            <span className="text-red-400 font-semibold tabular-nums">−R$ {formatBRL(taxaVal)}</span>
           </div>
           <div className="flex justify-between text-[11.5px] border-t border-slate-800/60 pt-1.5 mt-0.5">
             <span className="text-slate-300 font-semibold">Você receberá</span>

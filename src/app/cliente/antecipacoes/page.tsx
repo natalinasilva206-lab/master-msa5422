@@ -79,7 +79,7 @@ export default async function AntecipacaoClientePage() {
                 Receba seu saldo pendente agora com desconto de {taxa}%
               </p>
             </div>
-            <AntecipacaoForm pendente={pendente} saldo={saldo} />
+            <AntecipacaoForm pendente={pendente} saldo={saldo} taxa={taxa} />
           </div>
 
           {/* Histórico */}
