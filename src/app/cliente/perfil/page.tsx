@@ -48,6 +48,30 @@ export default async function PerfilPage() {
   const initials = (merchant?.name ?? user?.name ?? 'U')
     .split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('')
 
+  // Quick stats
+  const [statsLogs, cdiCredits] = merchant
+    ? await Promise.all([
+        prisma.auditLog.findMany({
+          where: { entityId: merchant.id, action: { in: ['WITHDRAW_APPROVED', 'BALANCE_ADJUST', 'ADD_TO_CDI'] } },
+          select: { action: true, metadata: true },
+        }),
+        prisma.auditLog.findMany({
+          where: { entityId: merchant.id, action: 'CDI_CREDIT' },
+          select: { metadata: true },
+        }),
+      ])
+    : [[], []]
+
+  function getAmt(metadata: string | null) {
+    try { return parseFloat(JSON.parse(metadata ?? '{}').amount || 0) } catch { return 0 }
+  }
+
+  const totalSacado    = statsLogs.filter(l => l.action === 'WITHDRAW_APPROVED').reduce((s, l) => s + getAmt(l.metadata), 0)
+  const totalRecebido  = statsLogs.filter(l => l.action === 'BALANCE_ADJUST').reduce((s, l) => s + getAmt(l.metadata), 0)
+  const totalAportado  = statsLogs.filter(l => l.action === 'ADD_TO_CDI').reduce((s, l) => s + getAmt(l.metadata), 0)
+  const totalRendido   = cdiCredits.reduce((s, l) => s + getAmt(l.metadata), 0)
+  const diasAtivo      = merchant ? Math.floor((Date.now() - new Date(merchant.createdAt).getTime()) / 86400000) : 0
+
   return (
     <div>
       <Topbar
@@ -57,6 +81,23 @@ export default async function PerfilPage() {
       />
 
       <div className="p-4 xl:p-6 space-y-4">
+
+        {/* Quick stats */}
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+          {[
+            { label: 'Dias Ativo',       value: String(diasAtivo),                 color: 'text-slate-300',   sub: 'na plataforma' },
+            { label: 'Total Recebido',   value: `R$ ${formatBRL(totalRecebido)}`,  color: 'text-emerald-400', sub: 'em vendas' },
+            { label: 'Total Aportado',   value: `R$ ${formatBRL(totalAportado)}`,  color: 'text-amber-400',   sub: 'no CDI' },
+            { label: 'Rendimento CDI',   value: `R$ ${formatBRL(totalRendido)}`,   color: 'text-blue-400',    sub: 'acumulado total' },
+            { label: 'Total Sacado',     value: `R$ ${formatBRL(totalSacado)}`,    color: 'text-purple-400',  sub: 'aprovado' },
+          ].map((s) => (
+            <div key={s.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-3.5">
+              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">{s.label}</p>
+              <p className={`text-[15px] font-bold tabular-nums leading-none ${s.color}`}>{s.value}</p>
+              <p className="text-[9.5px] text-slate-700 mt-1">{s.sub}</p>
+            </div>
+          ))}
+        </section>
 
         {/* Avatar + status */}
         <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 flex items-center gap-4">

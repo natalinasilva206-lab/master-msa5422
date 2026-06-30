@@ -79,6 +79,10 @@ export default async function ExtratoPage() {
     .filter((l) => l.action === 'ANTECIPACAO_REQUEST')
     .reduce((s, l) => s + getAmount(l.metadata), 0)
 
+  const totalCdiRendido = cdiLogs
+    .filter((l) => l.action === 'CDI_CREDIT')
+    .reduce((s, l) => s + getAmount(l.metadata), 0)
+
   return (
     <div>
       <Topbar
@@ -90,16 +94,18 @@ export default async function ExtratoPage() {
       <div className="p-4 xl:p-6 space-y-4">
 
         {/* KPIs */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
-            { label: 'Saldo Disponível',    value: `R$ ${formatBRL(pendente)}`,        color: 'text-emerald-400', border: 'border-emerald-500/20' },
-            { label: 'Saldo em CDI',        value: `R$ ${formatBRL(cdiSaldo)}`,        color: 'text-amber-400',   border: 'border-amber-500/20' },
-            { label: 'Total Sacado',        value: `R$ ${formatBRL(totalSacado)}`,     color: 'text-blue-400',    border: 'border-slate-800/70' },
-            { label: 'Total Antecipado',    value: `R$ ${formatBRL(totalAntecipado)}`, color: 'text-purple-400',  border: 'border-slate-800/70' },
+            { label: 'Saldo Disponível',  value: `R$ ${formatBRL(pendente)}`,          color: 'text-emerald-400', border: 'border-emerald-500/20', sub: 'livre para saque' },
+            { label: 'Saldo em CDI',      value: `R$ ${formatBRL(cdiSaldo)}`,          color: 'text-amber-400',   border: 'border-amber-500/20',   sub: 'rendendo agora' },
+            { label: 'Rendimento CDI',    value: `R$ ${formatBRL(totalCdiRendido)}`,   color: 'text-blue-400',    border: 'border-blue-500/15',    sub: 'total acumulado' },
+            { label: 'Total Sacado',      value: `R$ ${formatBRL(totalSacado)}`,       color: 'text-slate-300',   border: 'border-slate-800/70',   sub: 'saques aprovados' },
+            { label: 'Total Antecipado',  value: `R$ ${formatBRL(totalAntecipado)}`,   color: 'text-purple-400',  border: 'border-slate-800/70',   sub: 'antecipações cartão' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
               <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[18px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className={`text-[17px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className="text-[9.5px] text-slate-700 mt-1">{c.sub}</p>
             </div>
           ))}
         </section>
@@ -125,6 +131,13 @@ export default async function ExtratoPage() {
                 {saqueLogs.map((log) => {
                   const meta   = metaSaque[log.action]!
                   const amount = getAmount(log.metadata)
+                  let pixKey = '', pixType = '', bankName = ''
+                  try {
+                    const m = JSON.parse(log.metadata ?? '{}')
+                    pixKey  = m.pixKey  ?? ''
+                    pixType = m.pixType ?? ''
+                    bankName = m.bankName ?? ''
+                  } catch {}
                   return (
                     <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
                       <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${meta.bg}`}>
@@ -137,7 +150,12 @@ export default async function ExtratoPage() {
                             {meta.status}
                           </span>
                         </div>
-                        <p className="text-[10.5px] text-slate-600 mt-0.5">{formatDate(log.createdAt)}</p>
+                        <p className="text-[10px] text-slate-600 mt-0.5">{formatDate(log.createdAt)}</p>
+                        {pixKey && (
+                          <p className="text-[9.5px] text-slate-700 mt-0.5 truncate">
+                            Pix {pixType} · {pixKey}{bankName ? ` · ${bankName}` : ''}
+                          </p>
+                        )}
                       </div>
                       {amount > 0 && (
                         <p className={`text-[13px] font-bold tabular-nums shrink-0 ${meta.color}`}>
