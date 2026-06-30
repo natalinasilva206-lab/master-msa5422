@@ -36,7 +36,7 @@ export default async function ClienteSaquesPage() {
 
   const withdrawLogs = merchant
     ? await prisma.auditLog.findMany({
-        where: { entityId: merchant.id, action: { in: ['WITHDRAW_REQUEST', 'WITHDRAW_APPROVED'] } },
+        where: { entityId: merchant.id, action: { in: ['WITHDRAW_REQUEST', 'WITHDRAW_APPROVED', 'WITHDRAW_DENIED'] } },
         orderBy: { createdAt: 'desc' },
         take: 20,
       })
@@ -111,26 +111,33 @@ export default async function ClienteSaquesPage() {
               <div className="divide-y divide-slate-800/40 max-h-[360px] overflow-y-auto">
                 {withdrawLogs.map((log) => {
                   const isApproved = log.action === 'WITHDRAW_APPROVED'
+                  const isDenied   = log.action === 'WITHDRAW_DENIED'
                   let amount = 0
-                  try { amount = parseFloat(JSON.parse(log.metadata ?? '{}').amount || 0) } catch {}
+                  let isResolved = false
+                  try {
+                    const m = JSON.parse(log.metadata ?? '{}')
+                    amount = parseFloat(m.amount || 0)
+                    isResolved = !!m.resolved
+                  } catch {}
+                  const label   = isApproved ? 'Saque aprovado' : isDenied ? 'Saque negado' : isResolved ? 'Saque negado' : 'Aguardando aprovação'
+                  const status  = isApproved ? 'Aprovado' : isDenied ? 'Negado — saldo devolvido' : isResolved ? 'Negado' : 'Pendente'
+                  const iconD   = isApproved ? 'M5 13l4 4L19 7' : isDenied ? 'M6 18L18 6M6 6l12 12' : 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+                  const iconBg  = isApproved ? 'bg-emerald-500/10 text-emerald-400' : isDenied ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
+                  const stColor = isApproved ? 'text-emerald-400' : isDenied ? 'text-red-400' : 'text-amber-400'
                   return (
                     <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
-                      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${isApproved ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d={isApproved ? 'M5 13l4 4L19 7' : 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'} />
+                          <path strokeLinecap="round" strokeLinejoin="round" d={iconD} />
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12.5px] font-semibold text-slate-200">
-                          {isApproved ? 'Saque aprovado' : 'Saque solicitado'}
-                        </p>
+                        <p className="text-[12.5px] font-semibold text-slate-200">{label}</p>
                         <p className="text-[10.5px] text-slate-600">{formatDate(log.createdAt)}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-[13px] font-bold text-white tabular-nums">−R$ {formatBRL(amount)}</p>
-                        <p className={`text-[10px] font-semibold ${isApproved ? 'text-emerald-400' : 'text-amber-400'}`}>
-                          {isApproved ? 'Aprovado' : 'Pendente'}
-                        </p>
+                        <p className="text-[13px] font-bold text-white tabular-nums">R$ {formatBRL(amount)}</p>
+                        <p className={`text-[10px] font-semibold ${stColor}`}>{status}</p>
                       </div>
                     </div>
                   )

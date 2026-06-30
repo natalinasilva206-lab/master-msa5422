@@ -14,13 +14,20 @@ function formatDate(d: Date) {
 }
 
 const actionMeta: Record<string, { label: string; color: string; bg: string; sign: string }> = {
-  ADD_TO_CDI:        { label: 'Aporte CDI',       color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '+' },
-  WITHDRAW_REQUEST:  { label: 'Saque Solicitado',  color: 'text-amber-400',   bg: 'bg-amber-500/10 text-amber-400',   sign: '-' },
-  WITHDRAW_APPROVED: { label: 'Saque Aprovado',    color: 'text-blue-400',    bg: 'bg-blue-500/10 text-blue-400',     sign: '-' },
-  CDI_CREDIT:        { label: 'Rendimento CDI',    color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '+' },
-  BALANCE_ADJUST:    { label: 'Ajuste de Saldo',   color: 'text-slate-300',   bg: 'bg-slate-700/40 text-slate-400',   sign: '±' },
-  KYC_APPROVED:      { label: 'KYC Aprovado',      color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '' },
-  KYC_BLOCKED:       { label: 'KYC Bloqueado',     color: 'text-red-400',     bg: 'bg-red-500/10 text-red-400',       sign: '' },
+  ADD_TO_CDI:           { label: 'Aporte CDI',             color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '+' },
+  WITHDRAW_REQUEST:     { label: 'Saque Solicitado',        color: 'text-amber-400',   bg: 'bg-amber-500/10 text-amber-400',   sign: '-' },
+  WITHDRAW_APPROVED:    { label: 'Saque Aprovado',          color: 'text-blue-400',    bg: 'bg-blue-500/10 text-blue-400',     sign: '-' },
+  WITHDRAW_DENIED:      { label: 'Saque Negado',            color: 'text-red-400',     bg: 'bg-red-500/10 text-red-400',       sign: '+' },
+  CDI_CREDIT:           { label: 'Rendimento CDI',          color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '+' },
+  CDI_WITHDRAW:         { label: 'Resgate CDI',             color: 'text-amber-400',   bg: 'bg-amber-500/10 text-amber-400',   sign: '-' },
+  CDI_LOCK_SET:         { label: 'Título CDI Criado',       color: 'text-purple-400',  bg: 'bg-purple-500/10 text-purple-400', sign: '' },
+  CDI_EARLY_REQUEST:    { label: 'Resgate Ant. Solicitado', color: 'text-amber-400',   bg: 'bg-amber-500/10 text-amber-400',   sign: '' },
+  CDI_EARLY_APPROVED:   { label: 'Resgate Ant. Aprovado',   color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '+' },
+  CDI_EARLY_DENIED:     { label: 'Resgate Ant. Negado',     color: 'text-red-400',     bg: 'bg-red-500/10 text-red-400',       sign: '' },
+  ANTECIPACAO_REQUEST:  { label: 'Antecipação',             color: 'text-blue-400',    bg: 'bg-blue-500/10 text-blue-400',     sign: '+' },
+  BALANCE_ADJUST:       { label: 'Ajuste de Saldo',         color: 'text-slate-300',   bg: 'bg-slate-700/40 text-slate-400',   sign: '±' },
+  KYC_APPROVED:         { label: 'KYC Aprovado',            color: 'text-emerald-400', bg: 'bg-emerald-500/10 text-emerald-400', sign: '' },
+  KYC_BLOCKED:          { label: 'KYC Bloqueado',           color: 'text-red-400',     bg: 'bg-red-500/10 text-red-400',       sign: '' },
 }
 
 function getAmount(action: string, metadata: string | null): number | null {
