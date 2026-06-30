@@ -74,45 +74,46 @@ const linePath = smoothPath(chartPts, W, H)
 const areaPath = linePath + ` L ${W - 10} ${H - 10} L 10 ${H - 10} Z`
 
 export default async function AdminDashboardPage() {
+  // Wrap all DB calls so a migration-lag error doesn't crash the entire dashboard
   const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, pendingWithdrawLogs, cdiEarlyLogs] =
     await Promise.all([
-      prisma.merchant.count({ where: { status: 'ACTIVE' } }),
-      prisma.merchant.count({ where: { status: 'REVIEW' } }),
-      prisma.merchant.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }),
-      prisma.merchant.count(),
+      prisma.merchant.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+      prisma.merchant.count({ where: { status: 'REVIEW' } }).catch(() => 0),
+      prisma.merchant.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }).catch(() => []),
+      prisma.merchant.count().catch(() => 0),
       prisma.merchant.findMany({
         select: { id: true, name: true, balance: true, pendingBalance: true, cdiRate: true, plan: true, status: true },
-      }),
-      prisma.auditLog.count(),
+      }).catch(() => []),
+      prisma.auditLog.count().catch(() => 0),
       prisma.auditLog.findMany({
         where: { action: 'WITHDRAW_REQUEST' },
         select: { id: true, metadata: true, createdAt: true, entityId: true, user: { select: { name: true, email: true } } },
         orderBy: { createdAt: 'desc' },
         take: 20,
-      }),
+      }).catch(() => []),
       prisma.auditLog.findMany({
         where: { action: 'CDI_EARLY_REQUEST' },
         select: { id: true, metadata: true, entityId: true },
-      }),
+      }).catch(() => []),
     ])
 
   const resolvedWithdrawIds = new Set(
     (await prisma.auditLog.findMany({
       where: { action: { in: ['WITHDRAW_APPROVED', 'WITHDRAW_DENIED'] } },
       select: { metadata: true },
-    })).flatMap((l) => { try { return [JSON.parse(l.metadata ?? '{}').requestLogId] } catch { return [] } }).filter(Boolean)
+    }).catch(() => [])).flatMap((l) => { try { return [JSON.parse(l.metadata ?? '{}').requestLogId] } catch { return [] } }).filter(Boolean)
   )
-  const unresolvedPendingLogs = pendingWithdrawLogs.filter((l) => {
+  const unresolvedPendingLogs = (pendingWithdrawLogs as any[]).filter((l) => {
     try { return !JSON.parse(l.metadata ?? '{}').resolved } catch { return true }
-  }).filter((l) => !resolvedWithdrawIds.has(l.id))
+  }).filter((l: any) => !resolvedWithdrawIds.has(l.id))
 
   const resolvedCdiEarlyIds = new Set(
     (await prisma.auditLog.findMany({
       where: { action: { in: ['CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] } },
       select: { metadata: true },
-    })).flatMap((l) => { try { const m = JSON.parse(l.metadata ?? '{}'); return m.requestId ? [m.requestId] : [] } catch { return [] } })
+    }).catch(() => [])).flatMap((l) => { try { const m = JSON.parse(l.metadata ?? '{}'); return m.requestId ? [m.requestId] : [] } catch { return [] } })
   )
-  const pendingCdiEarly = cdiEarlyLogs.filter((l) => !resolvedCdiEarlyIds.has(l.id))
+  const pendingCdiEarly = (cdiEarlyLogs as any[]).filter((l: any) => !resolvedCdiEarlyIds.has(l.id))
 
   const totalBalance    = allMerchants.reduce((s, m) => s + m.balance, 0)
   const totalPending    = allMerchants.reduce((s, m) => s + m.pendingBalance, 0)

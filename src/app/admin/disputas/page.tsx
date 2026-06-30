@@ -20,19 +20,27 @@ export default async function DisputasPage({ searchParams }: PageProps) {
   const filterStatus = searchParams.status && searchParams.status !== 'todos' ? searchParams.status : undefined
   const filterType   = searchParams.type   && searchParams.type   !== 'todos' ? searchParams.type   : undefined
 
-  const disputes = await prisma.dispute.findMany({
-    where: {
-      ...(filterStatus ? { status: filterStatus } : {}),
-      ...(filterType   ? { type:   filterType   } : {}),
-    },
-    include: { merchant: { select: { id: true, name: true } } },
-    orderBy: { openedAt: 'desc' },
-  })
+  let disputes: Awaited<ReturnType<typeof prisma.dispute.findMany<{ include: { merchant: { select: { id: true; name: true } } } }>>> = []
+  let byStatus: Record<string, number> = {}
 
-  // Stats
-  const counts = await prisma.dispute.groupBy({ by: ['status'], _count: { id: true } })
-  const byStatus: Record<string, number> = {}
-  counts.forEach((c) => { byStatus[c.status] = c._count.id })
+  try {
+    const [rows, counts] = await Promise.all([
+      prisma.dispute.findMany({
+        where: {
+          ...(filterStatus ? { status: filterStatus } : {}),
+          ...(filterType   ? { type:   filterType   } : {}),
+        },
+        include: { merchant: { select: { id: true, name: true } } },
+        orderBy: { openedAt: 'desc' },
+      }),
+      prisma.dispute.groupBy({ by: ['status'], _count: { id: true } }),
+    ])
+    disputes = rows
+    counts.forEach((c) => { byStatus[c.status] = c._count.id })
+  } catch (e) {
+    console.error('[DisputasPage] DB error:', e)
+  }
+
   const total = Object.values(byStatus).reduce((a, b) => a + b, 0)
 
   const openCases  = (byStatus['ABERTO'] ?? 0) + (byStatus['EM_ANALISE'] ?? 0) + (byStatus['AGUARDANDO_DOCUMENTO'] ?? 0)
