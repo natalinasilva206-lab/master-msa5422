@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
+import { CreateAdminForm } from './CreateAdminForm'
 
 function formatDate(d: Date) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d))
@@ -57,8 +58,9 @@ export default async function UsuariosPage() {
 
         {/* Table */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <p className="text-[13px] font-semibold text-white">Todos os Usuários</p>
+            <CreateAdminForm />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">

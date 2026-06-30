@@ -8,95 +8,54 @@ function formatBRL(v: number) {
 }
 
 function formatDate(d: Date) {
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(d))
 }
 
-const statusMeta: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  APROVADO:   { label: 'Aprovado',   color: 'text-emerald-400', bg: 'text-emerald-400 bg-emerald-500/10', dot: 'bg-emerald-500' },
-  PENDENTE:   { label: 'Pendente',   color: 'text-amber-400',   bg: 'text-amber-400 bg-amber-500/10',     dot: 'bg-amber-400' },
-  RECUSADO:   { label: 'Recusado',   color: 'text-red-400',     bg: 'text-red-400 bg-red-500/10',         dot: 'bg-red-500' },
-  REEMBOLSADO:{ label: 'Reembolsado',color: 'text-slate-400',   bg: 'text-slate-400 bg-slate-700/40',     dot: 'bg-slate-500' },
+const statusMeta: Record<string, { label: string; bg: string; dot: string }> = {
+  APROVADO:    { label: 'Aprovado',    bg: 'text-emerald-400 bg-emerald-500/10', dot: 'bg-emerald-500' },
+  PENDENTE:    { label: 'Pendente',    bg: 'text-amber-400 bg-amber-500/10',     dot: 'bg-amber-400' },
+  CANCELADO:   { label: 'Cancelado',   bg: 'text-red-400 bg-red-500/10',         dot: 'bg-red-500' },
 }
 
-const metodoPag: Record<string, { label: string; icon: string }> = {
-  PIX:     { label: 'Pix',          icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-  CREDITO: { label: 'Crédito',      icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
-  BOLETO:  { label: 'Boleto',       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  DEBITO:  { label: 'Débito',       icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
-}
-
-const demoProducts = [
-  'Curso de Marketing Digital', 'Mentoria Premium', 'E-book Estratégias de Vendas',
-  'Pack de Templates', 'Acesso Vitalício Plataforma', 'Workshop Online',
-  'Consultoria 1h', 'Curso de Copywriting', 'Membership Mensal',
-  'Infoproduto Avançado', 'Treinamento em Vídeo', 'Planilha de Gestão',
-  'Bootcamp 30 dias', 'Assinatura Anual', 'Mini Curso Gratuito Premium',
-]
-
-const demoMetodos = ['PIX', 'CREDITO', 'BOLETO', 'DEBITO', 'PIX', 'PIX', 'CREDITO', 'CREDITO', 'PIX']
-const demoStatus  = ['APROVADO', 'APROVADO', 'APROVADO', 'PENDENTE', 'APROVADO', 'RECUSADO', 'APROVADO', 'REEMBOLSADO', 'APROVADO']
-
-function seededRand(seed: number) {
-  const x = Math.sin(seed + 1) * 10000
-  return x - Math.floor(x)
+const typeMeta: Record<string, { label: string; color: string; icon: string }> = {
+  VENDA:        { label: 'Venda',        color: 'text-emerald-400', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+  ESTORNO:      { label: 'Estorno',      color: 'text-red-400',     icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6' },
+  MED_PIX:      { label: 'MED Pix',      color: 'text-orange-400',  icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+  REEMBOLSO:    { label: 'Reembolso',    color: 'text-amber-400',   icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
+  PIX_DEVOLVIDO:{ label: 'Pix Devolvido',color: 'text-slate-400',   icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
 }
 
 export default async function AdminTransacoesPage() {
-  const merchants = await prisma.merchant.findMany({
-    where: { status: 'ACTIVE' },
-    select: { id: true, name: true, plan: true, pendingBalance: true, balance: true },
-    orderBy: { createdAt: 'asc' },
-  })
+  const [saleLogs, merchantStats] = await Promise.all([
+    prisma.saleLog.findMany({
+      take: 100,
+      orderBy: { createdAt: 'desc' },
+      include: { merchant: { select: { id: true, name: true, plan: true } } },
+    }).catch(() => []),
+    prisma.merchant.aggregate({
+      where: { status: 'ACTIVE' },
+      _sum: { pendingBalance: true, balance: true },
+      _count: { id: true },
+    }).catch(() => null),
+  ])
 
-  const totalVolume   = merchants.reduce((s, m) => s + m.pendingBalance + m.balance, 0)
-  const totalPending  = merchants.reduce((s, m) => s + m.pendingBalance, 0)
+  const vendas       = saleLogs.filter((t) => t.type === 'VENDA' && t.status === 'APROVADO')
+  const estornos     = saleLogs.filter((t) => t.type === 'ESTORNO' || t.type === 'MED_PIX')
+  const volumeVendas = vendas.reduce((s, t) => s + t.amount, 0)
+  const volumeEst    = estornos.reduce((s, t) => s + t.amount, 0)
+  const ticketMed    = vendas.length > 0 ? volumeVendas / vendas.length : 0
 
-  // Gera transações demo por seller ativo
-  const demoTxs: {
-    id: string
-    seller: string
-    plan: string
-    produto: string
-    metodo: string
-    status: string
-    valor: number
-    data: Date
-  }[] = []
-
-  merchants.forEach((m, mi) => {
-    const count = 3 + Math.floor(seededRand(mi * 7) * 8)
-    for (let i = 0; i < count; i++) {
-      const seed  = mi * 100 + i
-      const valor = Math.round((50 + seededRand(seed) * 1950) * 100) / 100
-      const daysAgo = Math.floor(seededRand(seed + 1) * 60)
-      const data  = new Date(Date.now() - daysAgo * 86400000 - Math.floor(seededRand(seed + 2) * 86400000))
-      demoTxs.push({
-        id:      `${m.id}-${i}`,
-        seller:  m.name,
-        plan:    m.plan,
-        produto: demoProducts[Math.floor(seededRand(seed + 3) * demoProducts.length)],
-        metodo:  demoMetodos[Math.floor(seededRand(seed + 4) * demoMetodos.length)],
-        status:  demoStatus[Math.floor(seededRand(seed + 5) * demoStatus.length)],
-        valor,
-        data,
-      })
-    }
-  })
-
-  demoTxs.sort((a, b) => b.data.getTime() - a.data.getTime())
-
-  const aprovadas  = demoTxs.filter((t) => t.status === 'APROVADO')
-  const volumeDemo = aprovadas.reduce((s, t) => s + t.valor, 0)
-  const ticketMed  = aprovadas.length > 0 ? volumeDemo / aprovadas.length : 0
-
-  const fallback = merchants.length === 0
+  const totalBalance = (merchantStats?._sum?.pendingBalance ?? 0) + (merchantStats?._sum?.balance ?? 0)
+  const sellersAtivos = merchantStats?._count?.id ?? 0
 
   return (
     <div>
       <Topbar
         title="Transações"
         breadcrumb="Casa › Financeiro"
-        subtitle="Vendas processadas pelos sellers na plataforma"
+        subtitle="Ledger de vendas, estornos e MEDs processados na plataforma"
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -105,33 +64,33 @@ export default async function AdminTransacoesPage() {
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             {
-              label: 'Volume Total',
-              value: `R$ ${formatBRL(fallback ? 0 : volumeDemo)}`,
-              sub: `${aprovadas.length} transações aprovadas`,
+              label: 'Volume de Vendas',
+              value: `R$ ${formatBRL(volumeVendas)}`,
+              sub: `${vendas.length} vendas aprovadas`,
               color: 'text-emerald-400',
               bg: 'bg-emerald-500/10 text-emerald-500',
               icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
             },
             {
               label: 'Ticket Médio',
-              value: `R$ ${formatBRL(fallback ? 0 : ticketMed)}`,
-              sub: 'por transação aprovada',
+              value: `R$ ${formatBRL(ticketMed)}`,
+              sub: 'por venda aprovada',
               color: 'text-blue-400',
               bg: 'bg-blue-500/10 text-blue-500',
               icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
             },
             {
-              label: 'Saldo Disponível',
-              value: `R$ ${formatBRL(totalPending)}`,
-              sub: 'pendingBalance sellers ativos',
-              color: 'text-amber-400',
-              bg: 'bg-amber-500/10 text-amber-500',
-              icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z',
+              label: 'Estornos / MEDs',
+              value: `R$ ${formatBRL(volumeEst)}`,
+              sub: `${estornos.length} ocorrências`,
+              color: estornos.length > 0 ? 'text-red-400' : 'text-slate-500',
+              bg: 'bg-red-500/10 text-red-500',
+              icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6',
             },
             {
               label: 'Sellers Ativos',
-              value: `${merchants.length}`,
-              sub: `R$ ${formatBRL(totalVolume)} em carteira`,
+              value: `${sellersAtivos}`,
+              sub: `R$ ${formatBRL(totalBalance)} em carteira`,
               color: 'text-purple-400',
               bg: 'bg-purple-500/10 text-purple-500',
               icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
@@ -158,20 +117,21 @@ export default async function AdminTransacoesPage() {
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-white">Histórico de Vendas</p>
-              <p className="text-[10.5px] text-slate-600 mt-0.5">{demoTxs.length} transações · {aprovadas.length} aprovadas</p>
+              <p className="text-[13px] font-semibold text-white">Ledger de Transações</p>
+              <p className="text-[10.5px] text-slate-600 mt-0.5">{saleLogs.length} registros · últimas 100 entradas</p>
             </div>
-            <span className="text-[10px] font-medium text-slate-700 bg-slate-800/60 border border-slate-700/50 px-2.5 py-1 rounded-full">
-              demo
+            <span className="text-[10px] font-medium text-emerald-600 bg-emerald-500/8 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+              dados reais
             </span>
           </div>
 
-          {fallback ? (
+          {saleLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-700">
               <svg className="w-10 h-10 mb-3 text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <p className="text-[13px] font-medium">Nenhum seller ativo ainda</p>
+              <p className="text-[13px] font-medium">Nenhuma transação registrada ainda</p>
+              <p className="text-[11px] text-slate-800 mt-1">Transações aparecem aqui conforme sellers processam vendas.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -179,17 +139,18 @@ export default async function AdminTransacoesPage() {
                 <thead>
                   <tr className="border-b border-slate-800/60">
                     <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Cliente / Produto</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Tipo</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Descrição</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Seller</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden xl:table-cell">Pagamento</th>
                     <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Valor</th>
                     <th className="text-right px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Data</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {demoTxs.slice(0, 60).map((tx) => {
+                  {saleLogs.map((tx) => {
                     const st  = statusMeta[tx.status] ?? statusMeta['PENDENTE']
-                    const met = metodoPag[tx.metodo]  ?? metodoPag['PIX']
+                    const tp  = typeMeta[tx.type]     ?? typeMeta['VENDA']
+                    const neg = tx.type !== 'VENDA'
                     return (
                       <tr key={tx.id} className="hover:bg-slate-800/20 transition-colors">
                         <td className="px-5 py-3">
@@ -198,28 +159,31 @@ export default async function AdminTransacoesPage() {
                             <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md ${st.bg}`}>{st.label}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 hidden sm:table-cell max-w-[180px]">
-                          <p className="text-[12px] font-medium text-slate-200 truncate">{tx.produto}</p>
-                          <p className="text-[10px] text-slate-600 mt-0.5">{tx.plan}</p>
-                        </td>
-                        <td className="px-4 py-3 hidden lg:table-cell">
-                          <p className="text-[11.5px] text-slate-400 truncate max-w-[130px]">{tx.seller}</p>
-                        </td>
-                        <td className="px-4 py-3 hidden xl:table-cell">
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            <svg className="w-3 h-3 text-slate-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d={met.icon} />
+                            <svg className={`w-3 h-3 shrink-0 ${tp.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d={tp.icon} />
                             </svg>
-                            <span className="text-[11px] text-slate-500">{met.label}</span>
+                            <span className={`text-[11px] font-semibold ${tp.color}`}>{tp.label}</span>
                           </div>
                         </td>
+                        <td className="px-4 py-3 hidden sm:table-cell max-w-[200px]">
+                          <p className="text-[11.5px] text-slate-400 truncate">
+                            {tx.description ?? tx.externalId ?? <span className="text-slate-700">—</span>}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <a href={`/admin/clientes/${tx.merchant.id}`} className="text-[11.5px] text-slate-400 hover:text-white transition-colors truncate max-w-[130px] block">
+                            {tx.merchant.name}
+                          </a>
+                        </td>
                         <td className="px-4 py-3 text-right">
-                          <span className={`text-[13px] font-bold tabular-nums ${st.color}`}>
-                            R$ {formatBRL(tx.valor)}
+                          <span className={`text-[13px] font-bold tabular-nums ${neg ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {neg ? '−' : '+'}R$ {formatBRL(tx.amount)}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right hidden md:table-cell">
-                          <span className="text-[11px] text-slate-600">{formatDate(tx.data)}</span>
+                          <span className="text-[11px] text-slate-600">{formatDate(tx.createdAt)}</span>
                         </td>
                       </tr>
                     )
@@ -227,7 +191,9 @@ export default async function AdminTransacoesPage() {
                 </tbody>
               </table>
               <div className="px-5 py-2.5 border-t border-slate-800/50">
-                <span className="text-[11px] text-slate-700">Exibindo {Math.min(60, demoTxs.length)} de {demoTxs.length} transações · dados demonstrativos</span>
+                <span className="text-[11px] text-slate-700">
+                  Exibindo {saleLogs.length} de {saleLogs.length} transações · ledger real
+                </span>
               </div>
             </div>
           )}

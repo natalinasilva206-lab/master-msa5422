@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Topbar } from '@/components/layout/Topbar'
 import { prisma } from '@/lib/prisma'
+import { AntecipacaoRow } from './AntecipacaoRow'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -142,35 +143,25 @@ export default async function AntecipacoesPage() {
                       <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Pendente</th>
                       <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Taxa</th>
                       <th className="text-right px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Líquido</th>
+                      <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/40">
                     {merchants.map((m, i) => {
-                      const taxa    = m.pendingBalance * (taxaAntecipacao / 100)
-                      const liquido = m.pendingBalance - taxa
+                      const taxa    = Math.round(m.pendingBalance * (taxaAntecipacao / 100) * 100) / 100
+                      const liquido = Math.round((m.pendingBalance - taxa) * 100) / 100
                       return (
-                        <tr key={m.id} className="hover:bg-slate-800/25 transition-colors">
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
-                                {getInitials(m.name)}
-                              </div>
-                              <div>
-                                <p className="text-[12px] font-semibold text-white truncate max-w-[120px]">{m.name}</p>
-                                <p className="text-[10px] text-slate-600">{m.plan}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-[12.5px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(m.pendingBalance)}</span>
-                          </td>
-                          <td className="px-4 py-3 text-right hidden md:table-cell">
-                            <span className="text-[11.5px] text-red-400 tabular-nums">−R$ {formatBRL(taxa)}</span>
-                          </td>
-                          <td className="px-5 py-3 text-right">
-                            <span className="text-[12.5px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(liquido)}</span>
-                          </td>
-                        </tr>
+                        <AntecipacaoRow
+                          key={m.id}
+                          merchantId={m.id}
+                          name={m.name}
+                          plan={m.plan}
+                          initial={getInitials(m.name)}
+                          gradient={avatarGradients[i % avatarGradients.length]}
+                          pendingBalance={m.pendingBalance}
+                          taxa={taxa}
+                          liquido={liquido}
+                        />
                       )
                     })}
                   </tbody>
@@ -186,6 +177,7 @@ export default async function AntecipacoesPage() {
                       <td className="px-5 py-2.5 text-right">
                         <span className="text-[11.5px] font-semibold text-emerald-400 tabular-nums">R$ {formatBRL(totalAntecipavel)}</span>
                       </td>
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
