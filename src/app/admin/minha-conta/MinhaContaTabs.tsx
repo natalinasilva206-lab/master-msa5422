@@ -2,14 +2,29 @@
 
 import { useState, useTransition, useCallback, useEffect } from 'react'
 import { signOut } from 'next-auth/react'
-import { updateProfile, changePassword, saveTheme } from './actions'
+import { updateProfile, changePassword, saveTheme, revokeAllSessions } from './actions'
 
-type User = { id: string; name: string; email: string; phone: string | null; theme: string; accentColor: string }
+type SecurityLog = { id: string; action: string; metadata: string | null; createdAt: Date }
+
+type User = {
+  id: string; name: string; email: string; phone: string | null
+  theme: string; accentColor: string
+  lastLoginAt: Date | null; lastLoginIp: string | null; lastLoginUa: string | null
+  createdAt: Date
+}
 
 const TABS = ['Meu Perfil', 'Alterar Senha', 'Tema', 'Segurança'] as const
 type Tab = typeof TABS[number]
 
-export function MinhaContaTabs({ user }: { user: User }) {
+export function MinhaContaTabs({
+  user,
+  securityLogs,
+  tokenIat,
+}: {
+  user: User
+  securityLogs: SecurityLog[]
+  tokenIat: number | null
+}) {
   const [activeTab, setActiveTab] = useState<Tab>('Meu Perfil')
 
   return (
@@ -34,7 +49,7 @@ export function MinhaContaTabs({ user }: { user: User }) {
       {activeTab === 'Meu Perfil'   && <ProfileTab user={user} />}
       {activeTab === 'Alterar Senha' && <PasswordTab />}
       {activeTab === 'Tema'          && <TemaTab user={user} />}
-      {activeTab === 'Segurança'     && <SegurancaTab user={user} />}
+      {activeTab === 'Segurança'     && <SegurancaTab user={user} securityLogs={securityLogs} tokenIat={tokenIat} />}
     </div>
   )
 }
@@ -703,70 +718,298 @@ function TemaTab({ user }: { user: User }) {
   )
 }
 
+/* ─── helpers ─── */
+function fmtDateTime(d: Date | null | undefined) {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function fmtRelative(d: Date | null | undefined) {
+  if (!d) return '—'
+  const diff = (Date.now() - new Date(d).getTime()) / 1000
+  if (diff < 60)   return 'agora mesmo'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m atrás`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`
+  if (diff < 86400 * 30) return `${Math.floor(diff / 86400)}d atrás`
+  return fmtDateTime(d)
+}
+
+function parseMeta(m: string | null): Record<string, string> {
+  try { return JSON.parse(m ?? '{}') } catch { return {} }
+}
+
+function parseUaClient(ua: string): string {
+  let browser = 'Navegador desconhecido'
+  if (/Edg\//.test(ua))         browser = 'Microsoft Edge'
+  else if (/Chrome\//.test(ua)) browser = 'Google Chrome'
+  else if (/Safari\//.test(ua)) browser = 'Safari'
+  else if (/Firefox\//.test(ua)) browser = 'Firefox'
+  else if (/OPR\//.test(ua))    browser = 'Opera'
+
+  let os = ''
+  if (/Windows NT/.test(ua))        os = 'Windows'
+  else if (/Mac OS X/.test(ua))     os = 'macOS'
+  else if (/Android/.test(ua))      os = 'Android'
+  else if (/iPhone|iPad/.test(ua))  os = 'iOS'
+  else if (/Linux/.test(ua))        os = 'Linux'
+
+  return os ? `${browser} · ${os}` : browser
+}
+
+const ACTION_META: Record<string, { label: string; icon: string; color: string }> = {
+  LOGIN_SUCCESS:        { label: 'Login realizado',           icon: '→',  color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+  LOGIN_FAILED:         { label: 'Tentativa de login falha',  icon: '✕',  color: 'text-red-400 bg-red-500/10 border-red-500/20' },
+  CHANGE_PASSWORD:      { label: 'Senha alterada',            icon: '🔑', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+  UPDATE_PROFILE:       { label: 'Perfil atualizado',         icon: '✎',  color: 'text-slate-400 bg-slate-700/30 border-slate-700/30' },
+  UPDATE_THEME:         { label: 'Tema alterado',             icon: '◑',  color: 'text-violet-400 bg-violet-500/10 border-violet-500/20' },
+  SESSION_REVOKED:      { label: 'Sessões encerradas',        icon: '⊘',  color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+  APPROVE_MERCHANT_KYC: { label: 'KYC aprovado',             icon: '✓',  color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+  KYC_REJECTED:         { label: 'KYC rejeitado',            icon: '✕',  color: 'text-red-400 bg-red-500/10 border-red-500/20' },
+}
+
 /* ─── Segurança ─── */
-function SegurancaTab({ user }: { user: User }) {
-  const items = [
-    {
-      icon: (
-        <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
-      label: 'Autenticação de dois fatores',
-      desc: 'Adicione uma camada extra de segurança',
-      badge: { text: 'Em breve', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-        </svg>
-      ),
-      label: 'Sessão atual',
-      desc: `Logado como ${user.email}`,
-      badge: { text: 'Ativa', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-        </svg>
-      ),
-      label: 'Logs de acesso',
-      desc: 'Consulte o histórico de atividades no painel de auditoria',
-      badge: null,
-      link: '/admin/usuarios',
-    },
-  ]
+function SegurancaTab({
+  user,
+  securityLogs,
+  tokenIat,
+}: {
+  user: User
+  securityLogs: SecurityLog[]
+  tokenIat: number | null
+}) {
+  const [isPending,   startTransition]  = useTransition()
+  const [revoking,    setRevoking]      = useState(false)
+  const [revoked,     setRevoked]       = useState(false)
+  const [clientUa,    setClientUa]      = useState<string>('')
+  const [sessionStart, setSessionStart] = useState<string>('')
+
+  useEffect(() => {
+    setClientUa(parseUaClient(navigator.userAgent))
+    if (tokenIat) {
+      setSessionStart(fmtDateTime(new Date(tokenIat * 1000)))
+    }
+  }, [tokenIat])
+
+  const lastLoginMeta = parseMeta(securityLogs.find(l => l.action === 'LOGIN_SUCCESS')?.metadata ?? null)
+
+  function handleRevokeAll() {
+    setRevoking(true)
+    startTransition(async () => {
+      await revokeAllSessions()
+      setRevoked(true)
+      setTimeout(() => signOut({ callbackUrl: '/login' }), 2500)
+    })
+  }
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-6 max-w-2xl space-y-5">
-      <div>
-        <p className="text-[14px] font-semibold text-white">Segurança da Conta</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">Gerencie o acesso e a segurança da sua conta</p>
-      </div>
-      <div className="border-t border-slate-800/50" />
-      <div className="space-y-3">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-4 p-4 bg-slate-800/30 border border-slate-800/40 rounded-xl">
-            <div className="w-10 h-10 rounded-xl bg-slate-800/60 flex items-center justify-center shrink-0">
-              {item.icon}
+    <div className="space-y-4 max-w-2xl">
+
+      {/* ── Status da conta ── */}
+      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 space-y-3">
+        <p className="text-[13px] font-semibold text-white">Status da Conta</p>
+        <div className="border-t border-slate-800/50" />
+
+        <div className="grid grid-cols-2 gap-3">
+          {/* Status */}
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Status</p>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+              <span className="text-[12.5px] font-semibold text-emerald-400">Ativa</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12.5px] font-semibold text-slate-200">{item.label}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">{item.desc}</p>
-            </div>
-            {item.badge && (
-              <span className={`text-[9.5px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border ${item.badge.color}`}>
-                {item.badge.text}
+          </div>
+
+          {/* Perfil */}
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Função</p>
+            <div className="flex items-center gap-2">
+              <span className="text-[9.5px] font-bold uppercase tracking-widest text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+                Administrador
               </span>
-            )}
-            {item.link && (
-              <a href={item.link} className="text-[11px] text-blue-400 hover:underline shrink-0">Ver →</a>
+            </div>
+          </div>
+
+          {/* Último login */}
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Último Login</p>
+            <p className="text-[12px] font-semibold text-slate-200">
+              {user.lastLoginAt ? fmtRelative(user.lastLoginAt) : '—'}
+            </p>
+            {user.lastLoginAt && (
+              <p className="text-[10px] text-slate-600 mt-0.5">{fmtDateTime(user.lastLoginAt)}</p>
             )}
           </div>
-        ))}
+
+          {/* IP */}
+          <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">IP do Último Login</p>
+            <p className="text-[12px] font-semibold text-slate-200 font-mono">
+              {user.lastLoginIp ?? '—'}
+            </p>
+          </div>
+
+          {/* Dispositivo */}
+          <div className="col-span-2 bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
+            <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Dispositivo do Último Login</p>
+            <p className="text-[12px] font-semibold text-slate-200">
+              {user.lastLoginUa ? parseUaClient(user.lastLoginUa) : '—'}
+            </p>
+            {user.lastLoginUa && (
+              <p className="text-[10px] text-slate-600 mt-1 font-mono truncate">{user.lastLoginUa.slice(0, 80)}…</p>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* ── 2FA ── */}
+      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5">
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-[13px] font-semibold text-slate-200">Autenticação em Dois Fatores (2FA)</p>
+              <span className="text-[9.5px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                Em breve
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Adicione uma segunda camada de verificação via app autenticador (TOTP/FIDO2).
+              Disponível em breve — a estrutura de armazenamento está preparada.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Sessão ativa ── */}
+      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+          <div>
+            <p className="text-[13px] font-semibold text-white">Sessão Ativa</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">
+              JWT strategy — uma sessão ativa por token
+            </p>
+          </div>
+          <button
+            onClick={handleRevokeAll}
+            disabled={isPending || revoked}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+          >
+            {revoked ? 'Encerrando…' : 'Encerrar todas'}
+          </button>
+        </div>
+
+        {revoked ? (
+          <div className="px-5 py-6 text-center">
+            <p className="text-[12px] font-semibold text-amber-400">Todas as sessões foram encerradas.</p>
+            <p className="text-[10.5px] text-slate-600 mt-1">Redirecionando para o login…</p>
+          </div>
+        ) : (
+          <div className="px-5 py-4">
+            <div className="flex items-start gap-4 p-4 bg-slate-800/30 border border-emerald-500/20 rounded-xl">
+              {/* Device icon */}
+              <div className="w-10 h-10 rounded-xl bg-slate-800/60 flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-[12.5px] font-semibold text-slate-200">
+                    {clientUa || 'Detectando…'}
+                  </p>
+                  <span className="flex items-center gap-1 text-[9.5px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    Sessão atual
+                  </span>
+                </div>
+                <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div>
+                    <span className="text-[9.5px] text-slate-600">Login em</span>
+                    <p className="text-[11px] text-slate-400">{sessionStart || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[9.5px] text-slate-600">IP</span>
+                    <p className="text-[11px] text-slate-400 font-mono">
+                      {lastLoginMeta.ip ?? user.lastLoginIp ?? '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[9.5px] text-slate-600">E-mail</span>
+                    <p className="text-[11px] text-slate-400">{user.email}</p>
+                  </div>
+                  <div>
+                    <span className="text-[9.5px] text-slate-600">Função</span>
+                    <p className="text-[11px] text-violet-400 font-semibold">Admin</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="mt-2.5 text-[10px] text-slate-700 text-center">
+              Clique em "Encerrar todas" para invalidar o token atual e forçar novo login
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Histórico de segurança ── */}
+      <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-800/60">
+          <p className="text-[13px] font-semibold text-white">Histórico de Segurança</p>
+          <p className="text-[10.5px] text-slate-500 mt-0.5">
+            Últimos {securityLogs.length} eventos registrados
+          </p>
+        </div>
+
+        {securityLogs.length === 0 ? (
+          <div className="px-5 py-10 text-center text-[12px] text-slate-600">
+            Nenhum evento de segurança registrado ainda.
+            <br />
+            <span className="text-[10.5px] text-slate-700">Os eventos aparecerão após o próximo login.</span>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-800/40">
+            {securityLogs.map((log) => {
+              const meta = parseMeta(log.metadata)
+              const info = ACTION_META[log.action] ?? { label: log.action, icon: '•', color: 'text-slate-500 bg-slate-800/40 border-slate-700/30' }
+              return (
+                <div key={log.id} className="flex items-start gap-3.5 px-5 py-3.5 hover:bg-slate-800/20 transition-colors">
+                  {/* Icon badge */}
+                  <div className={`mt-0.5 w-7 h-7 rounded-lg border flex items-center justify-center text-[12px] shrink-0 ${info.color}`}>
+                    {info.icon}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-[12px] font-semibold text-slate-200">{info.label}</p>
+                      {meta.ip && (
+                        <span className="text-[9.5px] text-slate-600 font-mono bg-slate-800/60 px-1.5 py-0.5 rounded">
+                          {meta.ip}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                      {meta.browser && (
+                        <span className="text-[10.5px] text-slate-500">{meta.browser}{meta.os ? ` · ${meta.os}` : ''}</span>
+                      )}
+                      <span className="text-[10px] text-slate-700">{fmtDateTime(new Date(log.createdAt))}</span>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] text-slate-700 shrink-0 mt-0.5">{fmtRelative(new Date(log.createdAt))}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }

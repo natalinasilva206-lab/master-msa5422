@@ -18,6 +18,9 @@ model User {
   passwordChangedAt DateTime?
   theme             String    @default("dark")
   accentColor       String    @default("blue")
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  lastLoginUa       String?
   merchantId        String?
   merchant   Merchant?  @relation(fields: [merchantId], references: [id])
   auditLogs  AuditLog[]

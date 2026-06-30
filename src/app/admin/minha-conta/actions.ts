@@ -111,3 +111,25 @@ export async function saveTheme(theme: string, accentColor: string) {
   revalidatePath('/admin')
   return { success: true }
 }
+
+export async function revokeAllSessions() {
+  const session = await requireAdmin()
+  const userId  = (session.user as any).id as string
+
+  await prisma.user.update({
+    where: { id: userId },
+    data:  { passwordChangedAt: new Date() },
+  })
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   'SESSION_REVOKED',
+      entity:   'User',
+      entityId: userId,
+      metadata: JSON.stringify({ revokedAt: new Date().toISOString(), revokedBy: 'self' }),
+    },
+  })
+
+  return { success: true }
+}
