@@ -91,8 +91,8 @@ export default async function ClienteDashboardPage() {
               </svg>
             </div>
             <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Saldo Disponível</p>
-            <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(saldo)}</p>
-            <p className="text-[10.5px] text-slate-600 mt-2">Disponível para saque</p>
+            <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
+            <p className="text-[10.5px] text-slate-600 mt-2">Disponível para saque ou aporte</p>
           </div>
 
           {/* Volume Transacionado */}
@@ -106,7 +106,7 @@ export default async function ClienteDashboardPage() {
               <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">↑ 14,2%</span>
             </div>
             <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Volume Transacionado</p>
-            <p className="text-[22px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(saldo + pendente)}</p>
+            <p className="text-[22px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(pendente + saldo)}</p>
             <p className="text-[10.5px] text-slate-600 mt-2">Mês atual</p>
           </div>
 
@@ -142,11 +142,11 @@ export default async function ClienteDashboardPage() {
           {/* Saldo pendente + ações */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[12.5px] font-semibold text-white">Saldo Pendente</p>
-              <span className="text-[10px] text-amber-500 font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Aguardando liberação</span>
+              <p className="text-[12.5px] font-semibold text-white">Saldo Disponível</p>
+              <span className="text-[10px] text-emerald-500 font-semibold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Livre para movimentar</span>
             </div>
-            <p className="text-[28px] font-bold text-amber-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
-            <p className="text-[10.5px] text-slate-600 mt-2 mb-5">Valores em processo de liquidação</p>
+            <p className="text-[28px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
+            <p className="text-[10.5px] text-slate-600 mt-2 mb-5">Disponível para saque ou aporte no CDI</p>
             <div className="grid grid-cols-2 gap-2">
               <Link href="/cliente/saques" className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-semibold transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -194,8 +194,8 @@ export default async function ClienteDashboardPage() {
               <svg className="w-10 h-10 text-slate-700 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <p className="text-[12.5px] font-medium text-slate-600">Sem saldo para simular</p>
-              <p className="text-[11px] text-slate-700 mt-1">Quando seu saldo for liberado, a simulação CDI aparecerá aqui.</p>
+              <p className="text-[12.5px] font-medium text-slate-600">Sem saldo em CDI</p>
+              <p className="text-[11px] text-slate-700 mt-1">Aporte no CDI para ver a simulação de rendimentos aqui.</p>
             </div>
           )}
 

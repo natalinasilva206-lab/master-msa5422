@@ -61,8 +61,8 @@ export default async function ClienteSaquesPage() {
         {/* KPIs */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Disponível para Saque', value: `R$ ${formatBRL(saldo)}`,   color: 'text-emerald-400', border: 'border-emerald-500/20', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
-            { label: 'Saldo Pendente',        value: `R$ ${formatBRL(pendente)}`, color: 'text-amber-400',   border: 'border-amber-500/20',   icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { label: 'Disponível para Saque', value: `R$ ${formatBRL(pendente)}`, color: 'text-emerald-400', border: 'border-emerald-500/20', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
+            { label: 'Saldo em CDI',          value: `R$ ${formatBRL(saldo)}`,   color: 'text-amber-400',   border: 'border-amber-500/20',   icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
             { label: 'Total Sacado',          value: `R$ ${formatBRL(totalSacado)}`, color: 'text-slate-200', border: 'border-slate-800/70', icon: 'M5 10l7-7m0 0l7 7m-7-7v18' },
             { label: 'Prazo de Liquidação',   value: prazo,                       color: 'text-blue-400',    border: 'border-slate-800/70',   icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
           ].map((c) => (
@@ -90,7 +90,7 @@ export default async function ClienteSaquesPage() {
               <p className="text-[13px] font-semibold text-white">Nova Solicitação de Saque</p>
               <p className="text-[10.5px] text-slate-600 mt-0.5">Prazo de liquidação: <strong className="text-slate-400">{prazo}</strong> · Sem taxa</p>
             </div>
-            <WithdrawForm saldo={saldo} plano={plano} />
+            <WithdrawForm saldo={pendente} plano={plano} />
           </div>
 
           {/* Histórico */}

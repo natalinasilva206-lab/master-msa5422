@@ -19,11 +19,11 @@ export async function requestWithdrawal(amount: number): Promise<{ error?: strin
   const merchant = user?.merchant
   if (!merchant) return { error: 'Merchant não encontrado.' }
   if (merchant.status !== 'ACTIVE') return { error: 'Sua conta precisa estar ativa para solicitar saques.' }
-  if (amount > merchant.balance) return { error: 'Valor maior que o saldo disponível.' }
+  if (amount > merchant.pendingBalance) return { error: 'Valor maior que o saldo disponível.' }
 
   await prisma.merchant.update({
     where: { id: merchant.id },
-    data: { balance: { decrement: amount } },
+    data: { pendingBalance: { decrement: amount } },
   })
 
   await prisma.auditLog.create({

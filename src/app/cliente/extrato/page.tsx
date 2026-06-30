@@ -65,8 +65,8 @@ export default async function ExtratoPage() {
         {/* KPIs */}
         <section className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {[
-            { label: 'Saldo disponível',  value: `R$ ${formatBRL(saldo)}`,   color: 'text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10 text-emerald-500' },
-            { label: 'Saldo pendente',    value: `R$ ${formatBRL(pendente)}`, color: 'text-amber-400',   border: 'border-amber-500/20',   bg: 'bg-amber-500/10 text-amber-500' },
+            { label: 'Saldo Disponível',  value: `R$ ${formatBRL(pendente)}`, color: 'text-emerald-400', border: 'border-emerald-500/20', bg: 'bg-emerald-500/10 text-emerald-500' },
+            { label: 'Saldo em CDI',      value: `R$ ${formatBRL(saldo)}`,   color: 'text-amber-400',   border: 'border-amber-500/20',   bg: 'bg-amber-500/10 text-amber-500' },
             { label: 'Total de eventos',  value: `${logs.length}`,            color: 'text-slate-200',   border: 'border-slate-800/70',   bg: 'bg-slate-700/30 text-slate-400' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>

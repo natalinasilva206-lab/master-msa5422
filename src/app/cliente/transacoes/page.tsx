@@ -79,8 +79,8 @@ export default async function ClienteTransacoesPage() {
         {/* KPIs */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Saldo Disponível',  value: `R$ ${formatBRL(saldo)}`,       color: 'text-emerald-400', border: 'border-emerald-500/20' },
-            { label: 'Saldo Pendente',    value: `R$ ${formatBRL(pendente)}`,     color: 'text-amber-400',   border: 'border-amber-500/20' },
+            { label: 'Saldo Disponível',  value: `R$ ${formatBRL(pendente)}`,     color: 'text-emerald-400', border: 'border-emerald-500/20' },
+            { label: 'Saldo em CDI',      value: `R$ ${formatBRL(saldo)}`,       color: 'text-amber-400',   border: 'border-amber-500/20' },
             { label: 'Total Aportes CDI', value: `R$ ${formatBRL(totalCredito)}`, color: 'text-blue-400',    border: 'border-slate-800/70' },
             { label: 'Total Saques',      value: `R$ ${formatBRL(totalDebito)}`,  color: 'text-slate-200',   border: 'border-slate-800/70' },
           ].map((c) => (
