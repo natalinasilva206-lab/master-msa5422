@@ -74,18 +74,21 @@ const linePath = smoothPath(chartPts, W, H)
 const areaPath = linePath + ` L ${W - 10} ${H - 10} L 10 ${H - 10} Z`
 
 export default async function AdminDashboardPage() {
-  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants] =
+  const [activeMerchants, reviewMerchants, recentMerchants, totalMerchants, allMerchants, totalLogs, totalWithdrawLogs] =
     await Promise.all([
       prisma.merchant.count({ where: { status: 'ACTIVE' } }),
       prisma.merchant.count({ where: { status: 'REVIEW' } }),
       prisma.merchant.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }),
       prisma.merchant.count(),
       prisma.merchant.findMany({
-        select: { id: true, name: true, balance: true, cdiRate: true, plan: true, status: true },
+        select: { id: true, name: true, balance: true, pendingBalance: true, cdiRate: true, plan: true, status: true },
       }),
+      prisma.auditLog.count(),
+      prisma.auditLog.count({ where: { action: 'WITHDRAW_REQUEST' } }),
     ])
 
-  const totalBalance = allMerchants.reduce((s, m) => s + m.balance, 0)
+  const totalBalance    = allMerchants.reduce((s, m) => s + m.balance, 0)
+  const totalPending    = allMerchants.reduce((s, m) => s + m.pendingBalance, 0)
   const totalRendimento = allMerchants.reduce((s, m) => s + m.balance * (m.cdiRate / 100), 0)
   const topSellers = [...allMerchants]
     .filter((m) => m.balance > 0)
@@ -156,15 +159,15 @@ export default async function AdminDashboardPage() {
         {/* ── KPI Cards ── */}
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
 
-          {/* Volume Processado */}
+          {/* Saldo Disponível Total */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Volume Processado</p>
-                <p className="text-[20px] font-bold text-white tabular-nums leading-none">—</p>
-                <p className="text-[10px] text-slate-700 mt-1.5">Em desenvolvimento</p>
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Total Disponível</p>
+                <p className="text-[17px] font-bold text-amber-400 tabular-nums leading-none">{formatBRLShort(totalPending)}</p>
+                <p className="text-[10px] text-slate-500 mt-1.5">pendingBalance de todos os sellers</p>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 ml-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
@@ -188,13 +191,13 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Transações */}
+          {/* Eventos */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Transações</p>
-                <p className="text-[20px] font-bold text-white tabular-nums leading-none">—</p>
-                <p className="text-[10px] text-slate-700 mt-1.5">Em desenvolvimento</p>
+                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Eventos Log</p>
+                <p className="text-[20px] font-bold text-white tabular-nums leading-none">{totalLogs}</p>
+                <p className="text-[10px] text-slate-500 mt-1.5">{totalWithdrawLogs} saques solicitados</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -230,7 +233,7 @@ export default async function AdminDashboardPage() {
                   Clique para ver detalhes
                 </Link>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 ml-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
