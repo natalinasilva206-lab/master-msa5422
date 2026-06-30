@@ -43,6 +43,7 @@ model Merchant {
   riskNotes            String   @default("")
   users           User[]
   reserveReleases ReserveRelease[]
+  disputes        Dispute[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -56,6 +57,25 @@ model FeePlan {
   costFixed      Float
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Dispute {
+  id               String    @id @default(cuid())
+  type             String    // CHARGEBACK | MED_PIX | REEMBOLSO | DISPUTA_MANUAL | BLOQUEIO_PREVENTIVO
+  merchantId       String
+  merchant         Merchant  @relation(fields: [merchantId], references: [id])
+  saleLogId        String?   // AuditLog.id da transação vinculada
+  contestedAmount  Float     // valor contestado
+  blockedAmount    Float     @default(0) // valor efetivamente bloqueado no saldo
+  status           String    @default("ABERTO")
+  openedAt         DateTime  @default(now())
+  deadline         DateTime?
+  assignedTo       String?   // responsável interno
+  documents        String?   // JSON string[]
+  notes            String?
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model ReserveRelease {
