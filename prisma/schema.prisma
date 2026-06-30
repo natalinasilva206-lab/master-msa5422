@@ -14,8 +14,9 @@ model User {
   email      String     @unique
   password   String
   role       String     @default("CLIENT")
-  phone      String?
-  merchantId String?
+  phone             String?
+  passwordChangedAt DateTime?
+  merchantId        String?
   merchant   Merchant?  @relation(fields: [merchantId], references: [id])
   auditLogs  AuditLog[]
   createdAt  DateTime   @default(now())

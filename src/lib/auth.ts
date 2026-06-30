@@ -37,10 +37,23 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = (user as any).role
         token.id = user.id
+        token.iat = Math.floor(Date.now() / 1000)
+      }
+      // Invalidate token if password was changed after it was issued
+      if (token.id && token.iat) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { passwordChangedAt: true },
+        }).catch(() => null)
+        if (dbUser?.passwordChangedAt) {
+          const changedAt = Math.floor(dbUser.passwordChangedAt.getTime() / 1000)
+          if ((token.iat as number) < changedAt) return {}
+        }
       }
       return token
     },
     async session({ session, token }) {
+      if (!token.id) return { ...session, user: undefined } as any
       if (session.user) {
         (session.user as any).role = token.role
         ;(session.user as any).id = token.id

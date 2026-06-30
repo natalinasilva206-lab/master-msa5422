@@ -64,8 +64,12 @@ export async function changePassword(formData: FormData) {
   const valid = await bcrypt.compare(currentPassword, user.password)
   if (!valid) return { error: 'Senha atual incorreta.' }
 
+  const now = new Date()
   const hashed = await bcrypt.hash(newPassword, 12)
-  await prisma.user.update({ where: { id: userId }, data: { password: hashed } })
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hashed, passwordChangedAt: now },
+  })
 
   await prisma.auditLog.create({
     data: {
@@ -73,7 +77,7 @@ export async function changePassword(formData: FormData) {
       action: 'CHANGE_PASSWORD',
       entity: 'User',
       entityId: userId,
-      metadata: JSON.stringify({ changedAt: new Date().toISOString() }),
+      metadata: JSON.stringify({ changedAt: now.toISOString(), sessionsInvalidated: true }),
     },
   })
 
