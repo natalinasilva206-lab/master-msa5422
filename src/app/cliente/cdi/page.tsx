@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { CdiSimulator } from './CdiSimulator'
+import { AddToCdiButton } from './AddToCdiButton'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -42,8 +43,9 @@ export default async function ClienteCdiPage() {
     : null
 
   const merchant = user?.merchant
-  const saldo    = merchant?.balance   ?? 0
-  const cdiRate  = merchant?.cdiRate   ?? 1.0
+  const saldo    = merchant?.balance        ?? 0
+  const pendente = merchant?.pendingBalance ?? 0
+  const cdiRate  = merchant?.cdiRate        ?? 1.0
   const cdiAnual = anualizarTaxa(cdiRate)
   const plano    = merchant?.plan      ?? '—'
 
@@ -74,6 +76,13 @@ export default async function ClienteCdiPage() {
         title="CDI e Rendimentos"
         breadcrumb="Financeiro"
         subtitle={`Taxa atual: ${cdiRate.toFixed(2)}%/mês · ${cdiAnual.toFixed(2)}% a.a.`}
+        actions={
+          <AddToCdiButton
+            pendingBalance={pendente}
+            currentBalance={saldo}
+            cdiRate={cdiRate}
+          />
+        }
       />
 
       <div className="p-4 xl:p-6 space-y-4">
