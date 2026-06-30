@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { processSalePayment } from '@/lib/processSalePayment'
 
 async function getAdminUserId() {
   const session = await getServerSession(authOptions)
@@ -128,5 +129,85 @@ export async function setRiskBalance(
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
     console.error('[setRiskBalance]', e)
     return { error: 'Erro interno.' }
+  }
+}
+
+export interface RiskConfigInput {
+  riskReservePercent: number
+  riskReleaseDays: number
+  riskLevel: string
+  riskReserveMin: number
+  riskReserveMax: number
+  riskNotes: string
+}
+
+export async function saveRiskConfig(
+  merchantId: string,
+  config: RiskConfigInput,
+): Promise<{ error?: string; ok?: boolean }> {
+  try {
+    const adminUserId = await getAdminUserId()
+
+    const pct = config.riskReservePercent
+    if (isNaN(pct) || pct < 0 || pct > 100) return { error: 'Percentual deve ser entre 0 e 100.' }
+    const days = config.riskReleaseDays
+    if (isNaN(days) || days < 0) return { error: 'Prazo inválido.' }
+    if (!['LOW', 'MEDIUM', 'HIGH'].includes(config.riskLevel)) return { error: 'Nível de risco inválido.' }
+
+    await prisma.$transaction([
+      prisma.merchant.update({
+        where: { id: merchantId },
+        data: {
+          riskReservePercent: pct,
+          riskReleaseDays:    days,
+          riskLevel:          config.riskLevel,
+          riskReserveMin:     config.riskReserveMin,
+          riskReserveMax:     config.riskReserveMax,
+          riskNotes:          config.riskNotes,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:   adminUserId,
+          action:   'RISK_CONFIG_UPDATE',
+          entity:   'Merchant',
+          entityId: merchantId,
+          metadata: JSON.stringify(config),
+        },
+      }),
+    ])
+
+    revalidatePath(`/admin/clientes/${merchantId}`)
+    return { ok: true }
+  } catch (e: any) {
+    if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
+    console.error('[saveRiskConfig]', e)
+    return { error: 'Erro interno.' }
+  }
+}
+
+export async function simulateSale(
+  merchantId: string,
+  saleAmount: number,
+  description?: string,
+): Promise<{ ok: true; data: Record<string, unknown> } | { ok: false; error: string }> {
+  try {
+    const adminUserId = await getAdminUserId()
+
+    if (!saleAmount || saleAmount <= 0) return { ok: false, error: 'Valor inválido.' }
+
+    const result = await processSalePayment({
+      merchantId,
+      saleAmount,
+      description: description ?? 'Venda simulada pelo ADM',
+      triggeredBy: adminUserId,
+    })
+
+    revalidatePath(`/admin/clientes/${merchantId}`)
+    return { ok: true, data: result as unknown as Record<string, unknown> }
+  } catch (e: any) {
+    if (e.message === 'Não autorizado') return { ok: false, error: 'Não autorizado.' }
+    console.error('[simulateSale]', e)
+    return { ok: false, error: e.message ?? 'Erro interno.' }
   }
 }

@@ -1,0 +1,6 @@
+ALTER TABLE "Merchant" ADD COLUMN "riskReservePercent" DOUBLE PRECISION NOT NULL DEFAULT 5.0;
+ALTER TABLE "Merchant" ADD COLUMN "riskReleaseDays"    INTEGER          NOT NULL DEFAULT 30;
+ALTER TABLE "Merchant" ADD COLUMN "riskLevel"          TEXT             NOT NULL DEFAULT 'MEDIUM';
+ALTER TABLE "Merchant" ADD COLUMN "riskReserveMin"     DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "Merchant" ADD COLUMN "riskReserveMax"     DOUBLE PRECISION NOT NULL DEFAULT 0;
+ALTER TABLE "Merchant" ADD COLUMN "riskNotes"          TEXT             NOT NULL DEFAULT '';

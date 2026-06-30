@@ -32,9 +32,15 @@ model Merchant {
   balance         Float    @default(0)
   pendingBalance  Float    @default(0)
   cdiRate         Float    @default(1.0)
-  reservedBalance Float    @default(0)
-  blockedBalance  Float    @default(0)
-  futureBalance   Float    @default(0)
+  reservedBalance      Float    @default(0)
+  blockedBalance       Float    @default(0)
+  futureBalance        Float    @default(0)
+  riskReservePercent   Float    @default(5.0)
+  riskReleaseDays      Int      @default(30)
+  riskLevel            String   @default("MEDIUM")
+  riskReserveMin       Float    @default(0)
+  riskReserveMax       Float    @default(0)
+  riskNotes            String   @default("")
   users           User[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

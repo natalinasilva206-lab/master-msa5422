@@ -7,6 +7,8 @@ import { prisma } from '@/lib/prisma'
 import { ToggleStatusButton } from './ToggleStatusButton'
 import { CreateAccessForm } from './CreateAccessForm'
 import { RiskPanel } from './risk/RiskPanel'
+import RiskConfigForm from './risk/RiskConfigForm'
+import SimularVendaForm from './risk/SimularVendaForm'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -95,17 +97,20 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
   const riskLogs = await prisma.auditLog.findMany({
     where: {
       entityId: merchant.id,
-      action: { in: ['RISK_RESERVE_SET', 'RISK_BLOCK_SET', 'RISK_FUTURE_SET', 'RISK_RELEASE'] },
+      action: { in: ['RISK_RESERVE_SET', 'RISK_BLOCK_SET', 'RISK_FUTURE_SET', 'RISK_RELEASE', 'RISK_AUTO_RESERVE', 'BALANCE_ADJUST', 'RISK_CONFIG_UPDATE'] },
     },
     orderBy: { createdAt: 'desc' },
-    take: 20,
+    take: 30,
   })
 
   const riskActionLabel: Record<string, string> = {
-    RISK_RESERVE_SET: 'Reserva separada',
-    RISK_BLOCK_SET:   'Saldo bloqueado',
-    RISK_FUTURE_SET:  'Liberação agendada',
-    RISK_RELEASE:     'Saldo liberado',
+    RISK_RESERVE_SET:   'Reserva separada (manual)',
+    RISK_BLOCK_SET:     'Saldo bloqueado',
+    RISK_FUTURE_SET:    'Liberação agendada',
+    RISK_RELEASE:       'Saldo liberado',
+    RISK_AUTO_RESERVE:  'Reserva automática (venda)',
+    BALANCE_ADJUST:     'Venda aprovada',
+    RISK_CONFIG_UPDATE: 'Config de risco alterada',
   }
 
   return (
@@ -188,6 +193,53 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
               futureBalance={merchant.futureBalance}
               releaseLogs={releaseLogs}
             />
+          </div>
+        </div>
+
+        {/* ══ Configuração de Risco ══ */}
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-700/40 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Configuração de Risco</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Percentual de reserva automática e limites por venda aprovada</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <RiskConfigForm
+              merchantId={merchant.id}
+              initial={{
+                riskReservePercent: merchant.riskReservePercent,
+                riskReleaseDays:    merchant.riskReleaseDays,
+                riskLevel:          merchant.riskLevel,
+                riskReserveMin:     merchant.riskReserveMin,
+                riskReserveMax:     merchant.riskReserveMax,
+                riskNotes:          merchant.riskNotes,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* ══ Simular Venda Aprovada ══ */}
+        <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-700/40 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Simular Venda Aprovada</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Testa o fluxo de reserva automática com um valor de venda — sem integração real</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <SimularVendaForm merchantId={merchant.id} reservePercent={merchant.riskReservePercent} />
           </div>
         </div>
 
