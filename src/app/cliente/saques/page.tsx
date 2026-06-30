@@ -43,7 +43,7 @@ export default async function ClienteSaquesPage() {
     : []
 
   const totalSacado = withdrawLogs
-    .filter((l) => l.action === 'WITHDRAW_REQUEST')
+    .filter((l) => l.action === 'WITHDRAW_APPROVED')
     .reduce((s, l) => {
       try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
     }, 0)

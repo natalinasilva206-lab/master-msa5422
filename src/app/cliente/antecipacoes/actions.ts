@@ -6,7 +6,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-const TAXA_ANTECIPACAO = 2.5 // percentual cobrado sobre o valor antecipado
+const taxaPlano: Record<string, number> = { Start: 2.5, Growth: 2.0, Prime: 1.5, Black: 1.0 }
+const TAXA_DEFAULT = 2.5
 
 export async function requestAntecipacao(amount: number): Promise<{ error?: string }> {
   const session = await getServerSession(authOptions)
@@ -23,7 +24,8 @@ export async function requestAntecipacao(amount: number): Promise<{ error?: stri
   if (merchant.status !== 'ACTIVE') return { error: 'Sua conta precisa estar ativa para solicitar antecipações.' }
   if (amount > merchant.pendingBalance) return { error: 'Valor maior que o saldo pendente disponível.' }
 
-  const taxa    = amount * (TAXA_ANTECIPACAO / 100)
+  const taxaPercent = taxaPlano[merchant.plan] ?? TAXA_DEFAULT
+  const taxa    = amount * (taxaPercent / 100)
   const liquido = amount - taxa
 
   // Move o valor do pendingBalance para balance (já descontando a taxa)
@@ -41,7 +43,7 @@ export async function requestAntecipacao(amount: number): Promise<{ error?: stri
       action:   'ANTECIPACAO_REQUEST',
       entity:   'Merchant',
       entityId: merchant.id,
-      metadata: JSON.stringify({ amount, taxa, liquido, taxaPercent: TAXA_ANTECIPACAO }),
+      metadata: JSON.stringify({ amount, taxa, liquido, taxaPercent, tipo: 'CARTAO' }),
     },
   })
 

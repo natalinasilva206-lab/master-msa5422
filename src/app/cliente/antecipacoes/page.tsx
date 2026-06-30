@@ -47,9 +47,9 @@ export default async function AntecipacaoClientePage() {
   return (
     <div>
       <Topbar
-        title="Antecipações"
+        title="Antecipação de Recebíveis"
         breadcrumb="Financeiro"
-        subtitle={`Taxa de antecipação: ${taxa}% · Crédito imediato no saldo disponível`}
+        subtitle={`Exclusivo para recebíveis de cartão · Taxa ${taxa}% · Crédito imediato no saldo disponível`}
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -74,9 +74,12 @@ export default async function AntecipacaoClientePage() {
           {/* Formulário */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60">
-              <p className="text-[13px] font-semibold text-white">Solicitar Antecipação</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">
-                Receba seu saldo pendente agora com desconto de {taxa}%
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-[13px] font-semibold text-white">Solicitar Antecipação</p>
+                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 uppercase tracking-wide">Cartão</span>
+              </div>
+              <p className="text-[10.5px] text-slate-500">
+                Receba agora os recebíveis de cartão com desconto de {taxa}%
               </p>
             </div>
             <AntecipacaoForm pendente={pendente} saldo={saldo} taxa={taxa} />
@@ -138,9 +141,9 @@ export default async function AntecipacaoClientePage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <p className="text-[12px] font-semibold text-blue-400">Como funciona a antecipação</p>
+            <p className="text-[12px] font-semibold text-blue-400">Como funciona a antecipação de recebíveis</p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              A antecipação permite receber seu saldo pendente antes do prazo natural de liquidação. É cobrada uma taxa de <strong className="text-slate-400">{taxa}%</strong> sobre o valor bruto antecipado (plano <strong className="text-slate-400">{plano}</strong>). O valor líquido é creditado imediatamente no seu saldo disponível.
+              Disponível <strong className="text-slate-400">exclusivamente para recebíveis de cartão</strong>. Permite receber antes do prazo natural de liquidação das parcelas. É cobrada uma taxa de <strong className="text-slate-400">{taxa}%</strong> sobre o valor bruto (plano <strong className="text-slate-400">{plano}</strong>). O valor líquido é creditado imediatamente no seu saldo disponível. Recebíveis de outros meios (boleto, Pix) não são elegíveis para antecipação.
             </p>
           </div>
         </div>

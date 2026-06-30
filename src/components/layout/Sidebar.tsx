@@ -194,6 +194,11 @@ const clientGroups: NavGroup[] = [
     label: 'Minha Conta',
     items: [
       {
+        label: 'Meu Perfil',
+        href: '/cliente/perfil',
+        icon: <I d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />,
+      },
+      {
         label: 'Meu Plano',
         href: '/cliente/plano',
         icon: <I d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />,
