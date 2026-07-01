@@ -36,13 +36,13 @@ export default function AdminError({
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={reset}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             Tentar novamente
           </button>
           <Link
             href="/admin/dashboard"
-            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             Ir ao painel
           </Link>

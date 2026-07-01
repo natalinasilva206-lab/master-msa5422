@@ -15,7 +15,7 @@ export default async function TaxasPage() {
           <h2 className="text-white font-semibold text-lg">Planos cadastrados</h2>
           <Link
             href="/admin/taxas/novo"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -57,7 +57,7 @@ export default async function TaxasPage() {
                       <td className="px-4 py-3 text-right">
                         <Link
                           href={`/admin/taxas/${p.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-500/30 hover:border-blue-600 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-500/30 hover:border-blue-600 rounded-lg transition-colors"
                         >
                           Ver detalhes
                         </Link>

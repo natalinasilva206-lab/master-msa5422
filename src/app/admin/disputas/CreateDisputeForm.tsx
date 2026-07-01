@@ -153,7 +153,7 @@ export default function CreateDisputeForm({ merchants }: { merchants: Merchant[]
         <button
           type="submit"
           disabled={isPending}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors"
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-semibold px-6 py-2.5 rounded-lg transition-colors"
         >
           {isPending ? 'Abrindo caso...' : 'Abrir caso'}
         </button>

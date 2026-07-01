@@ -71,7 +71,7 @@ export default function DisputeActions({
           <button
             key={t.id}
             onClick={() => { setTab(t.id); setMsg(null) }}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+            className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${
               tab === t.id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -108,7 +108,7 @@ export default function DisputeActions({
           <button
             disabled={isPending || newStatus === currentStatus}
             onClick={() => go(() => updateDisputeStatus(disputeId, newStatus, statusNote || undefined))}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             {isPending ? 'Salvando...' : 'Atualizar status'}
           </button>
@@ -135,7 +135,7 @@ export default function DisputeActions({
               <button
                 disabled={isPending || !blockAmt}
                 onClick={() => go(() => blockForDispute(disputeId, parseFloat(blockAmt) || 0))}
-                className="bg-red-700/60 hover:bg-red-700 disabled:opacity-50 text-red-300 text-sm font-medium px-4 py-2 rounded-lg border border-red-600/40 transition-colors whitespace-nowrap"
+                className="bg-red-700/60 hover:bg-red-700 disabled:opacity-50 text-red-300 text-[13px] font-semibold px-4 py-2.5 rounded-lg border border-red-600/40 transition-colors whitespace-nowrap"
               >
                 Bloquear
               </button>
@@ -159,7 +159,7 @@ export default function DisputeActions({
               <button
                 disabled={isPending || !reserveAmt}
                 onClick={() => go(() => useReserveForDispute(disputeId, parseFloat(reserveAmt) || 0))}
-                className="bg-amber-700/50 hover:bg-amber-700 disabled:opacity-50 text-amber-300 text-sm font-medium px-4 py-2 rounded-lg border border-amber-600/40 transition-colors whitespace-nowrap"
+                className="bg-amber-700/50 hover:bg-amber-700 disabled:opacity-50 text-amber-300 text-[13px] font-semibold px-4 py-2.5 rounded-lg border border-amber-600/40 transition-colors whitespace-nowrap"
               >
                 Usar reserva
               </button>
@@ -183,7 +183,7 @@ export default function DisputeActions({
               <button
                 disabled={isPending || !releaseAmt || blockedAmount <= 0}
                 onClick={() => go(() => releaseBlockedForDispute(disputeId, parseFloat(releaseAmt) || 0))}
-                className="bg-emerald-700/50 hover:bg-emerald-700 disabled:opacity-50 text-emerald-300 text-sm font-medium px-4 py-2 rounded-lg border border-emerald-600/40 transition-colors whitespace-nowrap"
+                className="bg-emerald-700/50 hover:bg-emerald-700 disabled:opacity-50 text-emerald-300 text-[13px] font-semibold px-4 py-2.5 rounded-lg border border-emerald-600/40 transition-colors whitespace-nowrap"
               >
                 Liberar
               </button>
@@ -205,7 +205,7 @@ export default function DisputeActions({
           <button
             disabled={isPending || !note.trim()}
             onClick={() => { go(() => addDisputeNote(disputeId, note)); setNote('') }}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             {isPending ? 'Salvando...' : 'Adicionar observação'}
           </button>
@@ -227,7 +227,7 @@ export default function DisputeActions({
             <button
               disabled={isPending || !docName.trim()}
               onClick={() => { go(() => addDisputeDocument(disputeId, docName)); setDocName('') }}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap"
             >
               {isPending ? '...' : 'Registrar'}
             </button>
@@ -276,7 +276,7 @@ export default function DisputeActions({
               deadline:   metaDeadline || undefined,
               saleLogId:  metaSaleLog,
             }))}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors"
           >
             {isPending ? 'Salvando...' : 'Salvar dados'}
           </button>

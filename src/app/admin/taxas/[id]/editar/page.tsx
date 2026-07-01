@@ -19,7 +19,7 @@ export default async function EditarPlanoPage({ params, searchParams }: PageProp
         <Topbar title="Plano não encontrado" />
         <div className="p-6 flex flex-col items-center justify-center min-h-64 gap-4">
           <p className="text-white font-semibold">Plano não encontrado</p>
-          <Link href="/admin/taxas" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors">
+          <Link href="/admin/taxas" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors">
             Voltar para taxas
           </Link>
         </div>

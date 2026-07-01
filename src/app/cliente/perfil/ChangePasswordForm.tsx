@@ -92,14 +92,14 @@ export function ChangePasswordForm() {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex-1 text-[12px] font-semibold text-slate-400 bg-slate-800/60 hover:bg-slate-800 border border-slate-700/40 rounded-lg py-2 transition-colors"
+                  className="flex-1 text-[13px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/40 rounded-lg py-2.5 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 text-[12px] font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-lg py-2 transition-colors"
+                  className="flex-1 text-[13px] font-semibold text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg py-2.5 transition-colors"
                 >
                   {loading ? 'Salvando…' : 'Salvar'}
                 </button>
