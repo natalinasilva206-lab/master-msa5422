@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { sendCdiCreditEmail } from '@/lib/email'
 import { setSystemConfig } from '@/lib/systemConfig'
+import { dispatchWebhook } from '@/lib/dispatchWebhook'
 
 async function requireAdminSession() {
   const session = await getServerSession(authOptions)
@@ -164,6 +165,10 @@ export async function creditCdiToAll(): Promise<{ count: number; totalCredited: 
       },
     })
 
+    // Webhook — fire-and-forget; never blocks CDI credit
+    const auditLogForWebhook = { sellerId: m.id, amount: yield_, baseBalance: m.balance, cdiRate: m.cdiRate, creditedAt, newCdiBalance: newBalance }
+    void dispatchWebhook(m.id, 'cdi.credited', auditLogForWebhook)
+
     // Optional email — no-op when SMTP is not configured
     void sendCdiCreditEmail({
       to:           m.email,
@@ -183,6 +188,14 @@ export async function creditCdiToAll(): Promise<{ count: number; totalCredited: 
   revalidatePath('/cliente/cdi')
   revalidatePath('/cliente/dashboard')
   return { count, totalCredited: Math.round(totalCredited * 100) / 100 }
+}
+
+export async function retryCdiWebhookDelivery(deliveryId: string): Promise<{ success: boolean; error?: string }> {
+  await requireAdminSession()
+  const { retryWebhookDelivery } = await import('@/lib/dispatchWebhook')
+  const result = await retryWebhookDelivery(deliveryId)
+  revalidatePath('/admin/cdi')
+  return result
 }
 
 export async function setIrIofSimulation(enabled: boolean): Promise<void> {

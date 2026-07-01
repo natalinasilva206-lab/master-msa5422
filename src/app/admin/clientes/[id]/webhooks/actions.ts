@@ -21,6 +21,7 @@ const VALID_EVENTS = [
   'withdrawal.approved',
   'withdrawal.denied',
   'reserve.released',
+  'cdi.credited',
 ]
 
 export async function createWebhook(merchantId: string, url: string, events: string[]) {

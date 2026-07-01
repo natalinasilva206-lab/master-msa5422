@@ -12,6 +12,7 @@ const ALL_EVENTS = [
   { value: 'withdrawal.approved', label: 'Saque aprovado' },
   { value: 'withdrawal.denied',   label: 'Saque negado' },
   { value: 'reserve.released',    label: 'Reserva liberada' },
+  { value: 'cdi.credited',        label: 'CDI creditado' },
 ]
 
 interface Endpoint {

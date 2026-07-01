@@ -12,6 +12,7 @@ import { CreditCdiButton } from './CreditCdiButton'
 import { IrIofToggle } from './IrIofToggle'
 import Link from 'next/link'
 import { getSystemConfig } from '@/lib/systemConfig'
+import { WebhookRetryButton } from './WebhookRetryButton'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -79,7 +80,7 @@ const historyMeta: Record<string, { label: string; dot: string; sign: string; co
 export default async function CdiPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim().toLowerCase() ?? ''
 
-  const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit, irIofConfigValue] = await Promise.all([
+  const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit, irIofConfigValue, webhookDeliveries] = await Promise.all([
     prisma.merchant.findMany({ orderBy: { balance: 'desc' } }),
     prisma.auditLog.findMany({
       where: { action: { in: ['CDI_LIMIT_SET', 'CDI_LOCK_SET'] } },
@@ -106,6 +107,11 @@ export default async function CdiPage({ searchParams }: PageProps) {
       select: { createdAt: true },
     }),
     getSystemConfig('ir_iof_simulation_enabled', 'true'),
+    prisma.webhookDelivery.findMany({
+      where: { event: 'cdi.credited' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
   ])
 
   const irIofEnabled = irIofConfigValue === 'true'
@@ -513,6 +519,74 @@ export default async function CdiPage({ searchParams }: PageProps) {
                       </tr>
                     )
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Webhook cdi.credited deliveries */}
+        <section className="bg-[#101827]/80 border border-slate-800/60 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-800/60 flex items-center gap-3">
+            <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            <div>
+              <p className="text-[13.5px] font-semibold text-white leading-none">Webhooks cdi.credited</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Últimas 50 entregas do evento de crédito CDI</p>
+            </div>
+            <span className="ml-auto text-[10px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+              {webhookDeliveries.length} entrega{webhookDeliveries.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {webhookDeliveries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-slate-700">
+              <svg className="w-8 h-8 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              <p className="text-[12.5px] font-medium">Nenhuma entrega de webhook CDI ainda</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-slate-800/60">
+                    {['Status', 'Seller ID', 'URL', 'HTTP', 'Tentativa', 'Data', ''].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/30">
+                  {webhookDeliveries.map((d) => (
+                    <tr key={d.id} className="hover:bg-slate-800/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          d.success
+                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                            : 'text-red-400 bg-red-500/10 border-red-500/20'
+                        }`}>
+                          {d.success ? 'OK' : 'Falha'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 font-mono text-[10.5px]">{d.merchantId.slice(0, 8)}…</td>
+                      <td className="px-4 py-3 text-slate-400 font-mono text-[10.5px] max-w-[180px] truncate">{d.url}</td>
+                      <td className="px-4 py-3">
+                        {d.statusCode != null ? (
+                          <span className={`font-mono text-[11.5px] font-semibold ${d.statusCode < 300 ? 'text-emerald-400' : d.statusCode < 500 ? 'text-amber-400' : 'text-red-400'}`}>
+                            {d.statusCode}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-[11px]">{d.error ? 'Erro rede' : '—'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 tabular-nums text-[11px]">{d.attempt}</td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap text-[11px]">{formatDate(d.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        {!d.success && <WebhookRetryButton deliveryId={d.id} />}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
