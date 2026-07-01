@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { resolveEarlyWithdraw } from './actions'
 
 function formatBRL(v: number) {
@@ -27,13 +27,45 @@ interface Props {
   requests: EarlyRequest[]
 }
 
+function Spinner({ className = 'w-3 h-3' }: { className?: string }) {
+  return (
+    <svg className={`${className} animate-spin shrink-0`} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+  )
+}
+
 function RequestRow({ req }: { req: EarlyRequest }) {
   const [isPending, startTransition] = useTransition()
+  const [action, setAction]          = useState<'approve' | 'deny' | null>(null)
+  const [done, setDone]              = useState<'approved' | 'denied' | null>(null)
 
   function handle(approve: boolean) {
+    const a = approve ? 'approve' : 'deny'
+    setAction(a)
     startTransition(async () => {
       await resolveEarlyWithdraw(req.id, req.merchantId, req.amount, approve)
+      setDone(approve ? 'approved' : 'denied')
     })
+  }
+
+  if (done) {
+    return (
+      <tr>
+        <td colSpan={3} className="px-5 py-3">
+          <div className={`flex items-center gap-2 text-[12px] font-medium ${done === 'approved' ? 'text-emerald-400' : 'text-slate-500'}`}>
+            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              {done === 'approved'
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              }
+            </svg>
+            {req.sellerName} — resgate {done === 'approved' ? 'aprovado' : 'negado'} (R$ {formatBRL(req.amount)})
+          </div>
+        </td>
+      </tr>
+    )
   }
 
   return (
@@ -51,16 +83,16 @@ function RequestRow({ req }: { req: EarlyRequest }) {
           <button
             onClick={() => handle(false)}
             disabled={isPending}
-            className="text-[11.5px] font-semibold text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
           >
-            Negar
+            {isPending && action === 'deny' ? <><Spinner />Negando…</> : 'Negar'}
           </button>
           <button
             onClick={() => handle(true)}
             disabled={isPending}
-            className="text-[11.5px] font-semibold text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
           >
-            {isPending ? '...' : 'Aprovar'}
+            {isPending && action === 'approve' ? <><Spinner />Aprovando…</> : 'Aprovar'}
           </button>
         </div>
       </td>

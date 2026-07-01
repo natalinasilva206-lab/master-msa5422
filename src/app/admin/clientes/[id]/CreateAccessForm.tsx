@@ -6,6 +6,7 @@ import { createClientAccess } from '../actions'
 export function CreateAccessForm({ merchantId, email }: { merchantId: string; email: string }) {
   const [pending, startTransition] = useTransition()
   const [done, setDone] = useState(false)
+  const [pwdError, setPwdError] = useState('')
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -13,9 +14,10 @@ export function CreateAccessForm({ merchantId, email }: { merchantId: string; em
     const data = new FormData(form)
     const pwd = data.get('user_password')?.toString().trim() ?? ''
     if (pwd.length < 6) {
-      alert('A senha deve ter pelo menos 6 caracteres.')
+      setPwdError('A senha deve ter pelo menos 6 caracteres.')
       return
     }
+    setPwdError('')
     startTransition(async () => {
       await createClientAccess(merchantId, data)
       setDone(true)
@@ -54,8 +56,17 @@ export function CreateAccessForm({ merchantId, email }: { merchantId: string; em
             autoComplete="new-password"
             required
             minLength={6}
-            className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-white text-[13px] placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
+            onChange={() => pwdError && setPwdError('')}
+            className={`w-full px-4 py-2.5 bg-slate-800/60 border rounded-lg text-white text-[13px] placeholder-slate-600 focus:outline-none focus:ring-1 transition ${pwdError ? 'border-red-500/60 focus:border-red-500/60 focus:ring-red-500/30' : 'border-slate-700/50 focus:border-blue-500/60 focus:ring-blue-500/30'}`}
           />
+          {pwdError && (
+            <p className="mt-1.5 text-[11.5px] text-red-400 flex items-center gap-1">
+              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01" />
+              </svg>
+              {pwdError}
+            </p>
+          )}
         </div>
       </div>
       <div className="text-xs text-slate-500">

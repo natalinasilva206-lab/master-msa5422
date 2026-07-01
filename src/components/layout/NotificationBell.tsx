@@ -13,11 +13,23 @@ type Notif = {
 }
 
 const TYPE_ICON: Record<string, string> = {
-  CDI_CREDIT: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+  CDI_CREDIT:          'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+  CDI_EARLY_APPROVED:  'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  CDI_EARLY_DENIED:    'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+  CDI_EARLY_REQUEST:   'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+  WITHDRAW_APPROVED:   'M5 13l4 4L19 7',
+  WITHDRAW_DENIED:     'M6 18L18 6M6 6l12 12',
+  KYC_APPROVED:        'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z',
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  CDI_CREDIT: 'text-emerald-400 bg-emerald-500/10',
+  CDI_CREDIT:          'text-emerald-400 bg-emerald-500/10',
+  CDI_EARLY_APPROVED:  'text-emerald-400 bg-emerald-500/10',
+  CDI_EARLY_DENIED:    'text-red-400 bg-red-500/10',
+  CDI_EARLY_REQUEST:   'text-amber-400 bg-amber-500/10',
+  WITHDRAW_APPROVED:   'text-emerald-400 bg-emerald-500/10',
+  WITHDRAW_DENIED:     'text-red-400 bg-red-500/10',
+  KYC_APPROVED:        'text-blue-400 bg-blue-500/10',
 }
 
 function timeAgo(dateStr: string) {
@@ -51,6 +63,11 @@ export function NotificationBell() {
   }, [])
 
   useEffect(() => { fetchNotifs() }, [fetchNotifs])
+
+  useEffect(() => {
+    const id = setInterval(fetchNotifs, 60_000)
+    return () => clearInterval(id)
+  }, [fetchNotifs])
 
   useEffect(() => {
     function onClickOut(e: MouseEvent) {

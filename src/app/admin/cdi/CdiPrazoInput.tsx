@@ -126,9 +126,17 @@ export function CdiPrazoInput({ merchantId, expiresAt }: Props) {
         <button
           onClick={handleSave}
           disabled={isPending}
-          className="flex-1 text-[11.5px] font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg py-1.5 transition-colors"
+          className="inline-flex items-center justify-center gap-1.5 flex-1 text-[11.5px] font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg py-1.5 transition-colors"
         >
-          {isPending ? '...' : 'Salvar'}
+          {isPending ? (
+            <>
+              <svg className="w-3 h-3 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Salvando…
+            </>
+          ) : 'Salvar'}
         </button>
         {current && (
           <button
