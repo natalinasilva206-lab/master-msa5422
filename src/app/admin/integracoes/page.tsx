@@ -14,85 +14,78 @@ export default async function AdminIntegracoesPage() {
   const ago30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   const [
-    merchantsWithKey,
     totalMerchants,
-    saleLogs30d,
-    saleLogs7d,
-    auditLogs7d,
+    merchantsComKey,
+    merchantsSemKey,
+    webhooksAtivos,
+    vendas30d,
+    vendas7d,
+    merchantsComApiAtiva,
   ] = await Promise.all([
-    prisma.merchant.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
-    prisma.merchant.count().catch(() => 0),
-    prisma.saleLog.count({ where: { createdAt: { gte: ago30d } } }).catch(() => 0),
-    prisma.saleLog.count({ where: { createdAt: { gte: ago7d } } }).catch(() => 0),
-    prisma.auditLog.count({ where: { createdAt: { gte: ago7d } } }).catch(() => 0),
+    prisma.merchant.count(),
+    prisma.merchant.count({ where: { apiKey: { not: null } } }),
+    prisma.merchant.count({ where: { apiKey: null } }),
+    prisma.webhookEndpoint.count({ where: { active: true } }),
+    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } } }),
+    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago7d } } }),
+    // Merchants que fizeram pelo menos 1 venda nos últimos 30d (API ativa)
+    prisma.saleLog.findMany({
+      where:    { type: 'VENDA', createdAt: { gte: ago30d } },
+      select:   { merchantId: true },
+      distinct: ['merchantId'],
+    }).then((r) => r.length),
   ])
 
-  const integrations = [
-    {
-      name: 'API REST',
-      status: 'Ativo',
-      version: 'v1.4.2',
-      statusColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-      desc: 'API RESTful para integração com sistemas externos. Suporta criação de transações, consulta de saldo e webhooks.',
-      endpoints: 12,
-      icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
+  // Lista de merchants com status de integração
+  const merchants = await prisma.merchant.findMany({
+    select: {
+      id:     true,
+      name:   true,
+      status: true,
+      apiKey: true,
+      webhookEndpoints: { where: { active: true }, select: { id: true } },
+      _count: { select: { saleLogs: { where: { createdAt: { gte: ago30d } } } } },
     },
-    {
-      name: 'Webhook Engine',
-      status: 'Ativo',
-      version: 'v2.1.0',
-      statusColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
-      desc: 'Motor de webhooks para notificação assíncrona de eventos. Retry automático com backoff exponencial.',
-      endpoints: 6,
-      icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
-    },
-    {
-      name: 'BAAS (Banking as a Service)',
-      status: 'Em breve',
-      version: '—',
-      statusColor: 'bg-slate-700/40 text-slate-500 border-slate-700/40',
-      desc: 'Integração bancária completa com geração de contas, Pix, TED e boletos. Disponível em breve.',
-      endpoints: 0,
-      icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
-    },
-    {
-      name: 'Adquirentes',
-      status: 'Em breve',
-      version: '—',
-      statusColor: 'bg-slate-700/40 text-slate-500 border-slate-700/40',
-      desc: 'Conexões com adquirentes de cartão (Cielo, Stone, Rede). Suporte a crédito, débito e parcelamento.',
-      endpoints: 0,
-      icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-    },
-  ]
+    orderBy: { name: 'asc' },
+    take: 50,
+  })
 
-  const pctAtivo = totalMerchants > 0 ? Math.round((merchantsWithKey / totalMerchants) * 100) : 0
+  const pctAdocao = totalMerchants > 0 ? Math.round((merchantsComKey / totalMerchants) * 100) : 0
 
   const health = [
     {
-      label: 'Merchants ativos',
-      value: `${merchantsWithKey} / ${totalMerchants}`,
-      sub: `${pctAtivo}% dos merchants`,
-      color: merchantsWithKey > 0 ? 'text-emerald-400' : 'text-slate-500',
+      label: 'API Key configurada',
+      value: `${merchantsComKey} / ${totalMerchants}`,
+      sub: `${pctAdocao}% dos merchants`,
+      color: merchantsComKey > 0 ? 'text-emerald-400' : 'text-slate-500',
     },
     {
-      label: 'Transações (30d)',
-      value: saleLogs30d.toLocaleString('pt-BR'),
-      sub: 'via API de vendas',
-      color: saleLogs30d > 0 ? 'text-blue-400' : 'text-slate-500',
+      label: 'Sem API Key',
+      value: merchantsSemKey.toString(),
+      sub: 'merchants sem integração',
+      color: merchantsSemKey > 0 ? 'text-amber-400' : 'text-slate-500',
     },
     {
-      label: 'Transações (7d)',
-      value: saleLogs7d.toLocaleString('pt-BR'),
-      sub: 'últimos 7 dias',
-      color: saleLogs7d > 0 ? 'text-blue-300' : 'text-slate-500',
+      label: 'Vendas via API (30d)',
+      value: vendas30d.toLocaleString('pt-BR'),
+      sub: `${vendas7d.toLocaleString('pt-BR')} nos últimos 7d`,
+      color: vendas30d > 0 ? 'text-blue-400' : 'text-slate-500',
     },
     {
-      label: 'Eventos de Auditoria (7d)',
-      value: auditLogs7d.toLocaleString('pt-BR'),
-      sub: 'ações registradas',
-      color: 'text-slate-300',
+      label: 'Webhooks ativos',
+      value: webhooksAtivos.toString(),
+      sub: `${merchantsComApiAtiva} merchants com uso nos 30d`,
+      color: webhooksAtivos > 0 ? 'text-purple-400' : 'text-slate-500',
     },
+  ]
+
+  const endpoints = [
+    { method: 'POST', path: '/api/v1/sales',            desc: 'Registrar venda',             auth: 'body' },
+    { method: 'GET',  path: '/api/v1/balance',          desc: 'Consultar saldo',             auth: 'header' },
+    { method: 'GET',  path: '/api/v1/transactions',     desc: 'Listar transações',           auth: 'header' },
+    { method: 'GET',  path: '/api/v1/transactions/:id', desc: 'Consultar transação por ID',  auth: 'header' },
+    { method: 'POST', path: '/api/v1/withdrawals',      desc: 'Solicitar saque',             auth: 'header' },
+    { method: 'GET',  path: '/api/v1/withdrawals',      desc: 'Listar saques',              auth: 'header' },
   ]
 
   return (
@@ -100,7 +93,7 @@ export default async function AdminIntegracoesPage() {
       <Topbar
         title="Integrações / API"
         breadcrumb="Casa › Gestão"
-        subtitle="Status dos serviços e integrações ativas"
+        subtitle="Adoção da API e status das integrações por merchant"
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -116,67 +109,114 @@ export default async function AdminIntegracoesPage() {
           ))}
         </section>
 
-        {/* Integrations */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {integrations.map((integ) => (
-            <div key={integ.name} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5">
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-800/60 text-slate-400 flex items-center justify-center shrink-0">
-                    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d={integ.icon} />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white leading-none">{integ.name}</p>
-                    <p className="text-[10.5px] text-slate-600 mt-0.5">Versão {integ.version}</p>
-                  </div>
-                </div>
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${integ.statusColor}`}>
-                  {integ.status}
-                </span>
-              </div>
-              <p className="text-[12px] text-slate-500 leading-relaxed">{integ.desc}</p>
-              {integ.endpoints > 0 && (
-                <p className="text-[11px] text-slate-600 mt-2">{integ.endpoints} endpoints disponíveis</p>
-              )}
+        {/* Adoption table */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Adoção por Merchant</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Status de API Key, webhooks e uso nos últimos 30 dias</p>
             </div>
-          ))}
-        </section>
-
-        {/* Base URL */}
-        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4">
-          <p className="text-[13px] font-semibold text-white mb-3">Endpoint Base da API</p>
-          <code className="text-[12px] font-mono text-blue-300 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700/40 block">
-            https://api.masterpagamentos.com.br/v1
-          </code>
-          <p className="text-[10.5px] text-slate-600 mt-2">
-            Todas as requisições devem incluir o header{' '}
-            <code className="font-mono text-slate-400">Authorization: Bearer {'<API_KEY>'}</code>
-          </p>
+            <p className="text-[11px] text-slate-600">{merchants.length} de {totalMerchants} merchants</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b border-slate-800/60">
+                  <th className="text-left px-5 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Merchant</th>
+                  <th className="text-center px-4 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-4 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">API Key</th>
+                  <th className="text-center px-4 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Webhooks</th>
+                  <th className="text-right px-5 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Vendas 30d</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/40">
+                {merchants.map((m) => {
+                  const temKey      = !!m.apiKey
+                  const temWebhook  = m.webhookEndpoints.length > 0
+                  const vendas30dMerchant = m._count.saleLogs
+                  return (
+                    <tr key={m.id} className="hover:bg-slate-800/20 transition-colors">
+                      <td className="px-5 py-2.5">
+                        <a href={`/admin/clientes/${m.id}`} className="text-slate-200 hover:text-white transition-colors font-medium">
+                          {m.name}
+                        </a>
+                        <p className="text-[10px] text-slate-600 font-mono mt-0.5">{m.id.slice(0, 16)}…</p>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          m.status === 'ACTIVE'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-slate-700/40 text-slate-500 border-slate-700/40'
+                        }`}>
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {temKey ? (
+                          <span className="text-[10px] font-semibold text-emerald-400">✓ Configurada</span>
+                        ) : (
+                          <span className="text-[10px] text-amber-500">Pendente</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {temWebhook ? (
+                          <span className="text-[10px] font-semibold text-blue-400">{m.webhookEndpoints.length} ativo{m.webhookEndpoints.length > 1 ? 's' : ''}</span>
+                        ) : (
+                          <span className="text-[10px] text-slate-600">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-2.5 text-right tabular-nums text-slate-300">
+                        {vendas30dMerchant > 0 ? vendas30dMerchant.toLocaleString('pt-BR') : <span className="text-slate-700">0</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         {/* Endpoints reference */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60">
-            <p className="text-[13px] font-semibold text-white">Endpoints Disponíveis</p>
+            <p className="text-[13px] font-semibold text-white">Endpoints da API v1</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Base URL: <code className="font-mono text-blue-300">https://api.masterpagamentos.com.br</code></p>
           </div>
           <div className="divide-y divide-slate-800/40">
-            {[
-              { method: 'POST', path: '/v1/sales',           desc: 'Registrar venda',           color: 'bg-emerald-600/20 text-emerald-400' },
-              { method: 'GET',  path: '/v1/balance',         desc: 'Consultar saldo',            color: 'bg-blue-600/20 text-blue-400' },
-              { method: 'GET',  path: '/v1/transactions',    desc: 'Listar transações',          color: 'bg-blue-600/20 text-blue-400' },
-              { method: 'POST', path: '/v1/withdrawals',     desc: 'Solicitar saque',            color: 'bg-emerald-600/20 text-emerald-400' },
-              { method: 'GET',  path: '/v1/withdrawals/:id', desc: 'Status do saque',            color: 'bg-blue-600/20 text-blue-400' },
-              { method: 'POST', path: '/v1/webhooks',        desc: 'Configurar webhook',         color: 'bg-emerald-600/20 text-emerald-400' },
-            ].map((ep) => (
-              <div key={ep.path} className="px-5 py-2.5 flex items-center gap-3">
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${ep.color} shrink-0`}>{ep.method}</span>
+            {endpoints.map((ep) => (
+              <div key={ep.path} className="px-5 py-2.5 flex items-center gap-3 flex-wrap">
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded font-mono shrink-0 ${
+                  ep.method === 'GET' ? 'bg-blue-600/20 text-blue-400' : 'bg-emerald-600/20 text-emerald-400'
+                }`}>{ep.method}</span>
                 <code className="text-[12px] font-mono text-slate-300 flex-1">{ep.path}</code>
                 <span className="text-[12px] text-slate-600 hidden sm:block">{ep.desc}</span>
+                {ep.auth === 'body' && (
+                  <span className="text-[10px] text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">apiKey no body</span>
+                )}
               </div>
             ))}
           </div>
+        </section>
+
+        {/* Integrações futuras */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { name: 'BAAS (Banking as a Service)', desc: 'Contas, Pix, TED e boletos. Em desenvolvimento.' },
+            { name: 'Adquirentes',                 desc: 'Cielo, Stone, Rede — crédito, débito e parcelamento. Em desenvolvimento.' },
+          ].map((integ) => (
+            <div key={integ.name} className="bg-slate-900/40 border border-slate-800/50 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-slate-800/60 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-slate-400">{integ.name}</p>
+                <p className="text-[11px] text-slate-600 mt-0.5">{integ.desc}</p>
+              </div>
+              <span className="ml-auto text-[10px] font-semibold text-slate-600 bg-slate-800/40 border border-slate-700/30 px-2 py-0.5 rounded-full shrink-0">Em breve</span>
+            </div>
+          ))}
         </section>
 
       </div>

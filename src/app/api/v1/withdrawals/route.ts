@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     const merchant = await prisma.merchant.findUnique({
       where: { id: merchantId },
-      select: { id: true, apiKey: true, status: true, balance: true, users: { select: { id: true }, take: 1 } },
+      select: { id: true, apiKey: true, status: true, pendingBalance: true, users: { select: { id: true }, take: 1 } },
     })
 
     if (!merchant) {
@@ -109,17 +109,17 @@ export async function POST(req: NextRequest) {
     if (merchant.status !== 'ACTIVE') {
       return NextResponse.json({ error: 'Merchant inativo ou bloqueado.' }, { status: 403 })
     }
-    if (amount > merchant.balance) {
-      return NextResponse.json({ error: `Saldo insuficiente. Disponível: R$ ${merchant.balance.toFixed(2)}.` }, { status: 422 })
+    if (amount > merchant.pendingBalance) {
+      return NextResponse.json({ error: `Saldo insuficiente. Disponível: R$ ${merchant.pendingBalance.toFixed(2)}.` }, { status: 422 })
     }
 
     const userId = merchant.users[0]?.id ?? merchantId
 
-    // Debita o saldo imediatamente e cria o log de solicitação
+    // Debita o saldo disponível (pendingBalance) e cria o log de solicitação
     const [, log] = await prisma.$transaction([
       prisma.merchant.update({
         where: { id: merchantId },
-        data: { balance: { decrement: amount } },
+        data: { pendingBalance: { decrement: amount } },
       }),
       prisma.auditLog.create({
         data: {
