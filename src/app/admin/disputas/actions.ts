@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { dispatchWebhook } from '@/lib/dispatchWebhook'
+import { scheduleScoreRecalc } from '@/lib/scoreEventHook'
 
 /* ─── auth helpers ──────────────────────────────────────────── */
 async function getAdminSession() {
@@ -133,6 +134,7 @@ export async function createDispute(
     })
 
     dispatchWebhook(input.merchantId, 'dispute.opened', { disputeId: dispute.id, type: input.type, contestedAmount: input.contestedAmount }).catch(() => {})
+    scheduleScoreRecalc(input.merchantId, 'chargeback_opened')
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/clientes/${input.merchantId}`)
@@ -199,6 +201,7 @@ export async function updateDisputeStatus(
     })
 
     dispatchWebhook(dispute.merchantId, 'dispute.updated', { disputeId, newStatus }).catch(() => {})
+    scheduleScoreRecalc(dispute.merchantId, 'dispute_closed')
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
@@ -274,6 +277,7 @@ export async function blockForDispute(
     revalidatePath(`/admin/disputas/${disputeId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
+    scheduleScoreRecalc(dispute.merchantId, 'chargeback_opened')
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -412,6 +416,7 @@ export async function useReserveForDispute(
     revalidatePath(`/admin/disputas/${disputeId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
+    scheduleScoreRecalc(dispute.merchantId, 'reserve_changed')
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -482,6 +487,7 @@ export async function releaseBlockedForDispute(
     revalidatePath(`/admin/disputas/${disputeId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}`)
     revalidatePath(`/admin/clientes/${dispute.merchantId}/historico`)
+    scheduleScoreRecalc(dispute.merchantId, 'refund_processed')
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }

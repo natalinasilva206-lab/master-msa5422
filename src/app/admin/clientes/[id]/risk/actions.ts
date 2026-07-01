@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { processSalePayment } from '@/lib/processSalePayment'
+import { scheduleScoreRecalc } from '@/lib/scoreEventHook'
 
 /* ─── auth helpers ─────────────────────────────────────────── */
 async function getAdminSession() {
@@ -189,6 +190,7 @@ export async function setRiskBalance(
     ])
 
     revalidatePath(`/admin/clientes/${merchantId}`)
+    scheduleScoreRecalc(merchantId, 'manual_adjustment')
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -267,6 +269,7 @@ export async function saveRiskConfig(
     ])
 
     revalidatePath(`/admin/clientes/${merchantId}`)
+    scheduleScoreRecalc(merchantId, 'reserve_changed')
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
@@ -358,6 +361,7 @@ export async function updateReserveStatus(
     }
 
     revalidatePath(`/admin/clientes/${merchantId}`)
+    scheduleScoreRecalc(merchantId, 'reserve_changed')
     return { ok: true }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }

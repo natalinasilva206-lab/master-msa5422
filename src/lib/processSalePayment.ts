@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { scheduleScoreRecalc } from '@/lib/scoreEventHook'
 
 export interface SalePayload {
   merchantId:   string
@@ -124,6 +125,9 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
 
     return [saleLog, sale, reserve, reserveReleaseRecord]
   })
+
+  // Recalcula o Master Score após a venda (fire-and-forget — não bloqueia o retorno)
+  scheduleScoreRecalc(merchantId, 'sale_approved')
 
   return {
     valorVenda:       saleAmount,
