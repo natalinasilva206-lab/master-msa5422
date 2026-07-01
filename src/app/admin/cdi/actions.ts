@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { sendCdiCreditEmail } from '@/lib/email'
+import { setSystemConfig } from '@/lib/systemConfig'
 
 async function requireAdminSession() {
   const session = await getServerSession(authOptions)
@@ -182,4 +183,11 @@ export async function creditCdiToAll(): Promise<{ count: number; totalCredited: 
   revalidatePath('/cliente/cdi')
   revalidatePath('/cliente/dashboard')
   return { count, totalCredited: Math.round(totalCredited * 100) / 100 }
+}
+
+export async function setIrIofSimulation(enabled: boolean): Promise<void> {
+  await requireAdminSession()
+  await setSystemConfig('ir_iof_simulation_enabled', enabled ? 'true' : 'false')
+  revalidatePath('/admin/cdi')
+  revalidatePath('/cliente/cdi')
 }

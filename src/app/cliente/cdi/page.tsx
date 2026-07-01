@@ -9,6 +9,8 @@ import { AddToCdiButton } from './AddToCdiButton'
 import { WithdrawFromCdiButton } from './WithdrawFromCdiButton'
 import { CdiLockButton } from './CdiLockButton'
 import { CdiExportButton } from './CdiExportButton'
+import { getSystemConfig } from '@/lib/systemConfig'
+import { calcTax, monthsToDays, irRateLabel } from '@/lib/tax'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -79,9 +81,11 @@ const extratoMeta: Record<string, { label: string; icon: string; color: string; 
 export default async function ClienteCdiPage() {
   const session = await getServerSession(authOptions)
   const userId = (session?.user as any)?.id as string | undefined
-  const user = userId
-    ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
-    : null
+  const [user, irIofConfigValue] = await Promise.all([
+    userId ? prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } }) : Promise.resolve(null),
+    getSystemConfig('ir_iof_simulation_enabled', 'true'),
+  ])
+  const showTax = irIofConfigValue === 'true'
 
   const merchant = user?.merchant
   const saldo    = merchant?.balance        ?? 0
@@ -602,13 +606,17 @@ export default async function ClienteCdiPage() {
 
         {/* Projeção + Simulador */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <CdiSimulator cdiRate={cdiRate} initialBalance={saldo} />
+          <CdiSimulator cdiRate={cdiRate} initialBalance={saldo} showTax={showTax} />
 
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-800/60">
               <p className="text-[13px] font-semibold text-white">Projeção de Rendimento</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">
-                {saldo > 0 ? `Juros compostos sobre R$ ${formatBRL(saldo)}` : 'Aporte para ver a projeção'}
+                {saldo > 0
+                  ? showTax
+                    ? `Rendimento bruto e líquido estimado sobre R$ ${formatBRL(saldo)}`
+                    : `Juros compostos sobre R$ ${formatBRL(saldo)}`
+                  : 'Aporte para ver a projeção'}
               </p>
             </div>
             {saldo === 0 ? (
@@ -618,10 +626,11 @@ export default async function ClienteCdiPage() {
             ) : (
               <div className="divide-y divide-slate-800/40">
                 {meses.map(({ label, n }) => {
-                  const rend  = saldo * (Math.pow(1 + cdiRate / 100, n) - 1)
-                  const total = saldo + rend
-                  const pct   = (rend / (maxRend || 1)) * 100
-                  const rendPct = ((rend / saldo) * 100).toFixed(2)
+                  const rend     = saldo * (Math.pow(1 + cdiRate / 100, n) - 1)
+                  const total    = saldo + rend
+                  const pct      = (rend / (maxRend || 1)) * 100
+                  const rendPct  = ((rend / saldo) * 100).toFixed(2)
+                  const tax      = showTax && saldo > 0 ? calcTax(rend, monthsToDays(n)) : null
                   return (
                     <div key={label} className="px-5 py-3 hover:bg-slate-800/25 transition-colors">
                       <div className="flex items-center justify-between mb-1.5">
@@ -629,6 +638,12 @@ export default async function ClienteCdiPage() {
                         <div className="text-right">
                           <p className="text-[13px] font-bold text-white tabular-nums">R$ {formatBRL(total)}</p>
                           <p className="text-[10px] text-emerald-400 tabular-nums">+R$ {formatBRL(rend)} · +{rendPct}%</p>
+                          {tax && (
+                            <p className="text-[10px] text-emerald-300/70 tabular-nums mt-0.5">
+                              Líq. est.: R$ {formatBRL(tax.netYield)}
+                              <span className="text-slate-600 ml-1">({irRateLabel(monthsToDays(n)).split(' ')[0]} IR)</span>
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="h-0.5 bg-slate-800 rounded-full overflow-hidden">
@@ -637,6 +652,16 @@ export default async function ClienteCdiPage() {
                     </div>
                   )
                 })}
+              </div>
+            )}
+            {showTax && saldo > 0 && (
+              <div className="px-5 py-3 border-t border-slate-800/40 bg-amber-500/5 flex items-start gap-2">
+                <svg className="w-3 h-3 text-amber-400/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-[9.5px] text-amber-400/70 leading-relaxed">
+                  Valores estimados para fins informativos. A tributação final pode variar conforme estrutura do produto, legislação e enquadramento fiscal.
+                </p>
               </div>
             )}
           </div>

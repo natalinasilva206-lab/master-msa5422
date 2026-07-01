@@ -284,3 +284,9 @@ model Notification {
   @@index([merchantId])
   @@index([merchantId, read])
 }
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

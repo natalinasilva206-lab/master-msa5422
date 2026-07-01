@@ -9,7 +9,9 @@ import { GlobalRateForm } from './GlobalRateForm'
 import { CdiPrazoInput } from './CdiPrazoInput'
 import { EarlyWithdrawRequests, type EarlyRequest } from './EarlyWithdrawRequests'
 import { CreditCdiButton } from './CreditCdiButton'
+import { IrIofToggle } from './IrIofToggle'
 import Link from 'next/link'
+import { getSystemConfig } from '@/lib/systemConfig'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -77,7 +79,7 @@ const historyMeta: Record<string, { label: string; dot: string; sign: string; co
 export default async function CdiPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim().toLowerCase() ?? ''
 
-  const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit] = await Promise.all([
+  const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit, irIofConfigValue] = await Promise.all([
     prisma.merchant.findMany({ orderBy: { balance: 'desc' } }),
     prisma.auditLog.findMany({
       where: { action: { in: ['CDI_LIMIT_SET', 'CDI_LOCK_SET'] } },
@@ -103,7 +105,10 @@ export default async function CdiPage({ searchParams }: PageProps) {
       orderBy: { createdAt: 'desc' },
       select: { createdAt: true },
     }),
+    getSystemConfig('ir_iof_simulation_enabled', 'true'),
   ])
+
+  const irIofEnabled = irIofConfigValue === 'true'
 
   // Filter merchants by search
   const merchants = q
@@ -283,6 +288,17 @@ export default async function CdiPage({ searchParams }: PageProps) {
 
           {/* Taxa Global */}
           <GlobalRateForm merchantCounts={merchantCounts} />
+
+          {/* Configurações de exibição */}
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-800/60">
+              <p className="text-[12px] font-semibold text-white">Configurações de Exibição</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Controles do painel do seller</p>
+            </div>
+            <div className="px-4 py-3">
+              <IrIofToggle enabled={irIofEnabled} />
+            </div>
+          </div>
         </div>
 
         {/* Sellers table */}
