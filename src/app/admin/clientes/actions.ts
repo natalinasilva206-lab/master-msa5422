@@ -151,6 +151,34 @@ export async function createClientAccess(merchantId: string, formData: FormData)
   redirect(`/admin/clientes/${merchantId}?success=acesso_criado`)
 }
 
+export async function saveMerchantNotes(id: string, notes: string) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  await prisma.merchant.update({ where: { id }, data: { merchantNotes: notes } as any })
+  revalidatePath(`/admin/clientes/${id}`)
+}
+
+export async function resetMerchantPassword(merchantId: string) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  const merchant = await prisma.merchant.findUnique({ where: { id: merchantId }, include: { users: { take: 1 } } })
+  if (!merchant || !merchant.users[0]) return { error: 'Seller sem usuário de acesso.' }
+  const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase()
+  const hashed = await bcrypt.hash(tempPassword, 10)
+  await prisma.user.update({ where: { id: merchant.users[0].id }, data: { password: hashed } })
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: 'RESET_MERCHANT_PASSWORD',
+      entity: 'User',
+      entityId: merchantId,
+      metadata: JSON.stringify({ email: merchant.users[0].email }),
+    },
+  })
+  revalidatePath(`/admin/clientes/${merchantId}`)
+  return { tempPassword }
+}
+
 export async function toggleMerchantStatus(id: string) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') {

@@ -58,6 +58,7 @@ model Merchant {
   apiKey             String?  @unique
   kycDocumentUrls    String?  // JSON: KycDoc[]
   kycNotes           String   @default("")
+  merchantNotes      String   @default("")
   pixKey             String?
   pixKeyType         String?
   bankName           String?
