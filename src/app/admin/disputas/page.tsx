@@ -133,7 +133,7 @@ export default async function DisputasPage({ searchParams }: PageProps) {
                 <thead>
                   <tr className="border-b border-slate-700/50 bg-slate-800/60">
                     {['Tipo', 'Seller', 'Valor contestado', 'Bloqueado', 'Status', 'Abertura', 'Prazo', 'Responsável', ''].map((h) => (
-                      <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                      <th key={h} className="px-4 py-3.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -146,20 +146,20 @@ export default async function DisputasPage({ searchParams }: PageProps) {
                     return (
                       <tr key={d.id} className="hover:bg-slate-800/40 transition-colors group">
                         {/* Tipo */}
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TYPE_COLOR[d.type] ?? 'text-slate-400 bg-slate-700 border-slate-600'}`}>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${TYPE_COLOR[d.type] ?? 'text-slate-400 bg-slate-700 border-slate-600'}`}>
                             {TYPE_LABEL[d.type] ?? d.type}
                           </span>
                         </td>
                         {/* Seller */}
-                        <td className="px-4 py-3">
-                          <Link href={`/admin/clientes/${d.merchant.id}`} className="text-xs text-slate-200 hover:text-white font-medium">
+                        <td className="px-4 py-3.5">
+                          <Link href={`/admin/clientes/${d.merchant.id}`} className="text-[13px] text-slate-200 hover:text-white font-medium">
                             {d.merchant.name}
                           </Link>
                         </td>
                         {/* Valor contestado */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-xs font-semibold text-white tabular-nums">R$ {fmtBRL(d.contestedAmount)}</span>
+                          <span className="text-[13px] font-semibold text-white tabular-nums">R$ {fmtBRL(d.contestedAmount)}</span>
                         </td>
                         {/* Bloqueado */}
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -168,35 +168,35 @@ export default async function DisputasPage({ searchParams }: PageProps) {
                           </span>
                         </td>
                         {/* Status */}
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_COLOR[d.status] ?? ''}`}>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${STATUS_COLOR[d.status] ?? ''}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[d.status] ?? 'bg-slate-400'}`} />
                             {STATUS_LABEL[d.status] ?? d.status}
                           </span>
                         </td>
                         {/* Abertura */}
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400">{fmtDate(d.openedAt)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-[12px] text-slate-400">{fmtDate(d.openedAt)}</td>
                         {/* Prazo */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           {d.deadline ? (
-                            <span className={`text-xs font-medium ${over ? 'text-red-400' : soon ? 'text-yellow-400' : 'text-slate-400'}`}>
+                            <span className={`text-[12px] font-medium ${over ? 'text-red-400' : soon ? 'text-yellow-400' : 'text-slate-400'}`}>
                               {fmtDate(d.deadline)}
                               {over && <span className="ml-1 text-[9px] bg-red-500/10 text-red-500 px-1 rounded">VENCIDO</span>}
                               {soon && <span className="ml-1 text-[9px] bg-yellow-500/10 text-yellow-500 px-1 rounded">URGENTE</span>}
                             </span>
                           ) : (
-                            <span className="text-slate-600 text-xs">—</span>
+                            <span className="text-slate-600 text-[12px]">—</span>
                           )}
                         </td>
                         {/* Responsável */}
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-400">
+                        <td className="px-4 py-3 whitespace-nowrap text-[12px] text-slate-400">
                           {d.assignedTo ?? <span className="text-slate-600">—</span>}
                         </td>
                         {/* Ver */}
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <Link
                             href={`/admin/disputas/${d.id}`}
-                            className="text-[10px] font-semibold text-blue-400 hover:text-blue-300 transition-colors opacity-0 group-hover:opacity-100"
+                            className="text-[12px] font-semibold text-blue-400 hover:text-blue-300 transition-colors opacity-0 group-hover:opacity-100"
                           >
                             Ver →
                           </Link>

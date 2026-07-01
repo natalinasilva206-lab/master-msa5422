@@ -139,11 +139,11 @@ export default async function AntecipacoesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-800/60">
-                      <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
-                      <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Pendente</th>
-                      <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Taxa</th>
-                      <th className="text-right px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Líquido</th>
-                      <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Ação</th>
+                      <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
+                      <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pendente</th>
+                      <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Taxa</th>
+                      <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Líquido</th>
+                      <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/40">
@@ -167,15 +167,15 @@ export default async function AntecipacoesPage() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-slate-700/60 bg-slate-900/30">
-                      <td className="px-5 py-2.5 text-[10.5px] text-slate-600">{merchants.length} seller{merchants.length !== 1 ? 's' : ''}</td>
+                      <td className="px-5 py-3 text-[12px] text-slate-600">{merchants.length} seller{merchants.length !== 1 ? 's' : ''}</td>
                       <td className="px-4 py-2.5 text-right">
-                        <span className="text-[11.5px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(totalPendente)}</span>
+                        <span className="text-[13px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(totalPendente)}</span>
                       </td>
                       <td className="px-4 py-2.5 text-right hidden md:table-cell">
-                        <span className="text-[11.5px] text-red-400 tabular-nums">−R$ {formatBRL(totalPendente * taxaAntecipacao / 100)}</span>
+                        <span className="text-[13px] text-red-400 tabular-nums">−R$ {formatBRL(totalPendente * taxaAntecipacao / 100)}</span>
                       </td>
                       <td className="px-5 py-2.5 text-right">
-                        <span className="text-[11.5px] font-semibold text-emerald-400 tabular-nums">R$ {formatBRL(totalAntecipavel)}</span>
+                        <span className="text-[13px] font-semibold text-emerald-400 tabular-nums">R$ {formatBRL(totalAntecipavel)}</span>
                       </td>
                       <td />
                     </tr>
@@ -211,18 +211,18 @@ export default async function AntecipacoesPage() {
                     taxa    = parseFloat(m.taxa    || 0)
                   } catch {}
                   return (
-                    <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
                       <div className={`shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[10px] font-bold text-white`}>
                         {getInitials(log.user.merchant?.name ?? log.user.name ?? '?')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold text-slate-200 truncate">
+                        <p className="text-[13px] font-semibold text-slate-200 truncate">
                           {log.user.merchant?.name ?? log.user.name ?? log.user.email}
                         </p>
-                        <p className="text-[10.5px] text-slate-600">{formatDate(log.createdAt)}</p>
+                        <p className="text-[12px] text-slate-600">{formatDate(log.createdAt)}</p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-[12.5px] font-bold text-emerald-400 tabular-nums">+R$ {formatBRL(liquido || amount)}</p>
+                        <p className="text-[13px] font-bold text-emerald-400 tabular-nums">+R$ {formatBRL(liquido || amount)}</p>
                         {taxa > 0 && (
                           <p className="text-[10px] text-slate-600 tabular-nums">bruto R$ {formatBRL(amount)}</p>
                         )}

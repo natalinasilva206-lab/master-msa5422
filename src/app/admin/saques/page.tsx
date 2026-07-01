@@ -174,7 +174,7 @@ export default async function SaquesPage() {
                   let amount = 0
                   try { amount = parseFloat(JSON.parse(log.metadata ?? '{}').amount || 0) } catch {}
                   return (
-                    <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
                       <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
                         isApproved ? 'bg-emerald-500/10 text-emerald-400' :
                         isDenied   ? 'bg-red-500/10 text-red-400' :
@@ -189,14 +189,14 @@ export default async function SaquesPage() {
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold text-slate-200 truncate">
+                        <p className="text-[13px] font-semibold text-slate-200 truncate">
                           {log.user.name ?? log.user.email}
                         </p>
-                        <p className="text-[10.5px] text-slate-600">{formatDate(log.createdAt)}</p>
+                        <p className="text-[12px] text-slate-600">{formatDate(log.createdAt)}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-[13px] font-bold text-white tabular-nums">R$ {formatBRL(amount)}</p>
-                        <span className={`text-[10px] font-semibold ${
+                        <span className={`text-[12px] font-semibold ${
                           isApproved ? 'text-emerald-400' :
                           isDenied   ? 'text-red-400' :
                                        'text-slate-500'
@@ -229,18 +229,18 @@ export default async function SaquesPage() {
             ) : (
               <div className="divide-y divide-slate-800/40 max-h-[380px] overflow-y-auto">
                 {merchants.map((m, i) => (
-                  <div key={m.id} className="px-4 py-3 flex items-center gap-3 hover:bg-slate-800/25 transition-colors">
+                  <div key={m.id} className="px-4 py-3.5 flex items-center gap-3 hover:bg-slate-800/25 transition-colors">
                     <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
                       {getInitials(m.name)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-slate-200 truncate">{m.name}</p>
-                      <p className="text-[10px] text-slate-600">{m.plan} · CDI {m.cdiRate.toFixed(1)}%/mês</p>
+                      <p className="text-[13px] font-semibold text-slate-200 truncate">{m.name}</p>
+                      <p className="text-[12px] text-slate-600">{m.plan} · CDI {m.cdiRate.toFixed(1)}%/mês</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-[13px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(m.pendingBalance)}</p>
                       {m.balance > 0 && (
-                        <p className="text-[10px] text-slate-600 tabular-nums">CDI: R$ {formatBRL(m.balance)}</p>
+                        <p className="text-[12px] text-slate-600 tabular-nums">CDI: R$ {formatBRL(m.balance)}</p>
                       )}
                     </div>
                   </div>

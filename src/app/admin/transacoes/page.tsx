@@ -294,15 +294,15 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
                 <thead>
                   <tr className="border-b border-slate-800/60">
                     <th className="w-8 px-4 py-3" />
-                    <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">ID</th>
-                    <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Empresa</th>
-                    <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Cliente</th>
-                    <th className="text-center px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Método</th>
-                    <th className="text-right px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Valor</th>
-                    <th className="text-right px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Táxons</th>
-                    <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-3 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Dados</th>
-                    <th className="text-right px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Ações</th>
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Empresa</th>
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Cliente</th>
+                    <th className="text-center px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Método</th>
+                    <th className="text-right px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Valor</th>
+                    <th className="text-right px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Táxons</th>
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-3 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dados</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
@@ -328,8 +328,8 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
 
                         {/* ID */}
                         <td className="px-3 py-3.5">
-                          <p className="text-[11.5px] font-bold text-slate-300 font-mono">#{shortId}</p>
-                          <p className="text-[9.5px] text-slate-700 font-mono truncate max-w-[110px] mt-0.5">{idFull.slice(0, 20)}{idFull.length > 20 ? '…' : ''}</p>
+                          <p className="text-[13px] font-bold text-slate-300 font-mono">#{shortId}</p>
+                          <p className="text-[11px] text-slate-700 font-mono truncate max-w-[110px] mt-0.5">{idFull.slice(0, 20)}{idFull.length > 20 ? '…' : ''}</p>
                         </td>
 
                         {/* Empresa */}
@@ -339,8 +339,8 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
                               {getInitials(tx.merchant.name)}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[11.5px] font-semibold text-slate-200 truncate max-w-[140px]">{tx.merchant.name}</p>
-                              <p className="text-[10px] text-slate-600 font-mono truncate">{tx.merchant.document}</p>
+                              <p className="text-[13px] font-semibold text-slate-200 truncate max-w-[140px]">{tx.merchant.name}</p>
+                              <p className="text-[11px] text-slate-600 font-mono truncate">{tx.merchant.document}</p>
                             </div>
                           </div>
                         </td>
@@ -349,16 +349,16 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
                         <td className="px-3 py-3.5">
                           {customerName ? (
                             <div>
-                              <p className="text-[11.5px] font-semibold text-slate-300 truncate max-w-[140px]">{customerName}</p>
-                              {customerEmail && <p className="text-[10px] text-slate-600 truncate max-w-[140px]">{customerEmail}</p>}
-                              {customerDoc && <p className="text-[10px] text-slate-700 font-mono">{customerDoc}</p>}
+                              <p className="text-[13px] font-semibold text-slate-300 truncate max-w-[140px]">{customerName}</p>
+                              {customerEmail && <p className="text-[11px] text-slate-600 truncate max-w-[140px]">{customerEmail}</p>}
+                              {customerDoc && <p className="text-[11px] text-slate-700 font-mono">{customerDoc}</p>}
                             </div>
                           ) : (
                             <div>
-                              <p className="text-[11px] text-slate-600 truncate max-w-[140px]">
+                              <p className="text-[13px] text-slate-600 truncate max-w-[140px]">
                                 {tx.description ? tx.description.slice(0, 30) : '—'}
                               </p>
-                              <span className={`text-[10px] font-semibold ${tp.color}`}>{tp.label}</span>
+                              <span className={`text-[11px] font-semibold ${tp.color}`}>{tp.label}</span>
                             </div>
                           )}
                         </td>
@@ -379,21 +379,21 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
 
                         {/* Táxons */}
                         <td className="px-3 py-3.5 text-right">
-                          <span className="text-[11.5px] font-medium text-slate-500 tabular-nums">
+                          <span className="text-[13px] font-medium text-slate-500 tabular-nums">
                             {fee != null ? `R$ ${formatBRL(Number(fee))}` : '—'}
                           </span>
                         </td>
 
                         {/* Status */}
                         <td className="px-3 py-3.5">
-                          <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full border ${st.color} ${st.bg} ${st.border}`}>
+                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${st.color} ${st.bg} ${st.border}`}>
                             {st.label}
                           </span>
                         </td>
 
                         {/* Dados */}
                         <td className="px-3 py-3.5">
-                          <span className="text-[11px] text-slate-500 whitespace-nowrap">
+                          <span className="text-[12px] text-slate-500 whitespace-nowrap">
                             {formatDateTime(tx.createdAt)}
                           </span>
                         </td>

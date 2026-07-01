@@ -38,27 +38,27 @@ export function AntecipacaoRow({ merchantId, name, plan, initial, gradient, pend
 
   return (
     <tr className={`hover:bg-slate-800/25 transition-colors ${done ? 'opacity-40' : ''}`}>
-      <td className="px-5 py-3">
+      <td className="px-5 py-3.5">
         <div className="flex items-center gap-2.5">
           <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
             {initial}
           </div>
           <div>
-            <p className="text-[12px] font-semibold text-white truncate max-w-[120px]">{name}</p>
-            <p className="text-[10px] text-slate-600">{plan}</p>
+            <p className="text-[13px] font-semibold text-white truncate max-w-[120px]">{name}</p>
+            <p className="text-[11px] text-slate-600">{plan}</p>
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-right">
-        <span className="text-[12.5px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(pendingBalance)}</span>
+      <td className="px-4 py-3.5 text-right">
+        <span className="text-[13px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(pendingBalance)}</span>
       </td>
-      <td className="px-4 py-3 text-right hidden md:table-cell">
-        <span className="text-[11.5px] text-red-400 tabular-nums">−R$ {formatBRL(taxa)}</span>
+      <td className="px-4 py-3.5 text-right hidden md:table-cell">
+        <span className="text-[12px] text-red-400 tabular-nums">−R$ {formatBRL(taxa)}</span>
       </td>
-      <td className="px-5 py-3 text-right">
-        <span className="text-[12.5px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(liquido)}</span>
+      <td className="px-5 py-3.5 text-right">
+        <span className="text-[13px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(liquido)}</span>
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-4 py-3.5 text-right">
         {done ? (
           <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
             Aprovado

@@ -114,7 +114,7 @@ function MetaGrid({ meta }: { meta: Record<string, unknown> }) {
   return (
     <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
       {rows.map((r) => (
-        <div key={r.label} className="flex gap-2 text-[10.5px]">
+        <div key={r.label} className="flex gap-2 text-[12px]">
           <span className="text-slate-600 w-28 shrink-0">{r.label}</span>
           <span className={`text-slate-300 ${r.mono ? 'font-mono' : ''}`}>{r.value}</span>
         </div>
@@ -238,18 +238,18 @@ export default async function HistoricoRiscoPage({ params }: PageProps) {
                           <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} mt-2 shrink-0`} />
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
+                              <span className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
                                 {label}
                               </span>
                               {isDispute && (
                                 <Link
                                   href={`/admin/disputas/${e.entityId}`}
-                                  className="text-[10px] text-blue-500 hover:text-blue-400 underline"
+                                  className="text-[12px] text-blue-500 hover:text-blue-400 underline"
                                 >
                                   Ver caso →
                                 </Link>
                               )}
-                              <span className="text-[10.5px] text-slate-600 ml-auto tabular-nums">{fmtDT(e.createdAt)}</span>
+                              <span className="text-[12px] text-slate-600 ml-auto tabular-nums">{fmtDT(e.createdAt)}</span>
                             </div>
 
                             <MetaGrid meta={e.meta} />

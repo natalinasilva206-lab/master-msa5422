@@ -131,12 +131,12 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
       <table className="w-full">
         <thead>
           <tr className="border-b border-slate-800/60">
-            <th className="text-left px-5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Empresa</th>
-            <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
-            <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-            <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Plano</th>
-            <th className="text-right px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Saldo</th>
-            <th className="text-right px-5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Cadastro</th>
+            <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Empresa</th>
+            <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
+            <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+            <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Plano</th>
+            <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Saldo</th>
+            <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Cadastro</th>
             <th className="px-5 py-3" />
           </tr>
         </thead>
@@ -149,13 +149,13 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
                     {getInitials(m.name)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[12.5px] font-semibold text-white truncate">{m.name}</p>
-                    <p className="text-[10.5px] text-slate-600 truncate">{m.email}</p>
+                    <p className="text-[13px] font-semibold text-white truncate">{m.name}</p>
+                    <p className="text-[12px] text-slate-600 truncate">{m.email}</p>
                   </div>
                 </div>
               </td>
               <td className="px-4 py-3.5 hidden sm:table-cell">
-                <span className="text-[11px] font-medium text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-semibold text-slate-500 bg-slate-800/50 px-2.5 py-0.5 rounded-md">
                   {typeLabel[m.type] ?? m.type}
                 </span>
               </td>
@@ -171,19 +171,19 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
                 </span>
               </td>
               <td className="px-4 py-3.5 text-right hidden lg:table-cell">
-                <span className={`text-[12.5px] font-semibold tabular-nums ${m.balance > 0 ? 'text-emerald-400' : 'text-slate-700'}`}>
+                <span className={`text-[13px] font-semibold tabular-nums ${m.balance > 0 ? 'text-emerald-400' : 'text-slate-700'}`}>
                   R$ {formatBRL(m.balance)}
                 </span>
               </td>
               <td className="px-5 py-3.5 text-right hidden lg:table-cell">
-                <span className="text-[11px] text-slate-600">
+                <span className="text-[12px] text-slate-600">
                   {new Date(m.createdAt).toLocaleDateString('pt-BR')}
                 </span>
               </td>
               <td className="px-5 py-3.5 text-right">
                 <Link
                   href={`/admin/clientes/${m.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-500/30 hover:border-blue-600 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-500/30 hover:border-blue-600 rounded-lg transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

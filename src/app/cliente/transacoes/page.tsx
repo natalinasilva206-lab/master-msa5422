@@ -119,10 +119,10 @@ export default async function ClienteTransacoesPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">Transação</th>
-                    <th className="text-left px-4 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Descrição</th>
-                    <th className="text-right px-4 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">Valor</th>
-                    <th className="text-right px-5 py-2.5 text-[9.5px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Data</th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Transação</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Descrição</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Valor</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Data</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
@@ -137,13 +137,13 @@ export default async function ClienteTransacoesPage() {
                               +
                             </div>
                             <div>
-                              <p className="text-[12.5px] text-slate-200 font-medium">Venda #{String(vendas.length - i).padStart(4, '0')}</p>
-                              <p className="text-[10px] text-slate-600">Aprovado · Gateway</p>
+                              <p className="text-[13px] text-slate-200 font-medium">Venda #{String(vendas.length - i).padStart(4, '0')}</p>
+                              <p className="text-[12px] text-slate-600">Aprovado · Gateway</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3.5 hidden md:table-cell">
-                          <span className="text-[11.5px] text-slate-500 truncate max-w-[180px] block">
+                          <span className="text-[12px] text-slate-500 truncate max-w-[180px] block">
                             {desc || 'Venda processada'}
                           </span>
                         </td>
@@ -153,7 +153,7 @@ export default async function ClienteTransacoesPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3.5 text-right hidden sm:table-cell">
-                          <span className="text-[11px] text-slate-600">{formatDate(log.createdAt)}</span>
+                          <span className="text-[12px] text-slate-600">{formatDate(log.createdAt)}</span>
                         </td>
                       </tr>
                     )

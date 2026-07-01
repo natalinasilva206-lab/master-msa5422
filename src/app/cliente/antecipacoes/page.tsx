@@ -110,7 +110,7 @@ export default async function AntecipacaoClientePage() {
                     taxaVal   = parseFloat(m.taxa    || 0)
                   } catch {}
                   return (
-                    <div key={log.id} className="px-5 py-3 hover:bg-slate-800/20 transition-colors">
+                    <div key={log.id} className="px-5 py-3.5 hover:bg-slate-800/20 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className="shrink-0 w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -118,12 +118,12 @@ export default async function AntecipacaoClientePage() {
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[12.5px] font-semibold text-slate-200">Antecipação aprovada</p>
-                          <p className="text-[10.5px] text-slate-600">{formatDate(log.createdAt)}</p>
+                          <p className="text-[13px] font-semibold text-slate-200">Antecipação aprovada</p>
+                          <p className="text-[12px] text-slate-600">{formatDate(log.createdAt)}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-[12px] font-bold text-emerald-400 tabular-nums">+R$ {formatBRL(liquidoVal)}</p>
-                          <p className="text-[10px] text-slate-600 tabular-nums">bruto R$ {formatBRL(amount)}</p>
+                          <p className="text-[13px] font-bold text-emerald-400 tabular-nums">+R$ {formatBRL(liquidoVal)}</p>
+                          <p className="text-[12px] text-slate-600 tabular-nums">bruto R$ {formatBRL(amount)}</p>
                         </div>
                       </div>
                     </div>

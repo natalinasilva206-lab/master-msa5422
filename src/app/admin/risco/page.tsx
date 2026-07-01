@@ -306,7 +306,7 @@ export default async function RiscoPage() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="px-4 py-2.5 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap"
+                        className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap"
                       >
                         {h}
                       </th>
@@ -326,7 +326,7 @@ export default async function RiscoPage() {
                         }`}
                       >
                         {/* Seller */}
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-300 shrink-0 ${
                               r.status === 'BLOQUEADO' ? 'bg-red-800/40' :
@@ -335,22 +335,22 @@ export default async function RiscoPage() {
                               {r.name.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-[12.5px] font-medium text-slate-200 leading-tight">{r.name}</p>
-                              <p className="text-[9.5px] text-slate-600">{r.plan}</p>
+                              <p className="text-[13px] font-medium text-slate-200 leading-tight">{r.name}</p>
+                              <p className="text-[11px] text-slate-600">{r.plan}</p>
                             </div>
                           </div>
                         </td>
 
                         {/* Volume 30d */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-xs tabular-nums text-slate-300">
+                          <span className="text-[13px] tabular-nums text-slate-300">
                             {r.vol > 0 ? fmtBRL(r.vol) : <span className="text-slate-600">—</span>}
                           </span>
                         </td>
 
                         {/* Disponível */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="text-xs tabular-nums text-emerald-400 font-medium">
+                          <span className="text-[13px] tabular-nums text-emerald-400 font-medium">
                             R$ {fmtBRLFull(r.pendingBalance)}
                           </span>
                         </td>
@@ -378,13 +378,13 @@ export default async function RiscoPage() {
                                 style={{ width: `${Math.min(r.riskReservePercent, 20) / 20 * 100}%` }}
                               />
                             </div>
-                            <span className="text-xs tabular-nums text-slate-300">{r.riskReservePercent}%</span>
+                            <span className="text-[13px] tabular-nums text-slate-300">{r.riskReservePercent}%</span>
                           </div>
                         </td>
 
                         {/* Nível risco */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border ${rl}`}>
+                          <span className={`inline-flex text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${rl}`}>
                             {RISK_LABEL[r.riskLevel] ?? r.riskLevel}
                           </span>
                         </td>
@@ -398,7 +398,7 @@ export default async function RiscoPage() {
                               </span>
                             </Link>
                           ) : (
-                            <span className="text-slate-600 text-xs">—</span>
+                            <span className="text-slate-600 text-[12px]">—</span>
                           )}
                         </td>
 
@@ -409,13 +409,13 @@ export default async function RiscoPage() {
                               {r.openMed}
                             </span>
                           ) : (
-                            <span className="text-slate-600 text-xs">—</span>
+                            <span className="text-slate-600 text-[12px]">—</span>
                           )}
                         </td>
 
                         {/* Status */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${sm.color}`}>
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${sm.color}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
                             {sm.label}
                           </span>
@@ -426,7 +426,7 @@ export default async function RiscoPage() {
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Link
                               href={`/admin/clientes/${r.id}`}
-                              className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+                              className="text-[12px] text-blue-400 hover:text-blue-300 font-semibold transition-colors"
                             >
                               Gerenciar →
                             </Link>

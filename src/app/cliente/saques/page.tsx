@@ -125,19 +125,19 @@ export default async function ClienteSaquesPage() {
                   const iconBg  = isApproved ? 'bg-emerald-500/10 text-emerald-400' : isDenied ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
                   const stColor = isApproved ? 'text-emerald-400' : isDenied ? 'text-red-400' : 'text-amber-400'
                   return (
-                    <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
                       <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${iconBg}`}>
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d={iconD} />
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12.5px] font-semibold text-slate-200">{label}</p>
-                        <p className="text-[10.5px] text-slate-600">{formatDate(log.createdAt)}</p>
+                        <p className="text-[13px] font-semibold text-slate-200">{label}</p>
+                        <p className="text-[12px] text-slate-600">{formatDate(log.createdAt)}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-[13px] font-bold text-white tabular-nums">R$ {formatBRL(amount)}</p>
-                        <p className={`text-[10px] font-semibold ${stColor}`}>{status}</p>
+                        <p className={`text-[12px] font-semibold ${stColor}`}>{status}</p>
                       </div>
                     </div>
                   )
