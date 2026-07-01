@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { notifySellerTicketReplied } from '@/lib/notifySupport'
+import { calcSlaDueAt } from '@/lib/sla'
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions)
@@ -118,10 +119,57 @@ export async function updateTicketPriority(
   const validPriorities = ['BAIXA', 'MEDIA', 'ALTA', 'URGENTE']
   if (!validPriorities.includes(priority)) return { error: 'Prioridade inválida.' }
 
-  await prisma.ticket.update({
-    where: { id: ticketId },
-    data: { priority, updatedAt: new Date() },
-  })
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
+
+  await prisma.$transaction([
+    prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        priority,
+        // Recalculate SLA from now when priority changes (unless already closed)
+        slaDueAt: ticket?.status !== 'FECHADO' ? calcSlaDueAt(priority) : undefined,
+        updatedAt: new Date(),
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'TICKET_PRIORITY_CHANGED',
+        entity:   'Ticket',
+        entityId: ticketId,
+        metadata: JSON.stringify({
+          before: ticket?.priority,
+          after:  priority,
+          adminName: admin.name,
+        }),
+      },
+    }),
+  ])
+
+  revalidatePath('/admin/suporte')
+  return { ok: true }
+}
+
+export async function assumeTicket(
+  ticketId: string,
+): Promise<{ error?: string; ok?: boolean }> {
+  const admin = await requireAdmin()
+
+  await prisma.$transaction([
+    prisma.ticket.update({
+      where: { id: ticketId },
+      data:  { assignedTo: admin.id, status: 'EM_ANALISE', updatedAt: new Date() },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'TICKET_ASSUMED',
+        entity:   'Ticket',
+        entityId: ticketId,
+        metadata: JSON.stringify({ adminId: admin.id, adminName: admin.name }),
+      },
+    }),
+  ])
 
   revalidatePath('/admin/suporte')
   return { ok: true }

@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { TicketActions } from './TicketActions'
+import { getSlaStatus } from '@/lib/sla'
 
 function formatDate(d: Date | string) {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -55,7 +56,10 @@ export default async function AdminSuportePage({ searchParams }: PageProps) {
 
   const statusFilter = STATUS_TAB_FILTER[tab] ?? STATUS_TAB_FILTER['abertos']
 
-  const [totalAbertos, totalRespondidos, totalFechados, ticketList] = await Promise.all([
+  const currentAdminId   = (session?.user as any)?.id   as string
+  const currentAdminName = (session?.user as any)?.name as string
+
+  const [totalAbertos, totalRespondidos, totalFechados, ticketList, adminList] = await Promise.all([
     prisma.ticket.count({ where: { status: { in: STATUS_TAB_FILTER['abertos'] } } }),
     prisma.ticket.count({ where: { status: { in: STATUS_TAB_FILTER['respondidos'] } } }),
     prisma.ticket.count({ where: { status: { in: STATUS_TAB_FILTER['fechados'] } } }),
@@ -73,6 +77,7 @@ export default async function AdminSuportePage({ searchParams }: PageProps) {
         },
       },
     }),
+    prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true, name: true } }),
   ])
 
   const totalInTab = tab === 'abertos' ? totalAbertos : tab === 'respondidos' ? totalRespondidos : totalFechados
@@ -159,8 +164,8 @@ export default async function AdminSuportePage({ searchParams }: PageProps) {
                 const firstMsg    = ticket.messages.find((m) => m.senderRole === 'SELLER' && !m.isInternalNote)
                 const publicMsgs  = ticket.messages.filter((m) => !m.isInternalNote)
                 const lastReply   = publicMsgs.filter((m) => m.senderRole === 'ADMIN').at(-1)
-                const slaPast     = ticket.slaDueAt && new Date(ticket.slaDueAt) < new Date()
-                const slaBadge    = slaPast && tab === 'abertos'
+                const slaStatus   = getSlaStatus(ticket.slaDueAt, ticket.status)
+                const assignedAdmin = adminList.find((a) => a.id === ticket.assignedTo)
 
                 return (
                   <div key={ticket.id} className="px-5 py-4 hover:bg-slate-800/20 transition-colors">
@@ -182,14 +187,35 @@ export default async function AdminSuportePage({ searchParams }: PageProps) {
                           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${badgeClass}`}>
                             {ticket.subject}
                           </span>
-                          {slaBadge && (
-                            <span className="text-[9px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-full">
-                              SLA expirado
+                          {/* Compact SLA indicator */}
+                          {slaStatus === 'overdue' && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-full">
+                              <span className="w-1 h-1 rounded-full bg-red-400 inline-block" />
+                              SLA vencido
+                            </span>
+                          )}
+                          {slaStatus === 'warning' && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">
+                              <span className="w-1 h-1 rounded-full bg-amber-400 inline-block" />
+                              Próx. venc.
+                            </span>
+                          )}
+                          {slaStatus === 'ok' && (
+                            <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
+                              <span className="w-1 h-1 rounded-full bg-emerald-400 inline-block" />
+                              No prazo
                             </span>
                           )}
                         </div>
 
-                        <p className="text-[11px] text-slate-500 truncate">{ticket.user?.email ?? '—'}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-[11px] text-slate-500 truncate">{ticket.user?.email ?? '—'}</p>
+                          {assignedAdmin && (
+                            <span className="shrink-0 text-[9.5px] text-slate-600">
+                              → {assignedAdmin.name}
+                            </span>
+                          )}
+                        </div>
 
                         {/* First message */}
                         {firstMsg && (
@@ -230,6 +256,15 @@ export default async function AdminSuportePage({ searchParams }: PageProps) {
                         sellerName={sellerName}
                         status={ticket.status}
                         priority={ticket.priority}
+                        slaDueAt={ticket.slaDueAt?.toISOString() ?? null}
+                        assignedTo={ticket.assignedTo}
+                        currentAdminId={currentAdminId}
+                        currentAdminName={currentAdminName}
+                        adminList={adminList}
+                        messages={ticket.messages.map((m) => ({
+                          ...m,
+                          createdAt: m.createdAt.toISOString(),
+                        }))}
                       />
                     </div>
                   </div>

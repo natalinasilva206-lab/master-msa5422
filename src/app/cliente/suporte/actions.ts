@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyAdminTicketOpened, notifyAdminTicketReopened } from '@/lib/notifySupport'
+import { calcSlaDueAt } from '@/lib/sla'
 
 export async function sendSupportTicket(
   subject: string,
@@ -27,7 +28,7 @@ export async function sendSupportTicket(
   })
   if (!user?.merchant) return { error: 'Merchant não encontrado.' }
 
-  const slaDueAt = new Date(Date.now() + 8 * 60 * 60 * 1000)
+  const slaDueAt = calcSlaDueAt('MEDIA')
 
   const ticket = await prisma.ticket.create({
     data: {
