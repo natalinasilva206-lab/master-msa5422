@@ -60,12 +60,12 @@ export default async function KycPage({ searchParams }: PageProps) {
       orderBy: { createdAt: 'desc' },
     }),
     prisma.auditLog.findMany({
-      where: { action: { in: ['KYC_CALL_REQUESTED', 'KYC_ADJUSTMENT_REQUESTED', 'KYC_REJECTED', 'APPROVE_MERCHANT_KYC', 'BLOCK_MERCHANT_KYC'] } },
+      where: { action: { in: ['KYC_CALL_REQUESTED', 'KYC_ADJUSTMENT_REQUESTED', 'KYC_REJECTED', 'APPROVE_MERCHANT_KYC', 'BLOCK_MERCHANT_KYC', 'KYC_REACTIVATED'] } },
       orderBy: { createdAt: 'desc' },
       select: { entityId: true, action: true },
     }),
     prisma.auditLog.findMany({
-      where: { action: { in: ['KYC_CALL_REQUESTED', 'KYC_ADJUSTMENT_REQUESTED', 'KYC_REJECTED', 'APPROVE_MERCHANT_KYC', 'BLOCK_MERCHANT_KYC'] } },
+      where: { action: { in: ['KYC_CALL_REQUESTED', 'KYC_ADJUSTMENT_REQUESTED', 'KYC_REJECTED', 'APPROVE_MERCHANT_KYC', 'BLOCK_MERCHANT_KYC', 'KYC_REACTIVATED'] } },
       orderBy: { createdAt: 'desc' },
       select: { id: true, entityId: true, action: true, createdAt: true, metadata: true, user: { select: { name: true } } },
     }),
@@ -162,6 +162,7 @@ export default async function KycPage({ searchParams }: PageProps) {
   const tabs = [
     { label: 'Em Análise', value: 'analise', count: counts.emAnalise },
     { label: 'Aguardando Call', value: 'call', count: counts.aguardandoCall },
+    { label: 'Ajustes', value: 'ajustes', count: counts.ajusteSolicitado },
     { label: 'Aprovados', value: 'aprovados', count: counts.aprovados },
     { label: 'Rejeitados', value: 'rejeitados', count: counts.rejeitados },
     { label: 'Todos', value: 'todos', count: enriched.length },
@@ -274,6 +275,7 @@ export default async function KycPage({ searchParams }: PageProps) {
                   <tr className="border-b border-slate-800/60">
                     <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Responsável</th>
                     <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Empresa</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Docs / PIX</th>
                     <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                     <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Data de Envio</th>
                     <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
@@ -320,6 +322,25 @@ export default async function KycPage({ searchParams }: PageProps) {
                         <td className="px-4 py-3.5 hidden md:table-cell">
                           <p className="text-[13px] font-semibold text-slate-300 truncate max-w-[200px]">{m.name}</p>
                           <p className="text-[10.5px] text-slate-600 font-mono truncate">{m.document}</p>
+                        </td>
+                        <td className="px-4 py-3.5 hidden lg:table-cell">
+                          {(() => {
+                            const requiredTypes = ['IDENTITY', 'COMPANY', 'ADDRESS', 'SELFIE']
+                            const submitted = requiredTypes.filter((t) => m.kycDocumentUrls.some((d) => d.type === t)).length
+                            const hasPix = !!(m as any).pixKey
+                            return (
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10.5px] font-bold tabular-nums ${submitted >= 4 ? 'text-emerald-400' : submitted > 0 ? 'text-amber-400' : 'text-slate-700'}`}>
+                                  {submitted}/4
+                                </span>
+                                {hasPix ? (
+                                  <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">PIX</span>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-slate-700 bg-slate-800/60 border border-slate-700/40 px-1.5 py-0.5 rounded-full">sem PIX</span>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </td>
                         <td className="px-4 py-3.5">
                           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${subStatusStyle[m.kycSubStatus] ?? subStatusStyle['EM_ANALISE']}`}>

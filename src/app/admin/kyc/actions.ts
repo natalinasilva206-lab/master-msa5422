@@ -51,6 +51,22 @@ export async function blockMerchant(merchantId: string) {
   return rejectMerchant(merchantId)
 }
 
+export async function reactivateMerchant(merchantId: string) {
+  const session = await requireAdmin()
+  await prisma.merchant.update({ where: { id: merchantId }, data: { status: 'REVIEW' } })
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      action: 'KYC_REACTIVATED',
+      entity: 'Merchant',
+      entityId: merchantId,
+      metadata: JSON.stringify({ newStatus: 'REVIEW' }),
+    },
+  })
+  revalidatePath('/admin/kyc')
+  revalidatePath('/admin/clientes')
+}
+
 export async function requestCall(merchantId: string) {
   const session = await requireAdmin()
   await prisma.auditLog.create({

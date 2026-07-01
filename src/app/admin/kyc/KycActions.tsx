@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import { approveMerchant, rejectMerchant, requestCall, requestAdjustment, addKycDocument, removeKycDocument } from './actions'
+import { approveMerchant, rejectMerchant, requestCall, requestAdjustment, addKycDocument, removeKycDocument, reactivateMerchant } from './actions'
 
 type AuditEntry = {
   id: string
@@ -62,6 +62,7 @@ const actionLabel: Record<string, string> = {
   KYC_REJECTED: 'KYC Rejeitado',
   KYC_CALL_REQUESTED: 'Call Solicitado',
   KYC_ADJUSTMENT_REQUESTED: 'Ajuste Solicitado',
+  KYC_REACTIVATED: 'Reativado para Análise',
 }
 
 function formatBRL(v: number) {
@@ -100,9 +101,11 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
   const [rejecting, startReject] = useTransition()
   const [calling, startCall] = useTransition()
   const [adjusting, startAdjust] = useTransition()
-  const pending = approving || rejecting || calling || adjusting || addingDoc || removingDoc
+  const [reactivating, startReactivate] = useTransition()
+  const pending = approving || rejecting || calling || adjusting || addingDoc || removingDoc || reactivating
 
   const canAction = ['EM_ANALISE', 'AGUARDANDO_CALL', 'AJUSTE_SOLICITADO'].includes(merchant.kycSubStatus)
+  const isBlocked = merchant.status === 'BLOCKED'
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -164,6 +167,24 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
               </button>
             </div>
 
+            {isBlocked && (
+              <>
+                <div className="h-px bg-slate-800/60 mx-2" />
+                <div className="p-1.5">
+                  <button
+                    onClick={() => { startReactivate(() => reactivateMerchant(merchant.id)); setShowMenu(false) }}
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-[12.5px] font-medium text-amber-400 hover:bg-amber-500/10 flex items-center gap-3 transition-colors"
+                  >
+                    <span className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                      <svg className="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </span>
+                    Reativar para Análise
+                  </button>
+                </div>
+              </>
+            )}
             {canAction && (
               <>
                 <div className="h-px bg-slate-800/60 mx-2" />
@@ -353,31 +374,61 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
 
               {activeTab === 'documentos' && (
                 <div className="space-y-3">
-                  <p className="text-[11px] text-slate-600">Documentos KYC enviados pelo seller. Clique no link para visualizar.</p>
-                  {merchant.kycDocumentUrls.length === 0 && (
-                    <p className="text-[12px] text-slate-700 py-6 text-center">Nenhum documento enviado ainda.</p>
-                  )}
-                  <div className="space-y-2">
-                    {merchant.kycDocumentUrls.map((doc) => {
-                      const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META['OTHER']
+                  {/* Required docs checklist */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Documentos Obrigatórios</p>
+                    {[
+                      { type: 'IDENTITY', label: 'Documento de Identidade' },
+                      { type: 'COMPANY',  label: 'Documentação da Empresa' },
+                      { type: 'ADDRESS',  label: 'Comprovante de Endereço' },
+                      { type: 'SELFIE',   label: 'Selfie com Documento' },
+                    ].map(({ type, label }) => {
+                      const doc = merchant.kycDocumentUrls.find((d) => d.type === type)
+                      const meta = DOC_TYPE_META[type]
                       return (
-                        <div key={doc.url} className="flex items-center gap-2.5 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2.5">
+                        <div key={type} className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 border ${doc ? 'bg-emerald-500/5 border-emerald-500/15' : 'bg-slate-800/40 border-slate-700/30'}`}>
+                          {doc ? (
+                            <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5 text-slate-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                          )}
                           <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border ${meta.color}`}>{meta.label}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-slate-400">{doc.label}</p>
-                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-[10.5px] text-blue-400 hover:text-blue-300 truncate block font-mono max-w-[320px]">{doc.url}</a>
+                            <p className={`text-[11px] font-medium ${doc ? 'text-slate-300' : 'text-slate-600'}`}>{label}</p>
+                            {doc && <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 truncate block font-mono max-w-[280px]">{doc.url}</a>}
+                            {!doc && <p className="text-[10px] text-slate-700">Não enviado</p>}
                           </div>
-                          <button
-                            onClick={() => startRemoveDoc(() => removeKycDocument(merchant.id, doc.url))}
-                            disabled={removingDoc}
-                            className="shrink-0 text-[10px] text-red-400 hover:text-red-300 disabled:opacity-40 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
-                          >
-                            Remover
-                          </button>
+                          {doc && (
+                            <button onClick={() => startRemoveDoc(() => removeKycDocument(merchant.id, doc.url))} disabled={removingDoc} className="shrink-0 text-[10px] text-red-400 hover:text-red-300 disabled:opacity-40 px-2 py-1 rounded hover:bg-red-500/10 transition-colors">
+                              Remover
+                            </button>
+                          )}
                         </div>
                       )
                     })}
                   </div>
+
+                  {/* Optional docs */}
+                  {merchant.kycDocumentUrls.filter((d) => !['IDENTITY','COMPANY','ADDRESS','SELFIE'].includes(d.type)).length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Documentos Adicionais</p>
+                      {merchant.kycDocumentUrls.filter((d) => !['IDENTITY','COMPANY','ADDRESS','SELFIE'].includes(d.type)).map((doc) => {
+                        const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META['OTHER']
+                        return (
+                          <div key={doc.url} className="flex items-center gap-2.5 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2.5">
+                            <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border ${meta.color}`}>{meta.label}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium text-slate-400">{doc.label}</p>
+                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-[10.5px] text-blue-400 hover:text-blue-300 truncate block font-mono max-w-[280px]">{doc.url}</a>
+                            </div>
+                            <button onClick={() => startRemoveDoc(() => removeKycDocument(merchant.id, doc.url))} disabled={removingDoc} className="shrink-0 text-[10px] text-red-400 hover:text-red-300 disabled:opacity-40 px-2 py-1 rounded hover:bg-red-500/10 transition-colors">
+                              Remover
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                   {/* Add document (admin can also add) */}
                   <div className="pt-2 border-t border-slate-800/40 space-y-2">
                     <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Adicionar documento manualmente</p>
@@ -417,8 +468,8 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
                         {addingDoc ? '…' : 'Add'}
                       </button>
                     </div>
+                    {docError && <p className="text-[11px] text-red-400">{docError}</p>}
                   </div>
-                  {docError && <p className="text-[11px] text-red-400">{docError}</p>}
                 </div>
               )}
 
@@ -454,6 +505,19 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
             </div>
 
             {/* Footer actions */}
+            {isBlocked && (
+              <div className="px-6 py-4 border-t border-slate-800/60 flex items-center gap-2">
+                <p className="text-[11px] text-slate-600 flex-1">Merchant bloqueado. Você pode reativar para nova análise.</p>
+                <button
+                  onClick={() => { startReactivate(() => reactivateMerchant(merchant.id)); closeModal() }}
+                  disabled={reactivating}
+                  className="flex items-center gap-1.5 px-4 py-2 text-[11.5px] font-semibold text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-40 rounded-lg transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  {reactivating ? 'Reativando...' : 'Reativar para Análise'}
+                </button>
+              </div>
+            )}
             {canAction && !showNoteInput && (
               <div className="px-6 py-4 border-t border-slate-800/60 flex items-center gap-2 flex-wrap">
                 <button
@@ -469,7 +533,7 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg transition-colors disabled:opacity-40"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                  {calling ? 'Solicitando...' : 'Solicitante Chamado'}
+                  {calling ? 'Solicitando...' : 'Solicitar Call'}
                 </button>
                 <div className="flex-1" />
                 <button
