@@ -29,6 +29,16 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
   const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
   if (!merchant) throw new Error('Merchant não encontrado.')
 
+  const feePlan = await prisma.feePlan.findFirst({ where: { name: merchant.plan } })
+
+  // Taxas do plano — usadas para gravar margem real em cada venda
+  const chargedPct = feePlan?.chargedPercent ?? 2.5
+  const costPct    = feePlan?.costPercent    ?? 1.2
+  const chargedFx  = feePlan?.chargedFixed   ?? 0
+  const costFx     = feePlan?.costFixed      ?? 0
+  const feeAmount  = Math.round((saleAmount * chargedPct / 100 + chargedFx) * 100) / 100
+  const feeCost    = Math.round((saleAmount * costPct    / 100 + costFx)    * 100) / 100
+
   const reservePercent = merchant.riskReservePercent
   const releaseDays    = merchant.riskReleaseDays
   const reserveMin     = merchant.riskReserveMin
@@ -55,13 +65,15 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
       },
     })
 
-    // SaleLog: registro da venda para métricas de risco
+    // SaleLog: registro da venda com taxas reais para cálculo de margem
     const saleLog = await tx.saleLog.create({
       data: {
         merchantId,
         amount:      saleAmount,
         type:        'VENDA',
         status:      'APROVADO',
+        feeAmount,
+        feeCost,
         description: description ?? null,
         externalId:  externalId  ?? null,
       },

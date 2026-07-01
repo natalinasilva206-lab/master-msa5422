@@ -53,7 +53,7 @@ export interface ScoreInput {
   diasDesdeCriacao:  number
   /** Igual ao volumeMensal — base para o cálculo de margem percentual */
   volumeFaturado:    number
-  /** Estimativa de margem via FeePlan: (chargedPct - costPct) × volume + (chargedFx - costFx) × numVendas */
+  /** Margem real: soma(SaleLog.feeAmount - SaleLog.feeCost) nos últimos 30d (0 para registros anteriores à migração) */
   margemEstimada:    number
 }
 

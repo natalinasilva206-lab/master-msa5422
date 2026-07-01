@@ -132,6 +132,8 @@ model SaleLog {
   amount      Float
   type        String   // VENDA | ESTORNO | MED_PIX | REEMBOLSO | PIX_DEVOLVIDO
   status      String   @default("APROVADO") // APROVADO | CANCELADO | PENDENTE
+  feeAmount   Float    @default(0) // taxa cobrada do seller (chargedPct × amount + chargedFixed)
+  feeCost     Float    @default(0) // custo da plataforma (costPct × amount + costFixed)
   description String?
   externalId  String?
   disputeId   String?

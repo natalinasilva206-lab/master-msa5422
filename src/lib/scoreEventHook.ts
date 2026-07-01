@@ -36,17 +36,17 @@ async function buildInput(merchantId: string, merchant: {
   const since30d = new Date(now.getTime() - ms30)
   const since60d = new Date(now.getTime() - ms30 * 2)
 
-  const [vendas30d, vendas30_60d, vendas30dCount, disputas30d, reembolsos, feePlan] =
+  const [vendas30d, vendas30_60d, vendas30dCount, disputas30d, reembolsos] =
     await Promise.all([
       // Volume mensal: SaleLog VENDA APROVADO (fonte canônica)
       prisma.saleLog.findMany({
         where: { merchantId, type: 'VENDA', status: 'APROVADO', createdAt: { gte: since30d } },
-        select: { amount: true },
+        select: { amount: true, feeAmount: true, feeCost: true },
       }),
       // Volume mês anterior: SaleLog VENDA APROVADO (janela 30–60d)
       prisma.saleLog.findMany({
         where: { merchantId, type: 'VENDA', status: 'APROVADO', createdAt: { gte: since60d, lt: since30d } },
-        select: { amount: true },
+        select: { amount: true, feeAmount: true, feeCost: true },
       }),
       // Total vendas aprovadas nos últimos 30d — denominador das taxas de CB/reembolso
       prisma.saleLog.count({
@@ -61,7 +61,6 @@ async function buildInput(merchantId: string, merchant: {
       prisma.saleLog.count({
         where: { merchantId, type: { in: ['REEMBOLSO', 'ESTORNO'] }, status: 'APROVADO', createdAt: { gte: since30d } },
       }),
-      prisma.feePlan.findFirst({ where: { name: merchant.plan } }),
     ])
 
   const chargebacks = disputas30d.filter(d => d.type === 'CHARGEBACK').length
@@ -70,13 +69,9 @@ async function buildInput(merchantId: string, merchant: {
   const volumeMensal      = vendas30d.reduce((s, v) => s + v.amount, 0)
   const volumeMesAnterior = vendas30_60d.reduce((s, v) => s + v.amount, 0)
 
-  // Margem estimada via FeePlan (única fonte de preços disponível no sistema)
-  const chargedPct  = feePlan?.chargedPercent ?? 2.5
-  const costPct     = feePlan?.costPercent    ?? 1.2
-  const chargedFx   = feePlan?.chargedFixed   ?? 0
-  const costFx      = feePlan?.costFixed      ?? 0
-  const numVendas30 = vendas30d.length || 1
-  const margemEstimada = volumeMensal * ((chargedPct - costPct) / 100) + numVendas30 * (chargedFx - costFx)
+  // Margem real: soma de feeAmount - feeCost gravados por processSalePayment
+  // Fallback para registros sem fee (anteriores à migração): 0
+  const margemEstimada = vendas30d.reduce((s, v) => s + (v.feeAmount - v.feeCost), 0)
   const diasDesdeCriacao = Math.max(1, Math.floor((now.getTime() - merchant.createdAt.getTime()) / 86_400_000))
 
   return {
