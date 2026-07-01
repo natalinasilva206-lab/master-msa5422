@@ -1,0 +1,98 @@
+'use server'
+import { prisma } from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+
+async function requireAdminSession() {
+  const session = await getServerSession(authOptions)
+  if (!session || (session.user as any)?.role !== 'ADMIN') redirect('/login')
+  return session
+}
+
+export async function updateCdiRate(merchantId: string, rate: number) {
+  await requireAdminSession()
+  if (rate < 0 || rate > 100) throw new Error('Taxa inválida')
+  await prisma.merchant.update({
+    where: { id: merchantId },
+    data: { cdiRate: rate },
+  })
+  revalidatePath('/admin/cdi')
+}
+
+export async function updateBalance(merchantId: string, balance: number) {
+  await requireAdminSession()
+  if (balance < 0) throw new Error('Saldo inválido')
+  await prisma.merchant.update({
+    where: { id: merchantId },
+    data: { balance },
+  })
+  revalidatePath('/admin/cdi')
+}
+
+export async function setCdiPrazo(merchantId: string, expiresAt: string | null) {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   'CDI_LIMIT_SET',
+      entity:   'Merchant',
+      entityId: merchantId,
+      metadata: JSON.stringify({ expiresAt }),
+    },
+  })
+  revalidatePath('/admin/cdi')
+}
+
+export async function resolveEarlyWithdraw(
+  requestLogId: string,
+  merchantId: string,
+  amount: number,
+  approve: boolean
+): Promise<{ error?: string }> {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+
+  if (approve) {
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
+    if (!merchant) return { error: 'Merchant não encontrado.' }
+    if (amount > merchant.balance) return { error: 'Saldo insuficiente em CDI.' }
+
+    await prisma.merchant.update({
+      where: { id: merchantId },
+      data: {
+        balance:        { decrement: amount },
+        pendingBalance: { increment: amount },
+      },
+    })
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      userId,
+      action:   approve ? 'CDI_EARLY_APPROVED' : 'CDI_EARLY_DENIED',
+      entity:   'Merchant',
+      entityId: merchantId,
+      metadata: JSON.stringify({ requestLogId, amount }),
+    },
+  })
+
+  revalidatePath('/admin/cdi')
+  revalidatePath('/cliente/cdi')
+  revalidatePath('/cliente/dashboard')
+  return {}
+}
+
+export async function applyGlobalRate(rate: number, plan?: string) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  if (rate < 0 || rate > 100) throw new Error('Taxa inválida')
+
+  await prisma.merchant.updateMany({
+    where: plan ? { plan } : {},
+    data: { cdiRate: rate },
+  })
+  revalidatePath('/admin/cdi')
+}

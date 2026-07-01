@@ -1,3 +1,144 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Theme CSS Variables ──────────────────────────────────────── */
+:root {
+  --bg-base:      #080c12;
+  --bg-sidebar:   #0c1018;
+  --bg-card:      rgba(15, 23, 42, 0.6);    /* slate-900/60  */
+  --bg-card-hover:rgba(30, 41, 59, 0.2);    /* slate-800/20  */
+  --border-card:  rgba(30, 41, 59, 0.7);    /* slate-800/70  */
+  --text-primary: #f1f5f9;                  /* slate-100     */
+  --text-muted:   #475569;                  /* slate-600     */
+
+  /* accent – default blue */
+  --accent-400: #60a5fa;
+  --accent-500: #3b82f6;
+  --accent-600: #2563eb;
+  --accent-700: #1d4ed8;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+}
+
+/* ── Accent Colour Palettes ───────────────────────────────────── */
+[data-accent="violet"] {
+  --accent-400: #a78bfa;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+  --accent-700: #6d28d9;
+  --accent-glow: rgba(139, 92, 246, 0.15);
+}
+[data-accent="emerald"] {
+  --accent-400: #34d399;
+  --accent-500: #10b981;
+  --accent-600: #059669;
+  --accent-700: #047857;
+  --accent-glow: rgba(16, 185, 129, 0.15);
+}
+[data-accent="rose"] {
+  --accent-400: #fb7185;
+  --accent-500: #f43f5e;
+  --accent-600: #e11d48;
+  --accent-700: #be123c;
+  --accent-glow: rgba(244, 63, 94, 0.15);
+}
+[data-accent="amber"] {
+  --accent-400: #fbbf24;
+  --accent-500: #f59e0b;
+  --accent-600: #d97706;
+  --accent-700: #b45309;
+  --accent-glow: rgba(245, 158, 11, 0.15);
+}
+
+/* ── Background Themes ────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:    #080c12;
+  --bg-sidebar: #0c1018;
+}
+[data-theme="darker"] {
+  --bg-base:    #000000;
+  --bg-sidebar: #050505;
+}
+[data-theme="light"] {
+  --bg-base:      #f1f5f9;
+  --bg-sidebar:   #e2e8f0;
+  --bg-card:      rgba(255,255,255,0.80);
+  --bg-card-hover:rgba(241,245,249,0.60);
+  --border-card:  rgba(203,213,225,0.70);
+  --text-primary: #0f172a;
+  --text-muted:   #64748b;
+}
+
+/* ── Apply bg-base to the admin shell ────────────────────────── */
+.admin-shell {
+  background-color: var(--bg-base);
+}
+.admin-sidebar {
+  background-color: var(--bg-sidebar) !important;
+}
+
+/* ── Accent overrides — buttons & active states ───────────────── */
+.admin-shell .btn-accent,
+.admin-shell [data-accent-btn] {
+  background-color: var(--accent-600) !important;
+}
+.admin-shell .btn-accent:hover,
+.admin-shell [data-accent-btn]:hover {
+  background-color: var(--accent-500) !important;
+}
+
+/* Sidebar active link */
+.admin-shell [data-active-nav] {
+  background-color: var(--accent-glow) !important;
+  color: var(--accent-400) !important;
+}
+.admin-shell [data-active-nav] svg {
+  color: var(--accent-500) !important;
+}
+
+/* Primary buttons (bg-blue-600) */
+.admin-shell button[class*="bg-blue-600"],
+.admin-shell a[class*="bg-blue-600"] {
+  background-color: var(--accent-600) !important;
+}
+.admin-shell button[class*="bg-blue-600"]:hover,
+.admin-shell a[class*="bg-blue-600"]:hover {
+  background-color: var(--accent-500) !important;
+}
+/* Text accent (text-blue-400/500) */
+.admin-shell [class*="text-blue-400"] { color: var(--accent-400) !important; }
+.admin-shell [class*="text-blue-500"] { color: var(--accent-500) !important; }
+
+/* Border accent */
+.admin-shell [class*="border-blue-500"] { border-color: var(--accent-500) !important; }
+.admin-shell [class*="focus\:border-blue-500"] { border-color: var(--accent-500) !important; }
+
+/* ring */
+.admin-shell [class*="ring-blue-500"] { --tw-ring-color: var(--accent-500) !important; }
+
+/* bg tint cards */
+.admin-shell [class*="bg-blue-500\/10"] { background-color: var(--accent-glow) !important; }
+.admin-shell [class*="bg-blue-500\/20"] { background-color: var(--accent-glow) !important; }
+.admin-shell [class*="bg-blue-600\/"] { background-color: var(--accent-glow) !important; }
+
+/* Light theme: invert dark cards */
+[data-theme="light"] .admin-shell [class*="bg-slate-900"] {
+  background-color: rgba(255,255,255,0.85) !important;
+}
+[data-theme="light"] .admin-shell [class*="bg-slate-800"] {
+  background-color: rgba(241,245,249,0.80) !important;
+}
+[data-theme="light"] .admin-shell [class*="text-slate-200"],
+[data-theme="light"] .admin-shell [class*="text-white"] {
+  color: #0f172a !important;
+}
+[data-theme="light"] .admin-shell [class*="text-slate-400"] {
+  color: #475569 !important;
+}
+[data-theme="light"] .admin-shell [class*="text-slate-500"],
+[data-theme="light"] .admin-shell [class*="text-slate-600"] {
+  color: #64748b !important;
+}
+[data-theme="light"] .admin-shell [class*="border-slate-800"] {
+  border-color: rgba(203,213,225,0.60) !important;
+}

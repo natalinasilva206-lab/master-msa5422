@@ -14,7 +14,14 @@ model User {
   email      String     @unique
   password   String
   role       String     @default("CLIENT")
-  merchantId String?
+  phone             String?
+  passwordChangedAt DateTime?
+  theme             String    @default("dark")
+  accentColor       String    @default("blue")
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  lastLoginUa       String?
+  merchantId        String?
   merchant   Merchant?  @relation(fields: [merchantId], references: [id])
   auditLogs  AuditLog[]
   createdAt  DateTime   @default(now())
@@ -31,9 +38,31 @@ model Merchant {
   plan            String   @default("basic")
   balance         Float    @default(0)
   pendingBalance  Float    @default(0)
-  users           User[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  cdiRate         Float    @default(1.0)
+  reservedBalance      Float    @default(0)
+  blockedBalance       Float    @default(0)
+  futureBalance        Float    @default(0)
+  riskReservePercent   Float    @default(5.0)
+  riskReleaseDays      Int      @default(30)
+  riskLevel            String   @default("MEDIUM")
+  riskReserveMin       Float    @default(0)
+  riskReserveMax       Float    @default(0)
+  riskNotes            String   @default("")
+  tradeName            String?
+  commercialPhone      String?
+  website              String?
+  instagram            String?
+  segment              String?
+  address              String?
+  legalRepresentative  String?
+  users              User[]
+  reserveReleases    ReserveRelease[]
+  disputes           Dispute[]
+  saleLogs           SaleLog[]
+  masterScore        MasterScore?
+  masterScoreAudits  MasterScoreAudit[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model FeePlan {
@@ -47,6 +76,58 @@ model FeePlan {
   updatedAt      DateTime @updatedAt
 }
 
+model Dispute {
+  id               String    @id @default(cuid())
+  type             String    // CHARGEBACK | MED_PIX | REEMBOLSO | DISPUTA_MANUAL | BLOQUEIO_PREVENTIVO
+  merchantId       String
+  merchant         Merchant  @relation(fields: [merchantId], references: [id])
+  saleLogId        String?   // AuditLog.id da transação vinculada
+  contestedAmount  Float     // valor contestado
+  blockedAmount    Float     @default(0) // valor efetivamente bloqueado no saldo
+  status           String    @default("ABERTO")
+  openedAt         DateTime  @default(now())
+  deadline         DateTime?
+  assignedTo       String?   // responsável interno
+  documents        String?   // JSON string[]
+  notes            String?
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model ReserveRelease {
+  id             String    @id @default(cuid())
+  merchantId     String
+  merchant       Merchant  @relation(fields: [merchantId], references: [id])
+  saleLogId      String    // AuditLog.id da venda original
+  amount         Float     // valor reservado
+  saleAmount     Float     // valor bruto da venda
+  reservePercent Float     // percentual aplicado
+  releaseDays    Int       // prazo configurado em dias
+  saleDate       DateTime  // data/hora da venda
+  releaseAt      DateTime  // data prevista de liberação
+  status         String    @default("RESERVADO") // RESERVADO | LIBERADO | BLOQUEADO | DISPUTA | CANCELADO
+  releasedAt     DateTime? // data efetiva de liberação
+  releasedBy     String?   // userId que liberou manualmente
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model SaleLog {
+  id          String   @id @default(cuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+  amount      Float
+  type        String   // VENDA | ESTORNO | MED_PIX | REEMBOLSO | PIX_DEVOLVIDO
+  status      String   @default("APROVADO") // APROVADO | CANCELADO | PENDENTE
+  description String?
+  externalId  String?
+  disputeId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String
@@ -56,4 +137,91 @@ model AuditLog {
   entityId  String?
   metadata  String?
   createdAt DateTime @default(now())
+}
+
+model MasterScore {
+  id                   String   @id @default(cuid())
+  merchantId           String   @unique
+  merchant             Merchant @relation(fields: [merchantId], references: [id])
+
+  // Score geral (0–100)
+  scoreTotal           Float    @default(0)
+  nivelScore           String   @default("Bronze")   // Bronze | Prata | Ouro | Diamante
+  statusRisco          String   @default("Alto risco") // Alto risco | Atenção | Saudável | Premium
+
+  // Sub-scores parciais (0–100 cada)
+  volumeScore          Float    @default(0)
+  chargebackScore      Float    @default(100)
+  medScore             Float    @default(100)
+  reembolsoScore       Float    @default(100)
+  saldoScore           Float    @default(0)
+  crescimentoScore     Float    @default(50)
+  tempoContaScore      Float    @default(0)
+  margemScore          Float    @default(50)
+
+  // Metadados
+  dataUltimaAtualizacao DateTime @default(now())
+  observacaoInterna    String?
+
+  // Controles manuais do ADM
+  monitorado           Boolean  @default(false)
+  estrategico          Boolean  @default(false)
+  beneficioCongelado   Boolean  @default(false)
+  nivelManual          String?
+  sugestaoStatus       String   @default("pendente") // pendente | ignorada | aplicada
+
+  // Histórico de alterações
+  history              MasterScoreHistory[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model MasterScoreHistory {
+  id              String   @id @default(cuid())
+  merchantId      String
+  masterScore     MasterScore @relation(fields: [merchantId], references: [merchantId])
+
+  // Scores antes e depois
+  scoreBefore     Float
+  scoreAfter      Float
+  nivelBefore     String
+  nivelAfter      String
+  statusBefore    String
+  statusAfter     String
+
+  // Sub-scores após o recálculo (para reconstituição do estado)
+  volumeScore     Float
+  chargebackScore Float
+  medScore        Float
+  reembolsoScore  Float
+  saldoScore      Float
+  crescimentoScore Float
+  tempoContaScore Float
+  margemScore     Float
+
+  // Análise dos motivos (JSON: string[])
+  motivosAlteracao String   // JSON string[]
+
+  // Contexto
+  triggerMotivo   String   @default("recalculo_manual") // recalculo_manual | recalculo_em_lote | api
+  observacao      String?
+
+  createdAt       DateTime @default(now())
+}
+
+model MasterScoreAudit {
+  id          String   @id @default(cuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+  adminEmail  String
+  adminName   String
+  acao        String   // OBSERVACAO | MONITORADO | ESTRATEGICO | NIVEL_MANUAL | SUGESTAO_IGNORADA | SUGESTAO_APLICADA | BENEFICIO_CONGELADO | BENEFICIO_DESCONGELADO
+  valorAntes  String?
+  valorDepois String?
+  motivo      String
+  createdAt   DateTime @default(now())
+
+  @@index([merchantId])
+  @@index([createdAt])
 }

@@ -14,7 +14,7 @@ export function ToggleStatusButton({ id, status }: ToggleStatusButtonProps) {
 
   if (status === 'REVIEW') {
     return (
-      <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 bg-slate-800/50 border border-slate-700/40 rounded-lg cursor-default">
+      <span className="inline-flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-slate-500 bg-slate-800/50 border border-slate-700/40 rounded-lg cursor-default">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -36,7 +36,7 @@ export function ToggleStatusButton({ id, status }: ToggleStatusButtonProps) {
       <button
         type="submit"
         disabled={pending}
-        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+        className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
           isBlocked
             ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
             : 'bg-red-600/90 hover:bg-red-600 text-white'

@@ -16,16 +16,16 @@ type FormErrors = Partial<
 >
 
 const base =
-  'w-full px-4 py-2.5 bg-slate-900/50 border rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition'
-const ok = `${base} border-slate-600 focus:ring-blue-500`
-const err = `${base} border-red-500 focus:ring-red-500`
+  'w-full px-4 py-2.5 bg-slate-800/60 border rounded-lg text-white placeholder-slate-600 text-[13px] focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition'
+const ok = `${base} border-slate-700/50`
+const err = `${base} border-red-500`
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
+      <label className="block text-[13px] font-medium text-slate-400 mb-1.5">{label}</label>
       {children}
-      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+      {error && <p className="text-[12px] text-red-400 mt-1.5">{error}</p>}
     </div>
   )
 }
@@ -148,17 +148,44 @@ export default function NovoClientePage() {
               </select>
             </Field>
 
+            {/* Acesso de login (opcional) */}
+            <div className="border-t border-slate-700/50 pt-5 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-200">Acesso ao painel do seller</p>
+                <p className="text-xs text-slate-500 mt-0.5">Opcional — preencha para criar login de acesso à área do seller.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <Field label="Nome de acesso">
+                  <input
+                    name="user_name"
+                    type="text"
+                    placeholder="Nome completo (opcional)"
+                    className={ok}
+                  />
+                </Field>
+                <Field label="Senha de acesso">
+                  <input
+                    name="user_password"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    className={ok}
+                    autoComplete="new-password"
+                  />
+                </Field>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3 pt-2">
               <Link
                 href="/admin/clientes"
-                className="px-4 py-2 text-sm font-semibold text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                className="px-4 py-2.5 text-[13px] font-semibold text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
               >
                 Cancelar
               </Link>
               <button
                 type="submit"
                 disabled={pending}
-                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[13px] font-semibold rounded-lg transition-colors"
               >
                 {pending ? (
                   <>
