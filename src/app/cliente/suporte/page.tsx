@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { SupportForm } from './SupportForm'
+import { TicketThread } from './TicketThread'
 
 const faqs = [
   {
@@ -41,6 +42,24 @@ const faqs = [
   },
 ]
 
+const STATUS_LABELS: Record<string, string> = {
+  ABERTO:             'Aberto',
+  EM_ANALISE:         'Em análise',
+  AGUARDANDO_CLIENTE: 'Aguard. resposta',
+  RESPONDIDO:         'Respondido',
+  FECHADO:            'Fechado',
+  REABERTO:           'Reaberto',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  ABERTO:             'text-amber-400  bg-amber-500/10  border-amber-500/20',
+  EM_ANALISE:         'text-blue-400   bg-blue-500/10   border-blue-500/20',
+  AGUARDANDO_CLIENTE: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+  RESPONDIDO:         'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  FECHADO:            'text-slate-500  bg-slate-700/30  border-slate-700/30',
+  REABERTO:           'text-orange-400 bg-orange-500/10 border-orange-500/20',
+}
+
 function formatDate(d: Date | string) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
@@ -54,32 +73,20 @@ export default async function SuportePage() {
 
   const plano = user?.merchant?.plan ?? 'Start'
 
-  // Tickets enviados por este usuário
-  const myTickets = userId
-    ? await prisma.auditLog.findMany({
-        where: { userId, action: 'SUPPORT_TICKET' },
+  const myTickets = user?.merchant
+    ? await prisma.ticket.findMany({
+        where: { merchantId: user.merchant.id },
         orderBy: { createdAt: 'desc' },
         take: 20,
-      }).catch(() => [])
+        include: {
+          messages: {
+            where: { isInternalNote: false },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, senderId: true, senderRole: true, message: true, createdAt: true },
+          },
+        },
+      })
     : []
-
-  // Respostas do admin para os tickets deste usuário
-  const ticketIds = myTickets.map((t) => t.id)
-  const replies = ticketIds.length > 0
-    ? await prisma.auditLog.findMany({
-        where: { action: 'SUPPORT_TICKET_REPLIED', entityId: { in: ticketIds } },
-        select: { entityId: true, metadata: true, createdAt: true },
-      }).catch(() => [])
-    : []
-
-  const replyByTicket = new Map<string, { reply: string; adminName: string; repliedAt: string }>()
-  for (const r of replies) {
-    if (!r.entityId) continue
-    try {
-      const m = JSON.parse(r.metadata ?? '{}')
-      replyByTicket.set(r.entityId, { reply: m.reply ?? '', adminName: m.adminName ?? 'Suporte', repliedAt: m.repliedAt ?? r.createdAt.toISOString() })
-    } catch {}
-  }
 
   const canais = [
     {
@@ -156,40 +163,55 @@ export default async function SuportePage() {
 
         </div>
 
-        {/* Histórico de tickets e respostas */}
+        {/* Histórico de tickets */}
         {myTickets.length > 0 && (
           <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60">
               <p className="text-[13px] font-semibold text-white">Meus Tickets</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">Histórico de mensagens enviadas e respostas recebidas</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                {myTickets.length} ticket{myTickets.length !== 1 ? 's' : ''} · Histórico e respostas do suporte
+              </p>
             </div>
-            <div className="divide-y divide-slate-800/40 max-h-[480px] overflow-y-auto">
+            <div className="divide-y divide-slate-800/40">
               {myTickets.map((ticket) => {
-                let subject = '', message = ''
-                try { const m = JSON.parse(ticket.metadata ?? '{}'); subject = m.subject ?? ''; message = m.message ?? '' } catch {}
-                const rep = replyByTicket.get(ticket.id)
+                const statusColor = STATUS_COLORS[ticket.status] ?? STATUS_COLORS['ABERTO']
+                const statusLabel = STATUS_LABELS[ticket.status] ?? ticket.status
+                const firstMsg = ticket.messages.find((m) => m.senderRole === 'SELLER')
+                const adminReplies = ticket.messages.filter((m) => m.senderRole === 'ADMIN')
+                const isClosed = ticket.status === 'FECHADO'
                 return (
-                  <div key={ticket.id} className="px-5 py-4 space-y-2">
+                  <div key={ticket.id} className="px-5 py-4 space-y-3">
+                    {/* Header */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[11px] font-semibold text-blue-400">{subject || 'Outro'}</span>
-                          <span className="text-[10px] text-slate-700">{formatDate(ticket.createdAt)}</span>
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="text-[12px] font-semibold text-white">{ticket.subject}</span>
+                          <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                            {statusLabel}
+                          </span>
                         </div>
-                        <p className="text-[12px] text-slate-400 leading-relaxed">{message}</p>
+                        <p className="text-[10px] text-slate-700">{formatDate(ticket.createdAt)}</p>
                       </div>
-                      {rep ? (
-                        <span className="shrink-0 text-[9.5px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Respondido</span>
-                      ) : (
-                        <span className="shrink-0 text-[9.5px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Pendente</span>
-                      )}
+                      <p className="shrink-0 text-[10px] text-slate-700">
+                        {ticket.messages.length} msg{ticket.messages.length !== 1 ? 's' : ''}
+                      </p>
                     </div>
-                    {rep && (
-                      <div className="ml-3 pl-3 border-l-2 border-emerald-500/30 space-y-0.5">
-                        <p className="text-[10px] font-semibold text-emerald-400">{rep.adminName} · {formatDate(rep.repliedAt)}</p>
-                        <p className="text-[12px] text-slate-300 leading-relaxed">{rep.reply}</p>
-                      </div>
+
+                    {/* First message */}
+                    {firstMsg && (
+                      <p className="text-[12px] text-slate-400 leading-relaxed line-clamp-3">{firstMsg.message}</p>
                     )}
+
+                    {/* Admin replies */}
+                    {adminReplies.map((rep) => (
+                      <div key={rep.id} className="ml-3 pl-3 border-l-2 border-emerald-500/30 space-y-0.5">
+                        <p className="text-[10px] font-semibold text-emerald-400">Suporte Master · {formatDate(rep.createdAt)}</p>
+                        <p className="text-[12px] text-slate-300 leading-relaxed">{rep.message}</p>
+                      </div>
+                    ))}
+
+                    {/* Reply thread */}
+                    {!isClosed && <TicketThread ticketId={ticket.id} />}
                   </div>
                 )
               })}
