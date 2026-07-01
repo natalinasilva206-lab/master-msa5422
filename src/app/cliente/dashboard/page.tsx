@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { PeriodFilter } from './PeriodFilter'
 import { MeuMasterScoreCard } from './MeuMasterScoreCard'
+import { BeneficiosPorNivel } from './BeneficiosPorNivel'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -193,6 +194,9 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
         )}
         {/* Master Score card */}
         {masterScore && <MeuMasterScoreCard masterScore={masterScore} />}
+
+        {/* Benefícios por nível */}
+        {masterScore && <BeneficiosPorNivel nivelAtual={masterScore.nivelScore} />}
 
         {merchantStatus === 'BLOCKED' && (
           <div className="bg-red-500/8 border border-red-500/25 rounded-xl px-4 py-3 flex items-center gap-3">
