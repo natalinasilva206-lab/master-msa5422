@@ -160,6 +160,7 @@ export default async function MasterScoreDetalhe({ params, searchParams }: Props
     medCount,
     reembCount,
     histScores,
+    feePlan,
   ] = await Promise.all([
     prisma.auditLog.findMany({
       where: { entityId: merchant.id, action: 'BALANCE_ADJUST', createdAt: { gte: since30d } },
@@ -178,13 +179,15 @@ export default async function MasterScoreDetalhe({ params, searchParams }: Props
     prisma.auditLog.count({
       where: { entityId: merchant.id, action: { in: ['WITHDRAW_DENIED', 'ESTORNO', 'REEMBOLSO'] }, createdAt: { gte: since30d } },
     }),
-    // Histórico de scores: buscar os últimos 10 audit logs de MASTER_SCORE_UPDATED (se existir) ou apenas o atual
-    prisma.auditLog.findMany({
-      where: { entityId: merchant.id, action: 'MASTER_SCORE_UPDATED' },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-      select: { metadata: true, createdAt: true },
+    // Histórico de scores via MasterScoreHistory (fonte correta)
+    prisma.masterScoreHistory.findMany({
+      where:   { merchantId: merchant.id },
+      orderBy: { createdAt: 'asc' },
+      take:    12,
+      select:  { scoreAfter: true, nivelAfter: true, statusAfter: true, motivosAlteracao: true, createdAt: true, triggerMotivo: true },
     }),
+    // Plano de taxa para calcular margem estimada real
+    prisma.feePlan.findFirst({ where: { name: merchant.plan } }),
   ])
 
   function sumAmt(logs: { metadata: string | null }[]) {
@@ -204,21 +207,23 @@ export default async function MasterScoreDetalhe({ params, searchParams }: Props
     : null
   const diasConta         = Math.floor((now.getTime() - new Date(merchant.createdAt).getTime()) / 86400000)
 
-  // Histórico de evolução do score (pontos no tempo a partir de audit logs)
-  const evolucao: { data: string; score: number }[] = histScores
-    .map((l: any) => {
-      try {
-        const m = JSON.parse(l.metadata ?? '{}')
-        return { data: fmtDateShort(l.createdAt), score: Math.round(m.scoreTotal ?? 0) }
-      } catch { return null }
-    })
-    .filter(Boolean)
-    .reverse() as { data: string; score: number }[]
+  // Margem estimada gerada para a plataforma
+  const chargedPct = feePlan?.chargedPercent ?? 2.5
+  const costPct    = feePlan?.costPercent    ?? 1.2
+  const chargedFx  = feePlan?.chargedFixed   ?? 0
+  const costFx     = feePlan?.costFixed      ?? 0
+  const margemEstimada = Math.max(0,
+    volumeMensal * ((chargedPct - costPct) / 100) + vendas30d.length * (chargedFx - costFx)
+  )
+  const margemPct = volumeMensal > 0 ? (margemEstimada / volumeMensal) * 100 : 0
 
-  // Adicionar score atual como ponto mais recente
-  if (ms) {
-    evolucao.push({ data: fmtDateShort(ms.dataUltimaAtualizacao), score: Math.round(ms.scoreTotal) })
-  }
+  // Histórico de evolução do score a partir do MasterScoreHistory
+  const evolucao: { data: string; score: number; nivel: string; motivo: string }[] = histScores.map((h: any) => ({
+    data:   fmtDateShort(h.createdAt),
+    score:  Math.round(h.scoreAfter),
+    nivel:  h.nivelAfter,
+    motivo: h.triggerMotivo ?? '',
+  }))
 
   const score  = ms ? Math.round(ms.scoreTotal) : 0
   const level  = (ms?.nivelScore  ?? 'Bronze')     as ScoreLevel
@@ -393,12 +398,21 @@ export default async function MasterScoreDetalhe({ params, searchParams }: Props
         </div>
 
         {/* ── Segunda linha de métricas ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
+            {
+              label: 'Margem Gerada',
+              value: `R$ ${fmtBRL(margemEstimada)}`,
+              sub: volumeMensal > 0
+                ? `${margemPct.toFixed(2)}% do volume · Plano ${merchant.plan}`
+                : 'Sem volume no período',
+              color: margemEstimada >= 500 ? 'text-emerald-400' : margemEstimada >= 100 ? 'text-blue-400' : margemEstimada > 0 ? 'text-slate-300' : 'text-slate-600',
+              border: margemEstimada >= 500 ? 'border-emerald-500/15' : 'border-slate-800/70',
+            },
             {
               label: 'Reserva Atual',
               value: `R$ ${fmtBRL(merchant.reservedBalance)}`,
-              sub: `${merchant.riskReservePercent.toFixed(1)}% do volume retido`,
+              sub: `${merchant.riskReservePercent.toFixed(1)}% retido · configurado`,
               color: 'text-purple-400',
               border: 'border-purple-500/15',
             },
@@ -591,38 +605,122 @@ export default async function MasterScoreDetalhe({ params, searchParams }: Props
         )}
 
         {/* ── Evolução do score ── */}
-        {evolucao.length > 0 && (
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60">
+        <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
               <p className="text-[13px] font-semibold text-white">Evolução do Score</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">{evolucao.length} registro{evolucao.length !== 1 ? 's' : ''} de atualização</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                {evolucao.length > 0 ? `${evolucao.length} registro${evolucao.length !== 1 ? 's' : ''} de atualização` : 'Sem histórico ainda'}
+              </p>
             </div>
-            <div className="px-5 py-4">
-              {/* Mini timeline de pontos */}
-              <div className="flex items-end gap-3 h-20">
-                {evolucao.map((e, i) => {
-                  const { bar, text } = scoreColor(e.score)
-                  const h = Math.max(8, (e.score / 100) * 80)
-                  return (
-                    <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                      <span className={`text-[11px] font-bold tabular-nums ${text}`}>{e.score}</span>
-                      <div className="w-full rounded-t-sm" style={{ height: `${h}px`, background: 'transparent' }}>
-                        <div className={`w-full h-full rounded-t ${bar} opacity-80`} />
-                      </div>
-                    </div>
-                  )
-                })}
+            {evolucao.length > 0 && (
+              <div className="flex items-center gap-3 text-[11px] text-slate-600">
+                <span>Mín: <span className="text-slate-400 font-semibold tabular-nums">{Math.min(...evolucao.map(e => e.score))}</span></span>
+                <span>Máx: <span className="text-slate-400 font-semibold tabular-nums">{Math.max(...evolucao.map(e => e.score))}</span></span>
               </div>
-              <div className="flex gap-3 mt-1">
-                {evolucao.map((e, i) => (
-                  <div key={i} className="flex-1 min-w-0">
-                    <p className="text-[9.5px] text-slate-700 truncate text-center">{e.data}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
-        )}
+
+          {evolucao.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-slate-700">
+              <svg className="w-8 h-8 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+              </svg>
+              <p className="text-[11px] text-slate-600">Sem histórico de score</p>
+              <p className="text-[10px] text-slate-700 mt-0.5">Recalcule o score para iniciar o registro</p>
+            </div>
+          ) : (
+            <div className="p-5">
+              {/* Gráfico de barras */}
+              <div className="relative">
+                {/* Linhas de referência */}
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6">
+                  {[100, 80, 60, 40, 20, 0].map((v) => (
+                    <div key={v} className="flex items-center gap-1.5">
+                      <span className="text-[8px] text-slate-700 w-4 text-right shrink-0">{v}</span>
+                      <div className={`flex-1 border-t ${v === 80 ? 'border-cyan-900/40' : v === 60 ? 'border-emerald-900/30' : v === 40 ? 'border-amber-900/30' : 'border-slate-800/30'} border-dashed`} />
+                    </div>
+                  ))}
+                </div>
+                {/* Barras */}
+                <div className="flex items-end gap-1.5 ml-6 pb-6" style={{ height: 140 }}>
+                  {evolucao.map((e, i) => {
+                    const { bar, text } = scoreColor(e.score)
+                    const h = Math.max(4, (e.score / 100) * 116)
+                    const triggerLabel: Record<string, string> = {
+                      sale_approved:    'Venda',
+                      chargeback_opened:'CB',
+                      dispute_closed:   'Disputa',
+                      refund_processed: 'Reimb.',
+                      reserve_changed:  'Reserva',
+                      manual_adjustment:'Manual',
+                      cron_periodic:    'Cron',
+                    }
+                    const trigger = triggerLabel[e.motivo] ?? e.motivo
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center group min-w-0 cursor-default">
+                        {/* Tooltip */}
+                        <div className="relative w-full">
+                          <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none whitespace-nowrap">
+                            <div className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 shadow-xl">
+                              <p className={`text-[11px] font-bold ${text} tabular-nums`}>{e.score} pts</p>
+                              <p className="text-[10px] text-slate-500">{e.nivel}</p>
+                              <p className="text-[9px] text-slate-600 mt-0.5">{e.data}</p>
+                              {trigger && <p className="text-[9px] text-slate-700">{trigger}</p>}
+                            </div>
+                          </div>
+                          <div
+                            className={`w-full rounded-t ${bar} opacity-60 group-hover:opacity-100 transition-all`}
+                            style={{ height: `${h}px` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {/* Labels do eixo X */}
+                <div className="flex gap-1.5 ml-6">
+                  {evolucao.map((e, i) => {
+                    const show = evolucao.length <= 8 || i === 0 || i === evolucao.length - 1 || i % Math.ceil(evolucao.length / 5) === 0
+                    return (
+                      <div key={i} className="flex-1 min-w-0 text-center">
+                        {show && <p className="text-[8px] text-slate-700 truncate">{e.data}</p>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Timeline de eventos recentes */}
+              {evolucao.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-slate-800/40 space-y-2">
+                  <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest mb-2.5">Últimas atualizações</p>
+                  {evolucao.slice(-4).reverse().map((e, i) => {
+                    const { text } = scoreColor(e.score)
+                    const triggerLabel: Record<string, { label: string; cls: string }> = {
+                      sale_approved:    { label: 'Venda aprovada',        cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                      chargeback_opened:{ label: 'Chargeback aberto',     cls: 'text-red-400 bg-red-500/10 border-red-500/20' },
+                      dispute_closed:   { label: 'Disputa fechada',       cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                      refund_processed: { label: 'Reembolso',             cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                      reserve_changed:  { label: 'Reserva alterada',      cls: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
+                      manual_adjustment:{ label: 'Ajuste manual',         cls: 'text-slate-300 bg-slate-700/40 border-slate-600/30' },
+                      cron_periodic:    { label: 'Recálculo automático',  cls: 'text-slate-500 bg-slate-800/60 border-slate-700/30' },
+                    }
+                    const tm = triggerLabel[e.motivo] ?? { label: e.motivo || 'Atualização', cls: 'text-slate-500 bg-slate-800/60 border-slate-700/30' }
+                    return (
+                      <div key={i} className="flex items-center gap-3 py-1">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${tm.cls}`}>{tm.label}</span>
+                        <span className={`text-[13px] font-bold tabular-nums ${text} shrink-0`}>{e.score}</span>
+                        <span className="text-[10px] text-slate-600">pts · {e.nivel}</span>
+                        <span className="text-[10px] text-slate-700 ml-auto shrink-0">{e.data}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* ── Controle Manual do ADM ── */}
         {ms && (
