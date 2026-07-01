@@ -26,7 +26,7 @@ export function AntecipacaoRow({ merchantId, name, plan, taxaPercent, initial, g
 
   async function handleApprove() {
     if (loading || done) return
-    if (!confirm(`Aprovar antecipação de R$ ${formatBRL(liquido)} para ${name}? (taxa ${taxaPercent}%)`)) return
+    if (!confirm(`Aprovar antecipação de recebíveis de cartão de R$ ${formatBRL(liquido)} para ${name}? (taxa ${taxaPercent}%)`)) return
     setLoading(true)
     setError('')
     try {
@@ -49,7 +49,7 @@ export function AntecipacaoRow({ merchantId, name, plan, taxaPercent, initial, g
             </div>
             <div>
               <p className="text-[13px] font-semibold text-white truncate max-w-[120px]">{name}</p>
-              <p className="text-[11px] text-slate-600">{plan} · {taxaPercent}%</p>
+              <p className="text-[11px] text-slate-600">Cartão · {plan} · {taxaPercent}%</p>
             </div>
           </div>
         </td>

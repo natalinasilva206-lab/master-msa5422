@@ -55,9 +55,9 @@ export default async function AntecipacoesPage() {
   return (
     <div>
       <Topbar
-        title="Antecipações"
+        title="Antecipações de Cartão"
         breadcrumb="Casa › Financeiro"
-        subtitle="Taxa por plano: Start 2.5% · Growth 2.0% · Prime 1.5% · Black 1.0%"
+        subtitle="Recebíveis de cartão de crédito · Taxa por plano: Start 2.5% · Growth 2.0% · Prime 1.5% · Black 1.0%"
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -66,9 +66,9 @@ export default async function AntecipacoesPage() {
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             {
-              label: 'A Receber (Total)',
+              label: 'A Receber (Cartão)',
               value: `R$ ${formatBRL(totalPendente)}`,
-              sub: 'saldo pendente em custódia',
+              sub: 'recebíveis de cartão em custódia',
               color: 'text-amber-400',
               bg: 'bg-amber-500/10 text-amber-500',
               icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -121,8 +121,8 @@ export default async function AntecipacoesPage() {
           <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
-                <p className="text-[13px] font-semibold text-white">Antecipação Admin-Iniciada</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Sellers com saldo pendente ≥ R$10 disponíveis para antecipar</p>
+                <p className="text-[13px] font-semibold text-white">Antecipação de Cartão — Admin</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Sellers com recebíveis de cartão ≥ R$10 disponíveis para antecipar</p>
               </div>
               {merchants.length > 0 && (
                 <span className="text-[10.5px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
@@ -249,9 +249,9 @@ export default async function AntecipacoesPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div>
-            <p className="text-[12px] font-semibold text-blue-400">Como funciona a antecipação</p>
+            <p className="text-[12px] font-semibold text-blue-400">Antecipação exclusiva para recebíveis de cartão de crédito</p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              O seller solicita antecipação do saldo pendente. A taxa varia por plano: Start 2.5%, Growth 2.0%, Prime 1.5%, Black 1.0%. O valor líquido é liberado imediatamente no saldo disponível em CDI.
+              Apenas recebíveis de cartão de crédito são elegíveis para antecipação. Recebíveis de Pix, boleto ou outros meios não são antecipáveis. A taxa varia por plano: Start 2.5%, Growth 2.0%, Prime 1.5%, Black 1.0%. O valor líquido é liberado imediatamente no saldo disponível.
             </p>
           </div>
         </div>
