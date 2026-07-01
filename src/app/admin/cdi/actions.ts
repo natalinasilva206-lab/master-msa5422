@@ -177,7 +177,7 @@ export async function creditCdiToAll(skipCycleCheck = false): Promise<{ count: n
     })
 
     // Webhook — fire-and-forget; never blocks CDI credit
-    const auditLogForWebhook = { sellerId: m.id, amount: yield_, baseBalance: m.balance, cdiRate: m.cdiRate, creditedAt, newCdiBalance: newBalance }
+    const auditLogForWebhook = { merchantId: m.id, amount: yield_, baseBalance: m.balance, cdiRate: m.cdiRate, creditedAt, newCdiBalance: newBalance }
     void dispatchWebhook(m.id, 'cdi.credited', auditLogForWebhook)
 
     // Optional email — no-op when SMTP is not configured

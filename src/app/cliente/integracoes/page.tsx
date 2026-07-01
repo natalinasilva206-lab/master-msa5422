@@ -555,10 +555,10 @@ function isValid(rawBody, signature, secret) {
               { event: 'payment.approved',    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', when: 'Venda registrada com sucesso via POST /v1/sales.',
                 payload: `{\n  "saleLogId":   "clx1abc...",\n  "amount":      150.00,\n  "description": "Plano Mensal",\n  "externalId":  "ORD-2024-001"\n}`,
                 fields: [{ name: 'saleLogId', desc: 'ID interno da transação' }, { name: 'amount', desc: 'Valor bruto em BRL' }, { name: 'description', desc: 'Pode ser null' }, { name: 'externalId', desc: 'Pode ser null' }] },
-              { event: 'payment.refused',     color: 'text-red-400 bg-red-500/10 border-red-500/20',             when: 'Tentativa de venda recusada.',
+              { event: 'payment.refused',     color: 'text-red-400 bg-red-500/10 border-red-500/20',             when: 'Tentativa de venda recusada.', planned: true,
                 payload: `{\n  "amount":  150.00,\n  "reason":  "insufficient_funds",\n  "externalId": "ORD-2024-002"\n}`,
                 fields: [{ name: 'amount', desc: 'Valor tentado' }, { name: 'reason', desc: 'Código de recusa' }, { name: 'externalId', desc: 'Pode ser null' }] },
-              { event: 'refund.created',      color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',       when: 'Reembolso ou estorno aprovado.',
+              { event: 'refund.created',      color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',       when: 'Reembolso ou estorno aprovado.', planned: true,
                 payload: `{\n  "saleLogId": "clx1abc...",\n  "amount":    150.00,\n  "type":      "REEMBOLSO",\n  "reason":    "Solicitação do cliente"\n}`,
                 fields: [{ name: 'saleLogId', desc: 'ID da transação original' }, { name: 'amount', desc: 'Valor reembolsado' }, { name: 'type', desc: 'REEMBOLSO ou ESTORNO' }] },
               { event: 'chargeback.opened',   color: 'text-orange-400 bg-orange-500/10 border-orange-500/20',    when: 'Chargeback aberto pelo time operacional.',
@@ -570,7 +570,7 @@ function isValid(rawBody, signature, secret) {
               { event: 'dispute.updated',     color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',       when: 'Status de uma disputa atualizado.',
                 payload: `{\n  "disputeId": "cly9abc...",\n  "newStatus": "RESOLVIDO"\n}`,
                 fields: [{ name: 'disputeId', desc: 'ID da disputa' }, { name: 'newStatus', desc: 'ABERTO | RESOLVIDO | PERDIDO | CANCELADO' }] },
-              { event: 'balance.updated',     color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',          when: 'Saldo do merchant alterado (venda, saque, liberação, etc.).',
+              { event: 'balance.updated',     color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',          when: 'Saldo do merchant alterado (venda, saque, liberação, etc.).', planned: true,
                 payload: `{\n  "available": 1280.50,\n  "reserved":   450.00,\n  "blocked":      0.00,\n  "reason":    "sale_credited"\n}`,
                 fields: [{ name: 'available', desc: 'Novo saldo disponível' }, { name: 'reason', desc: 'sale_credited | reserve_released | withdrawal_deducted | chargeback_blocked' }] },
               { event: 'withdrawal.created',  color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',          when: 'Saque solicitado via POST /v1/withdrawals.',
@@ -586,7 +586,7 @@ function isValid(rawBody, signature, secret) {
                 payload: `{\n  "merchantId":  "${idPlaceholder}",\n  "amount":       22.50,\n  "saleLogId":   "clx1abc...",\n  "releasedAt":  "2024-08-01T03:00:00.000Z"\n}`,
                 fields: [{ name: 'amount', desc: 'Valor liberado' }, { name: 'saleLogId', desc: 'Venda que gerou a reserva' }] },
               { event: 'cdi.credited',        color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',    when: 'Rendimento CDI creditado mensalmente.',
-                payload: `{\n  "sellerId":      "${idPlaceholder}",\n  "amount":         12.80,\n  "baseBalance":   320.00,\n  "cdiRate":        0.04,\n  "newCdiBalance": 332.80\n}`,
+                payload: `{\n  "merchantId":    "${idPlaceholder}",\n  "amount":         12.80,\n  "baseBalance":   320.00,\n  "cdiRate":        0.04,\n  "newCdiBalance": 332.80\n}`,
                 fields: [{ name: 'amount', desc: 'Rendimento creditado' }, { name: 'cdiRate', desc: 'Taxa aplicada no ciclo' }, { name: 'newCdiBalance', desc: 'Novo saldo CDI' }] },
               { event: 'merchant.activated',  color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', when: 'Conta aprovada e ativada após revisão de KYC.',
                 payload: `{\n  "merchantId": "${idPlaceholder}",\n  "newStatus":  "ACTIVE"\n}`,
@@ -594,10 +594,13 @@ function isValid(rawBody, signature, secret) {
               { event: 'merchant.blocked',    color: 'text-red-400 bg-red-500/10 border-red-500/20',             when: 'Conta bloqueada por risco ou decisão operacional.',
                 payload: `{\n  "merchantId": "${idPlaceholder}",\n  "newStatus":  "BLOCKED"\n}`,
                 fields: [{ name: 'newStatus', desc: 'Sempre BLOCKED' }] },
-            ] as const).map(({ event, color, when, payload, fields }) => (
+            ] as { event: string; color: string; when: string; planned?: boolean; payload: string; fields: { name: string; desc: string }[] }[]).map(({ event, color, when, planned, payload, fields }) => (
               <Accordion
                 key={event}
-                title={<code className={`shrink-0 text-[11px] font-semibold font-mono px-2.5 py-1 rounded border ${color}`}>{event}</code>}
+                title={<>
+                  <code className={`shrink-0 text-[11px] font-semibold font-mono px-2.5 py-1 rounded border ${color}`}>{event}</code>
+                  {planned && <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-700/60 border border-slate-600/30 text-slate-500">planejado</span>}
+                </>}
                 badge={<span className="text-[11px] text-slate-500 flex-1">{when}</span>}
               >
                 <pre className="text-[11px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-3.5 overflow-x-auto border border-slate-800/40 leading-relaxed">
