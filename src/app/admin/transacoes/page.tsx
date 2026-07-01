@@ -110,13 +110,8 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
   const totalTx      = totalCount
   const taxaAprov    = totalTx > 0 ? ((aprovCount / totalTx) * 100).toFixed(1) : '0.0'
 
-  // Estimate fees from parsed description metadata
-  let taxasTotal = 0
-  for (const tx of saleLogs) {
-    const meta = parseMeta(tx.description)
-    if (meta?.fee) taxasTotal += Number(meta.fee) || 0
-    else if (meta?.taxa) taxasTotal += Number(meta.taxa) || 0
-  }
+  // SaleLog.description is plain text; fee metadata is not stored there
+  const taxasTotal = 0
 
   const periodos = [
     { label: 'Hoje',    value: 'hoje' },
@@ -154,8 +149,8 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
             },
             {
               label: 'Taxas Arrecadadas',
-              value: taxasTotal > 0 ? `R$ ${formatBRL(taxasTotal)}` : `R$ ${formatBRL(volumeTotal * 0.07)}`,
-              sub: 'taxas da plataforma',
+              value: `R$ ${formatBRL(taxasTotal)}`,
+              sub: 'taxas da plataforma (gateway não configurado)',
               color: 'text-emerald-400',
               bg: 'bg-emerald-500/10 text-emerald-400',
               icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',

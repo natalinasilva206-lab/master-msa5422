@@ -219,6 +219,9 @@ export async function saveRiskConfig(
     if (isNaN(pct) || pct < 0 || pct > 100) return { error: 'Percentual deve ser entre 0 e 100.' }
     if (isNaN(config.riskReleaseDays) || config.riskReleaseDays < 0) return { error: 'Prazo inválido.' }
     if (!['LOW', 'MEDIUM', 'HIGH'].includes(config.riskLevel)) return { error: 'Nível de risco inválido.' }
+    if (config.riskReserveMin > 0 && config.riskReserveMax > 0 && config.riskReserveMin > config.riskReserveMax) {
+      return { error: 'Valor mínimo de reserva não pode ser maior que o máximo.' }
+    }
 
     const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
     if (!merchant) return { error: 'Seller não encontrado.' }
