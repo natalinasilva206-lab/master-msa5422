@@ -60,29 +60,14 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     include: { users: { select: { id: true, email: true, name: true }, take: 1 } },
   })
 
+  // Early return before any other queries
   if (!merchant) {
     return (
       <div>
         <Topbar title="Cliente não encontrado" />
         <div className="p-6 flex flex-col items-center justify-center min-h-64 gap-4">
-          <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center">
-            <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="text-center">
-            <p className="text-white font-semibold text-lg">Cliente não encontrado</p>
-            <p className="text-slate-400 text-sm mt-1">O ID informado não corresponde a nenhum cliente cadastrado.</p>
-          </div>
-          <Link
-            href="/admin/clientes"
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Voltar para clientes
-          </Link>
+          <p className="text-white font-semibold text-lg">Cliente não encontrado</p>
+          <Link href="/admin/clientes" className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors">Voltar</Link>
         </div>
       </div>
     )
@@ -134,15 +119,26 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     ? scoreToReservaSugerida(masterScore.scoreTotal, merchant.riskReservePercent)
     : null
 
-  // Fetch risk audit history
-  const riskLogs = await prisma.auditLog.findMany({
-    where: {
-      entityId: merchant.id,
-      action: { in: ['RISK_RESERVE_SET', 'RISK_BLOCK_SET', 'RISK_FUTURE_SET', 'RISK_RELEASE', 'RISK_AUTO_RESERVE', 'BALANCE_ADJUST', 'RISK_CONFIG_UPDATE'] },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 30,
-  })
+  // Fetch risk audit history + recent transactions + open disputes (parallel)
+  const [riskLogs, recentSales, openDisputes] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: {
+        entityId: merchant.id,
+        action: { in: ['RISK_RESERVE_SET', 'RISK_BLOCK_SET', 'RISK_FUTURE_SET', 'RISK_RELEASE', 'RISK_AUTO_RESERVE', 'BALANCE_ADJUST', 'RISK_CONFIG_UPDATE'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    }),
+    prisma.saleLog.findMany({
+      where: { merchantId: merchant.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    prisma.dispute.findMany({
+      where: { merchantId: merchant.id, status: 'ABERTO' },
+      orderBy: { openedAt: 'desc' },
+    }),
+  ])
 
   const riskActionLabel: Record<string, string> = {
     RISK_RESERVE_SET:   'Reserva separada (manual)',
@@ -504,6 +500,12 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             } />
             <InfoRow label="Plano" value={<span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300">{merchant.plan}</span>} />
             <InfoRow label="Taxa CDI" value={<span className="text-emerald-400 font-mono">{merchant.cdiRate.toFixed(2)}%/mês</span>} />
+            {merchant.tradeName && <InfoRow label="Nome Fantasia" value={merchant.tradeName} />}
+            {merchant.commercialPhone && <InfoRow label="Telefone Comercial" value={merchant.commercialPhone} />}
+            {merchant.website && <InfoRow label="Site" value={<a href={merchant.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{merchant.website}</a>} />}
+            {merchant.segment && <InfoRow label="Segmento" value={merchant.segment} />}
+            {merchant.legalRepresentative && <InfoRow label="Representante Legal" value={merchant.legalRepresentative} />}
+            {merchant.address && <InfoRow label="Endereço" value={merchant.address} />}
             <InfoRow label="Criado em" value={new Date(merchant.createdAt).toLocaleString('pt-BR')} />
             <InfoRow label="ID" value={<span className="font-mono text-slate-500 text-xs">{merchant.id}</span>} />
             <InfoRow
@@ -552,6 +554,123 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             )}
           </div>
         </div>
+
+        {/* ══ Dados de Saque / PIX ══ */}
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
+            <div>
+              <h2 className="text-white font-semibold">Dados de Saque</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Chave PIX e banco cadastrados para recebimento dos saques</p>
+            </div>
+            {merchant.pixKey ? (
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                Configurado
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">Não configurado</span>
+            )}
+          </div>
+          <div className="px-6 py-2">
+            {merchant.pixKey ? (
+              <>
+                <InfoRow label="Tipo de Chave PIX" value={
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300">
+                    {merchant.pixKeyType ?? '—'}
+                  </span>
+                } />
+                <InfoRow label="Chave PIX" value={<span className="font-mono text-slate-200">{merchant.pixKey}</span>} />
+                {merchant.bankName && <InfoRow label="Banco" value={merchant.bankName} />}
+              </>
+            ) : (
+              <div className="py-6 text-center text-slate-500 text-sm">
+                Seller ainda não cadastrou dados de saque. Os dados são inseridos via processo de KYC.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ══ Disputas em Aberto ══ */}
+        {openDisputes.length > 0 && (
+          <div className="bg-slate-800/30 border border-red-500/20 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-red-500/15 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-[13px] font-semibold text-white">Disputas em Aberto</p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">{openDisputes.length} disputa{openDisputes.length !== 1 ? 's' : ''} aguardando resolução</p>
+              </div>
+              <a href="/admin/disputas" className="text-[11px] font-semibold text-red-400 hover:text-red-300 transition-colors">Ver todas →</a>
+            </div>
+            <div className="divide-y divide-slate-700/30">
+              {openDisputes.map((d) => (
+                <div key={d.id} className="px-5 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded">{d.type}</span>
+                      {d.deadline && (
+                        <span className="text-[10px] text-slate-500">
+                          Prazo: {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(d.deadline))}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">{d.notes ?? 'Sem observações'}</p>
+                  </div>
+                  <p className="text-[13px] font-bold tabular-nums text-red-400 shrink-0">R$ {formatBRL(d.contestedAmount)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══ Últimas Transações ══ */}
+        {recentSales.length > 0 && (
+          <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-700/40 flex items-center justify-between">
+              <div>
+                <p className="text-[13px] font-semibold text-white">Últimas Transações</p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">As {recentSales.length} transações mais recentes registradas para este seller</p>
+              </div>
+              <a href={`/admin/transacoes?merchant=${merchant.id}`} className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors">Ver todas →</a>
+            </div>
+            <div className="divide-y divide-slate-700/30">
+              {recentSales.map((sale) => {
+                const typeColors: Record<string, string> = {
+                  VENDA: 'text-emerald-400 bg-emerald-500/10',
+                  ESTORNO: 'text-red-400 bg-red-500/10',
+                  MED_PIX: 'text-orange-400 bg-orange-500/10',
+                  REEMBOLSO: 'text-amber-400 bg-amber-500/10',
+                  PIX_DEVOLVIDO: 'text-slate-400 bg-slate-700/40',
+                }
+                const statusColors: Record<string, string> = {
+                  APROVADO: 'text-emerald-400',
+                  CANCELADO: 'text-red-400',
+                  PENDENTE: 'text-amber-400',
+                }
+                return (
+                  <div key={sale.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/30 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${typeColors[sale.type] ?? 'text-slate-400 bg-slate-700/40'}`}>{sale.type}</span>
+                        <span className={`text-[10px] font-semibold ${statusColors[sale.status] ?? 'text-slate-400'}`}>{sale.status}</span>
+                      </div>
+                      <p className="text-[10.5px] text-slate-500 mt-0.5">
+                        {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(sale.createdAt))}
+                        {sale.description && <span className="ml-1.5 truncate">· {sale.description}</span>}
+                      </p>
+                    </div>
+                    <p className={`text-[13px] font-bold tabular-nums shrink-0 ${sale.type === 'VENDA' ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {sale.type === 'VENDA' ? '+' : '-'}R$ {formatBRL(sale.amount)}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

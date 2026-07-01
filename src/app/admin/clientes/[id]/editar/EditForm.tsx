@@ -45,6 +45,12 @@ export interface MerchantSnapshot {
   status: string
   plan: string
   cdiRate: number
+  tradeName: string | null
+  commercialPhone: string | null
+  website: string | null
+  segment: string | null
+  address: string | null
+  legalRepresentative: string | null
 }
 
 interface EditFormProps {
@@ -183,6 +189,37 @@ export function EditForm({ merchant, errorKey }: EditFormProps) {
           <option value="Black">Black</option>
         </select>
       </Field>
+
+      {/* Complementary fields */}
+      <div className="pt-2 border-t border-slate-700/40">
+        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-4">Dados Complementares</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <Field label="Nome Fantasia">
+            <input name="tradeName" type="text" defaultValue={merchant.tradeName ?? ''} placeholder="Nome comercial (opcional)" className={ok} />
+          </Field>
+          <Field label="Telefone Comercial">
+            <input name="commercialPhone" type="text" defaultValue={merchant.commercialPhone ?? ''} placeholder="(11) 9 9999-9999" className={ok} />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
+          <Field label="Site">
+            <input name="website" type="url" defaultValue={merchant.website ?? ''} placeholder="https://..." className={ok} />
+          </Field>
+          <Field label="Segmento">
+            <input name="segment" type="text" defaultValue={merchant.segment ?? ''} placeholder="Ex: Moda, Eletrônicos, SaaS..." className={ok} />
+          </Field>
+        </div>
+        <div className="mt-5">
+          <Field label="Representante Legal">
+            <input name="legalRepresentative" type="text" defaultValue={merchant.legalRepresentative ?? ''} placeholder="Nome completo do sócio ou representante" className={ok} />
+          </Field>
+        </div>
+        <div className="mt-5">
+          <Field label="Endereço">
+            <input name="address" type="text" defaultValue={merchant.address ?? ''} placeholder="Rua, número, complemento, cidade — UF" className={ok} />
+          </Field>
+        </div>
+      </div>
 
       <div className="flex items-center justify-end gap-3 pt-2">
         <Link

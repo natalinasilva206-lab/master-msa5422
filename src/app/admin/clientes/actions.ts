@@ -79,6 +79,14 @@ export async function updateMerchant(id: string, formData: FormData) {
   const cdiRateRaw = formData.get('cdiRate')?.toString().trim() ?? ''
   const cdiRate = cdiRateRaw ? Math.max(0, Math.min(10, parseFloat(cdiRateRaw) || 1.0)) : undefined
 
+  // Complementary fields (all optional)
+  const tradeName = formData.get('tradeName')?.toString().trim() || null
+  const commercialPhone = formData.get('commercialPhone')?.toString().trim() || null
+  const website = formData.get('website')?.toString().trim() || null
+  const segment = formData.get('segment')?.toString().trim() || null
+  const address = formData.get('address')?.toString().trim() || null
+  const legalRepresentative = formData.get('legalRepresentative')?.toString().trim() || null
+
   const base = `/admin/clientes/${id}/editar`
 
   if (!name || !email || !document || !type || !status || !plan) {
@@ -95,7 +103,11 @@ export async function updateMerchant(id: string, formData: FormData) {
 
   await prisma.merchant.update({
     where: { id },
-    data: { name, email, document, type, status, plan, ...(cdiRate !== undefined ? { cdiRate } : {}) },
+    data: {
+      name, email, document, type, status, plan,
+      ...(cdiRate !== undefined ? { cdiRate } : {}),
+      tradeName, commercialPhone, website, segment, address, legalRepresentative,
+    },
   })
 
   await prisma.auditLog.create({
