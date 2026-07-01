@@ -22,6 +22,8 @@ const statusVariant: Record<string, 'success' | 'danger' | 'warning'> = {
 const typeLabel: Record<string, string> = {
   ECOMMERCE: 'E-commerce',
   INFOPRODUTOR: 'Infoprodutor',
+  MARKETPLACE: 'Marketplace',
+  SERVICOS: 'Serviços',
 }
 
 const planDot: Record<string, string> = {

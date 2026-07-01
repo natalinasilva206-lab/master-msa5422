@@ -31,6 +31,8 @@ const statusVariant: Record<string, 'success' | 'danger' | 'warning'> = {
 const typeLabel: Record<string, string> = {
   ECOMMERCE: 'E-commerce',
   INFOPRODUTOR: 'Infoprodutor',
+  MARKETPLACE: 'Marketplace',
+  SERVICOS: 'Prestador de Serviços',
 }
 
 function formatBRL(v: number) {
@@ -478,6 +480,19 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             <InfoRow label="Taxa CDI" value={<span className="text-emerald-400 font-mono">{merchant.cdiRate.toFixed(2)}%/mês</span>} />
             <InfoRow label="Criado em" value={new Date(merchant.createdAt).toLocaleString('pt-BR')} />
             <InfoRow label="ID" value={<span className="font-mono text-slate-500 text-xs">{merchant.id}</span>} />
+            <InfoRow
+              label="API Key"
+              value={
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-slate-400 text-xs truncate max-w-[280px]">
+                    {merchant.apiKey ? `${merchant.apiKey.slice(0, 12)}••••••••••••••••••••` : '—'}
+                  </span>
+                  {merchant.apiKey && (
+                    <span className="text-[10px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded">Ver na aba Integrações</span>
+                  )}
+                </span>
+              }
+            />
           </div>
         </div>
 

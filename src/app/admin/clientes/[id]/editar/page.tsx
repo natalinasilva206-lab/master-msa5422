@@ -53,6 +53,7 @@ export default async function EditarClientePage({ params, searchParams }: PagePr
     type: merchant.type,
     status: merchant.status,
     plan: merchant.plan,
+    cdiRate: merchant.cdiRate,
   }
 
   return (

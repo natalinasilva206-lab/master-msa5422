@@ -13,6 +13,9 @@ export default function SellerTabs({ merchantId }: Props) {
 
   const tabs = [
     { label: 'Visão Geral',        href: base },
+    { label: 'Transações',         href: `${base}/transacoes` },
+    { label: 'Saques',             href: `${base}/saques` },
+    { label: 'KYC',                href: `${base}/kyc` },
     { label: 'Histórico de Risco', href: `${base}/historico` },
     { label: 'Histórico do Score', href: `${base}/score-historico` },
     { label: 'Master Score',       href: `/admin/master-score/${merchantId}` },

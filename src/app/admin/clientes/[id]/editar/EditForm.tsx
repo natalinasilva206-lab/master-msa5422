@@ -44,6 +44,7 @@ export interface MerchantSnapshot {
   type: string
   status: string
   plan: string
+  cdiRate: number
 }
 
 interface EditFormProps {
@@ -138,6 +139,8 @@ export function EditForm({ merchant, errorKey }: EditFormProps) {
           >
             <option value="ECOMMERCE">E-commerce</option>
             <option value="INFOPRODUTOR">Infoprodutor</option>
+            <option value="MARKETPLACE">Marketplace</option>
+            <option value="SERVICOS">Prestador de Serviços</option>
           </select>
         </Field>
         <Field label="Status" error={errors.status}>
@@ -153,6 +156,19 @@ export function EditForm({ merchant, errorKey }: EditFormProps) {
           </select>
         </Field>
       </div>
+
+      <Field label="Taxa CDI (% ao mês)">
+        <input
+          name="cdiRate"
+          type="number"
+          step="0.01"
+          min="0"
+          max="10"
+          defaultValue={merchant.cdiRate.toFixed(2)}
+          placeholder="1.00"
+          className={ok}
+        />
+      </Field>
 
       <Field label="Plano" error={errors.plan}>
         <select

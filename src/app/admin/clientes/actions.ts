@@ -21,6 +21,8 @@ export async function createMerchant(formData: FormData) {
   const type = formData.get('type')?.toString() ?? ''
   const status = formData.get('status')?.toString() ?? ''
   const plan = formData.get('plan')?.toString() ?? ''
+  const cdiRateRaw = formData.get('cdiRate')?.toString().trim() ?? ''
+  const cdiRate = cdiRateRaw ? Math.max(0, Math.min(10, parseFloat(cdiRateRaw) || 1.0)) : 1.0
 
   // Server-side guard (client already validates, this is a safety net)
   if (!name || !email || !document || !type || !status || !plan) {
@@ -33,7 +35,7 @@ export async function createMerchant(formData: FormData) {
   }
 
   const merchant = await prisma.merchant.create({
-    data: { name, email, document, type, status, plan, apiKey: generateApiKey() },
+    data: { name, email, document, type, status, plan, cdiRate, apiKey: generateApiKey() },
   })
 
   const userPassword = formData.get('user_password')?.toString().trim()
@@ -74,6 +76,8 @@ export async function updateMerchant(id: string, formData: FormData) {
   const type = formData.get('type')?.toString() ?? ''
   const status = formData.get('status')?.toString() ?? ''
   const plan = formData.get('plan')?.toString() ?? ''
+  const cdiRateRaw = formData.get('cdiRate')?.toString().trim() ?? ''
+  const cdiRate = cdiRateRaw ? Math.max(0, Math.min(10, parseFloat(cdiRateRaw) || 1.0)) : undefined
 
   const base = `/admin/clientes/${id}/editar`
 
@@ -91,7 +95,7 @@ export async function updateMerchant(id: string, formData: FormData) {
 
   await prisma.merchant.update({
     where: { id },
-    data: { name, email, document, type, status, plan },
+    data: { name, email, document, type, status, plan, ...(cdiRate !== undefined ? { cdiRate } : {}) },
   })
 
   await prisma.auditLog.create({
@@ -100,7 +104,7 @@ export async function updateMerchant(id: string, formData: FormData) {
       action: 'UPDATE_MERCHANT',
       entity: 'Merchant',
       entityId: id,
-      metadata: JSON.stringify({ name, email, type, status, plan }),
+      metadata: JSON.stringify({ name, email, type, status, plan, cdiRate }),
     },
   })
 
