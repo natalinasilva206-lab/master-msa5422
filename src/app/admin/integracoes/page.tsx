@@ -10,136 +10,202 @@ export default async function AdminIntegracoesPage() {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  const ago7d  = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000)
-  const ago30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const now   = new Date()
+  const ago7d  = new Date(now.getTime() - 7  * 864e5)
+  const ago30d = new Date(now.getTime() - 30 * 864e5)
+  const ago48h = new Date(now.getTime() - 48 * 36e5)
 
+  // ── Métricas globais ────────────────────────────────────────────────
   const [
     totalMerchants,
     merchantsComKey,
-    merchantsSemKey,
     webhooksAtivos,
-    vendas30d,
-    vendas7d,
-    merchantsComApiAtiva,
+    vendas30dTotal,
+    vendas7dTotal,
     totalDeliveries7d,
     falhas7d,
+    saquesViaApi30d,
   ] = await Promise.all([
     prisma.merchant.count(),
     prisma.merchant.count({ where: { apiKey: { not: null } } }),
-    prisma.merchant.count({ where: { apiKey: null } }),
     prisma.webhookEndpoint.count({ where: { active: true } }),
     prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } } }),
-    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago7d } } }),
-    prisma.saleLog.findMany({
-      where:    { type: 'VENDA', createdAt: { gte: ago30d } },
-      select:   { merchantId: true },
-      distinct: ['merchantId'],
-    }).then((r) => r.length),
+    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago7d  } } }),
     prisma.webhookDelivery.count({ where: { createdAt: { gte: ago7d } } }),
     prisma.webhookDelivery.count({ where: { success: false, createdAt: { gte: ago7d } } }),
+    prisma.auditLog.count({
+      where: {
+        action:    'WITHDRAW_REQUEST',
+        metadata:  { contains: '"via":"api"' },
+        createdAt: { gte: ago30d },
+      },
+    }),
   ])
 
-  // Últimas falhas de webhook (success=false, últimas 48h para monitoramento rápido)
-  const ago48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
-  const falhasRecentes = await prisma.webhookDelivery.findMany({
-    where:   { success: false, createdAt: { gte: ago48h } },
-    orderBy: { createdAt: 'desc' },
-    take: 30,
-    select: {
-      id:         true,
-      merchantId: true,
-      event:      true,
-      url:        true,
-      statusCode: true,
-      error:      true,
-      attempt:    true,
-      createdAt:  true,
+  // Merchants que tiveram pelo menos 1 venda nos últimos 30d
+  const vendedores30dIds = await prisma.saleLog.findMany({
+    where:    { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } },
+    select:   { merchantId: true },
+    distinct: ['merchantId'],
+  }).then((r) => new Set(r.map((x) => x.merchantId)))
+
+  const merchantsComApiAtiva = vendedores30dIds.size
+
+  // Sellers com key mas zero uso nos 30d (possível integração quebrada)
+  const merchantsComKeySemUso = await prisma.merchant.count({
+    where: {
+      apiKey:   { not: null },
+      id:       { notIn: Array.from(vendedores30dIds) },
     },
   })
 
-  // Nomes dos merchants para exibição na tabela
-  const merchantIds = Array.from(new Set(falhasRecentes.map((f) => f.merchantId)))
-  const merchantNames = merchantIds.length > 0
-    ? await prisma.merchant.findMany({
-        where:  { id: { in: merchantIds } },
-        select: { id: true, name: true },
-      }).then((ms) => Object.fromEntries(ms.map((m) => [m.id, m.name])))
-    : {} as Record<string, string>
-
-  const taxaFalha = totalDeliveries7d > 0
-    ? Math.round((falhas7d / totalDeliveries7d) * 100)
-    : 0
-
-  // Lista de merchants com status de integração
+  // ── Dados por merchant (tabela) ─────────────────────────────────────
   const merchants = await prisma.merchant.findMany({
     select: {
       id:     true,
       name:   true,
+      email:  true,
+      plan:   true,
       status: true,
       apiKey: true,
-      webhookEndpoints: { where: { active: true }, select: { id: true } },
-      _count: { select: { saleLogs: { where: { createdAt: { gte: ago30d } } } } },
+      webhookEndpoints: {
+        select: { id: true, active: true, url: true },
+      },
     },
     orderBy: { name: 'asc' },
-    take: 50,
+    take: 100,
   })
 
-  const pctAdocao = totalMerchants > 0 ? Math.round((merchantsComKey / totalMerchants) * 100) : 0
+  const mIds = merchants.map((m) => m.id)
 
-  const health = [
+  // Vendas 30d por merchant
+  const vendasPorMerchant = await prisma.saleLog.groupBy({
+    by:    ['merchantId'],
+    where: { merchantId: { in: mIds }, type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } },
+    _count: { _all: true },
+  }).then((r) => Object.fromEntries(r.map((x) => [x.merchantId, x._count._all])))
+
+  // Última venda aprovada por merchant
+  const ultimaVendaList = await prisma.saleLog.findMany({
+    where:    { merchantId: { in: mIds }, type: 'VENDA', status: 'APROVADO' },
+    orderBy:  { createdAt: 'desc' },
+    distinct: ['merchantId'],
+    select:   { merchantId: true, createdAt: true },
+  }).then((r) => Object.fromEntries(r.map((x) => [x.merchantId, x.createdAt])))
+
+  // Saques via API nos 30d por merchant — conta WITHDRAW_REQUEST com via=api
+  const saquesApiRows = await prisma.auditLog.findMany({
+    where: {
+      entityId:  { in: mIds },
+      action:    'WITHDRAW_REQUEST',
+      metadata:  { contains: '"via":"api"' },
+      createdAt: { gte: ago30d },
+    },
+    select: { entityId: true },
+  })
+  const saquesPorMerchant: Record<string, number> = {}
+  for (const r of saquesApiRows) {
+    const eid = r.entityId ?? ''
+    if (eid) saquesPorMerchant[eid] = (saquesPorMerchant[eid] ?? 0) + 1
+  }
+
+  // Última falha de webhook por merchant (nas últimas 48h)
+  const ultimaFalhaList = await prisma.webhookDelivery.findMany({
+    where:    { merchantId: { in: mIds }, success: false, createdAt: { gte: ago48h } },
+    orderBy:  { createdAt: 'desc' },
+    distinct: ['merchantId'],
+    select:   { merchantId: true, createdAt: true, event: true, statusCode: true, error: true },
+  }).then((r) => Object.fromEntries(r.map((x) => [x.merchantId, x])))
+
+  // ── Falhas recentes globais (tabela inferior) ───────────────────────
+  const falhasRecentes = await prisma.webhookDelivery.findMany({
+    where:   { success: false, createdAt: { gte: ago48h } },
+    orderBy: { createdAt: 'desc' },
+    take: 40,
+    select: {
+      id: true, merchantId: true, event: true,
+      url: true, statusCode: true, error: true,
+      attempt: true, createdAt: true,
+    },
+  })
+  const falhaMerchantIds = Array.from(new Set(falhasRecentes.map((f) => f.merchantId)))
+  const falhaMerchantNames = falhaMerchantIds.length > 0
+    ? await prisma.merchant.findMany({
+        where:  { id: { in: falhaMerchantIds } },
+        select: { id: true, name: true },
+      }).then((ms) => Object.fromEntries(ms.map((m) => [m.id, m.name])))
+    : {} as Record<string, string>
+
+  // ── Cálculos derivados ──────────────────────────────────────────────
+  const pctAdocao     = totalMerchants > 0 ? Math.round((merchantsComKey / totalMerchants) * 100) : 0
+  const taxaSucesso   = totalDeliveries7d > 0 ? Math.round(((totalDeliveries7d - falhas7d) / totalDeliveries7d) * 100) : 100
+
+  // ── Cards ───────────────────────────────────────────────────────────
+  const cardsApi = [
     {
-      label: 'API Key configurada',
+      label: 'Com API Key',
       value: `${merchantsComKey} / ${totalMerchants}`,
-      sub: `${pctAdocao}% dos merchants`,
+      sub:   `${pctAdocao}% de adoção`,
       color: merchantsComKey > 0 ? 'text-emerald-400' : 'text-slate-500',
+      border: '',
     },
     {
-      label: 'Sem API Key',
-      value: merchantsSemKey.toString(),
-      sub: 'merchants sem integração',
-      color: merchantsSemKey > 0 ? 'text-amber-400' : 'text-slate-500',
+      label: 'API ativa (30d)',
+      value: merchantsComApiAtiva.toString(),
+      sub:   'fizeram vendas via API',
+      color: merchantsComApiAtiva > 0 ? 'text-blue-400' : 'text-slate-500',
+      border: '',
+    },
+    {
+      label: 'Key sem uso (30d)',
+      value: merchantsComKeySemUso.toString(),
+      sub:   'têm key mas não usaram',
+      color: merchantsComKeySemUso > 0 ? 'text-amber-400' : 'text-emerald-400',
+      border: merchantsComKeySemUso > 0 ? 'border-amber-500/20' : '',
     },
     {
       label: 'Vendas via API (30d)',
-      value: vendas30d.toLocaleString('pt-BR'),
-      sub: `${vendas7d.toLocaleString('pt-BR')} nos últimos 7d`,
-      color: vendas30d > 0 ? 'text-blue-400' : 'text-slate-500',
+      value: vendas30dTotal.toLocaleString('pt-BR'),
+      sub:   `${vendas7dTotal.toLocaleString('pt-BR')} nos últimos 7d`,
+      color: vendas30dTotal > 0 ? 'text-blue-400' : 'text-slate-500',
+      border: '',
+    },
+    {
+      label: 'Saques via API (30d)',
+      value: saquesViaApi30d.toLocaleString('pt-BR'),
+      sub:   'WITHDRAW_REQUEST com via=api',
+      color: saquesViaApi30d > 0 ? 'text-purple-400' : 'text-slate-500',
+      border: '',
     },
     {
       label: 'Webhooks ativos',
       value: webhooksAtivos.toString(),
-      sub: `${merchantsComApiAtiva} merchants com uso nos 30d`,
+      sub:   'endpoints configurados',
       color: webhooksAtivos > 0 ? 'text-purple-400' : 'text-slate-500',
+      border: '',
     },
-  ]
-
-  const webhookHealth = [
     {
       label: 'Entregas (7d)',
       value: totalDeliveries7d.toLocaleString('pt-BR'),
-      sub: `${falhas7d} falha${falhas7d !== 1 ? 's' : ''}`,
+      sub:   `${falhas7d} falha${falhas7d !== 1 ? 's' : ''}`,
       color: 'text-blue-400',
+      border: '',
     },
     {
-      label: 'Taxa de falha (7d)',
-      value: `${taxaFalha}%`,
-      sub: totalDeliveries7d > 0 ? `de ${totalDeliveries7d} tentativas` : 'sem dados',
-      color: taxaFalha === 0 ? 'text-emerald-400' : taxaFalha < 10 ? 'text-amber-400' : 'text-red-400',
-    },
-    {
-      label: 'Falhas (48h)',
-      value: falhasRecentes.length.toString(),
-      sub: falhasRecentes.length > 0 ? 'requerem atenção' : 'tudo ok',
-      color: falhasRecentes.length === 0 ? 'text-emerald-400' : 'text-red-400',
+      label: 'Taxa de sucesso',
+      value: `${taxaSucesso}%`,
+      sub:   totalDeliveries7d > 0 ? `nos últimos 7 dias` : 'sem entregas',
+      color: taxaSucesso >= 95 ? 'text-emerald-400' : taxaSucesso >= 80 ? 'text-amber-400' : 'text-red-400',
+      border: taxaSucesso < 80 ? 'border-red-500/20' : '',
     },
   ]
 
   const endpoints = [
-    { method: 'POST', path: '/api/v1/sales',            desc: 'Registrar venda',             auth: 'body' },
-    { method: 'GET',  path: '/api/v1/balance',          desc: 'Consultar saldo',             auth: 'header' },
-    { method: 'GET',  path: '/api/v1/transactions',     desc: 'Listar transações',           auth: 'header' },
-    { method: 'GET',  path: '/api/v1/transactions/:id', desc: 'Consultar transação por ID',  auth: 'header' },
-    { method: 'POST', path: '/api/v1/withdrawals',      desc: 'Solicitar saque',             auth: 'header' },
+    { method: 'POST', path: '/api/v1/sales',            desc: 'Registrar venda',            auth: 'body'   },
+    { method: 'GET',  path: '/api/v1/balance',          desc: 'Consultar saldo',            auth: 'header' },
+    { method: 'GET',  path: '/api/v1/transactions',     desc: 'Listar transações',          auth: 'header' },
+    { method: 'GET',  path: '/api/v1/transactions/:id', desc: 'Consultar transação por ID', auth: 'header' },
+    { method: 'POST', path: '/api/v1/withdrawals',      desc: 'Solicitar saque',            auth: 'header' },
     { method: 'GET',  path: '/api/v1/withdrawals',      desc: 'Listar saques',              auth: 'header' },
   ]
 
@@ -148,80 +214,171 @@ export default async function AdminIntegracoesPage() {
       <Topbar
         title="Integrações / API"
         breadcrumb="Casa › Gestão"
-        subtitle="Adoção da API e status das integrações por merchant"
+        subtitle="Visão operacional de adoção, uso e saúde dos webhooks"
       />
 
-      <div className="p-4 xl:p-6 space-y-4">
+      <div className="p-4 xl:p-6 space-y-5">
 
-        {/* Health */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {health.map((h) => (
-            <div key={h.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{h.label}</p>
-              <p className={`text-[20px] font-bold tabular-nums ${h.color}`}>{h.value}</p>
-              <p className="text-[12px] text-slate-600 mt-1">{h.sub}</p>
+        {/* ── Cards ── */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {cardsApi.map((c) => (
+            <div key={c.label} className={`bg-slate-900/60 border rounded-xl p-4 ${c.border || 'border-slate-800/70'}`}>
+              <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest mb-2 leading-tight">{c.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+              <p className="text-[11px] text-slate-600 mt-1.5 leading-tight">{c.sub}</p>
             </div>
           ))}
         </section>
 
-        {/* Adoption table */}
+        {/* ── Tabela de merchants ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-[13px] font-semibold text-white">Adoção por Merchant</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">Status de API Key, webhooks e uso nos últimos 30 dias</p>
+              <p className="text-[13px] font-semibold text-white">Adoção por Seller</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                API Key, uso nos últimos 30 dias, saques, webhooks e falhas.
+                <span className="ml-2 text-amber-400/80">⚠ linha em âmbar = key criada mas sem uso.</span>
+              </p>
             </div>
-            <p className="text-[11px] text-slate-600">{merchants.length} de {totalMerchants} merchants</p>
+            <p className="text-[11px] text-slate-600">{merchants.length} de {totalMerchants}</p>
           </div>
+
           <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
+            <table className="w-full text-[11.5px] min-w-[900px]">
               <thead>
-                <tr className="border-b border-slate-800/60">
-                  <th className="text-left px-5 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Merchant</th>
-                  <th className="text-center px-4 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                  <th className="text-center px-4 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">API Key</th>
-                  <th className="text-center px-4 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Webhooks</th>
-                  <th className="text-right px-5 py-2.5 text-[10.5px] font-semibold text-slate-600 uppercase tracking-wider">Vendas 30d</th>
+                <tr className="border-b border-slate-800/60 bg-slate-900/40">
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Seller</th>
+                  <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Plano</th>
+                  <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">API Key</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Últ. venda</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Vendas 30d</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Saques API 30d</th>
+                  <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Webhook</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Últ. falha</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/40">
                 {merchants.map((m) => {
-                  const temKey      = !!m.apiKey
-                  const temWebhook  = m.webhookEndpoints.length > 0
-                  const vendas30dMerchant = m._count.saleLogs
+                  const temKey       = !!m.apiKey
+                  const vendas30d    = vendasPorMerchant[m.id] ?? 0
+                  const saques30d    = saquesPorMerchant[m.id] ?? 0
+                  const ultimaVenda  = ultimaVendaList[m.id] ?? null
+                  const ultimaFalha  = ultimaFalhaList[m.id] ?? null
+                  const semUso       = temKey && vendas30d === 0
+                  const webhooksAtv  = m.webhookEndpoints.filter((w) => w.active)
+
                   return (
-                    <tr key={m.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-5 py-2.5">
-                        <a href={`/admin/clientes/${m.id}`} className="text-slate-200 hover:text-white transition-colors font-medium">
+                    <tr
+                      key={m.id}
+                      className={`transition-colors ${
+                        semUso
+                          ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                          : 'hover:bg-slate-800/20'
+                      }`}
+                    >
+                      {/* Seller */}
+                      <td className="px-4 py-3">
+                        <a href={`/admin/clientes/${m.id}`} className="text-slate-200 hover:text-white transition-colors font-medium leading-none">
                           {m.name}
                         </a>
-                        <p className="text-[10px] text-slate-600 font-mono mt-0.5">{m.id.slice(0, 16)}…</p>
+                        <p className="text-[10px] text-slate-600 mt-0.5 truncate max-w-[160px]">{m.email}</p>
                       </td>
-                      <td className="px-4 py-2.5 text-center">
+
+                      {/* Plano */}
+                      <td className="px-3 py-3">
+                        <span className="text-[10px] font-semibold text-slate-400 bg-slate-800/60 border border-slate-700/40 px-1.5 py-0.5 rounded font-mono uppercase">
+                          {m.plan}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-3 py-3 text-center">
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                           m.status === 'ACTIVE'
                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : m.status === 'BLOCKED'
+                            ? 'bg-red-500/10 text-red-400 border-red-500/20'
                             : 'bg-slate-700/40 text-slate-500 border-slate-700/40'
                         }`}>
                           {m.status}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-center">
+
+                      {/* API Key */}
+                      <td className="px-3 py-3 text-center">
                         {temKey ? (
-                          <span className="text-[10px] font-semibold text-emerald-400">✓ Configurada</span>
-                        ) : (
-                          <span className="text-[10px] text-amber-500">Pendente</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {temWebhook ? (
-                          <span className="text-[10px] font-semibold text-blue-400">{m.webhookEndpoints.length} ativo{m.webhookEndpoints.length > 1 ? 's' : ''}</span>
+                          <span className={`text-[10px] font-semibold ${semUso ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            {semUso ? '⚠ Criada' : '✓ Criada'}
+                          </span>
                         ) : (
                           <span className="text-[10px] text-slate-600">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-2.5 text-right tabular-nums text-slate-300">
-                        {vendas30dMerchant > 0 ? vendas30dMerchant.toLocaleString('pt-BR') : <span className="text-slate-700">0</span>}
+
+                      {/* Última venda */}
+                      <td className="px-3 py-3 text-right">
+                        {ultimaVenda ? (
+                          <span className="text-[10.5px] text-slate-400 tabular-nums">
+                            {ultimaVenda.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-700">—</span>
+                        )}
+                      </td>
+
+                      {/* Vendas 30d */}
+                      <td className="px-3 py-3 text-right tabular-nums">
+                        {vendas30d > 0
+                          ? <span className="text-slate-300 font-semibold">{vendas30d.toLocaleString('pt-BR')}</span>
+                          : <span className="text-slate-700">0</span>
+                        }
+                      </td>
+
+                      {/* Saques API 30d */}
+                      <td className="px-3 py-3 text-right tabular-nums">
+                        {saques30d > 0
+                          ? <span className="text-purple-400 font-semibold">{saques30d}</span>
+                          : <span className="text-slate-700">0</span>
+                        }
+                      </td>
+
+                      {/* Webhook */}
+                      <td className="px-3 py-3 text-center">
+                        {webhooksAtv.length > 0 ? (
+                          <span className="text-[10px] font-semibold text-blue-400">
+                            {webhooksAtv.length} ativo{webhooksAtv.length > 1 ? 's' : ''}
+                          </span>
+                        ) : m.webhookEndpoints.length > 0 ? (
+                          <span className="text-[10px] text-slate-500">Inativo</span>
+                        ) : (
+                          <span className="text-[10px] text-slate-700">—</span>
+                        )}
+                      </td>
+
+                      {/* Última falha de webhook */}
+                      <td className="px-4 py-3">
+                        {ultimaFalha ? (
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[9.5px] font-semibold font-mono px-1.5 py-0.5 rounded ${
+                                ultimaFalha.statusCode && ultimaFalha.statusCode >= 500
+                                  ? 'text-red-400 bg-red-500/10'
+                                  : ultimaFalha.statusCode && ultimaFalha.statusCode >= 400
+                                  ? 'text-amber-400 bg-amber-500/10'
+                                  : 'text-red-400 bg-red-500/10'
+                              }`}>
+                                {ultimaFalha.statusCode ?? 'timeout'}
+                              </span>
+                              <code className="text-[9.5px] font-mono text-slate-500">{ultimaFalha.event}</code>
+                            </div>
+                            <p className="text-[9.5px] text-slate-600 mt-0.5">
+                              {ultimaFalha.createdAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-700">—</span>
+                        )}
                       </td>
                     </tr>
                   )
@@ -231,30 +388,22 @@ export default async function AdminIntegracoesPage() {
           </div>
         </section>
 
-        {/* Webhook Health */}
-        <section>
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Saúde dos Webhooks</p>
-          <div className="grid grid-cols-3 gap-3">
-            {webhookHealth.map((h) => (
-              <div key={h.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{h.label}</p>
-                <p className={`text-[20px] font-bold tabular-nums ${h.color}`}>{h.value}</p>
-                <p className="text-[12px] text-slate-600 mt-1">{h.sub}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Falhas recentes */}
+        {/* ── Falhas recentes de webhook ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between gap-3">
             <div>
               <p className="text-[13px] font-semibold text-white">Falhas recentes de webhook</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">Entregas com <code className="font-mono">success = false</code> nas últimas 48 horas</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                Entregas com <code className="font-mono text-slate-400">success = false</code> nas últimas 48 horas
+              </p>
             </div>
-            {falhasRecentes.length > 0 && (
-              <span className="text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
+            {falhasRecentes.length > 0 ? (
+              <span className="text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full shrink-0">
                 {falhasRecentes.length} falha{falhasRecentes.length !== 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full shrink-0">
+                Sem falhas
               </span>
             )}
           </div>
@@ -262,57 +411,50 @@ export default async function AdminIntegracoesPage() {
           {falhasRecentes.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <p className="text-[12px] text-emerald-400 font-semibold">Nenhuma falha nas últimas 48h</p>
-              <p className="text-[11px] text-slate-600 mt-1">Todas as entregas de webhook foram bem-sucedidas.</p>
+              <p className="text-[11px] text-slate-600 mt-1">Todas as entregas foram bem-sucedidas.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-[11.5px]">
+              <table className="w-full text-[11.5px] min-w-[760px]">
                 <thead>
-                  <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Seller</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Evento</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">URL</th>
-                    <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                  <tr className="border-b border-slate-800/60 bg-slate-900/40">
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Evento</th>
+                    <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">URL / Erro</th>
+                    <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">HTTP</th>
                     <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Tentativas</th>
-                    <th className="text-right px-5 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Quando</th>
+                    <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Quando</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
                   {falhasRecentes.map((f) => (
                     <tr key={f.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-5 py-2.5">
-                        <a href={`/admin/clientes/${f.merchantId}`} className="text-slate-300 hover:text-white transition-colors font-medium text-[11px]">
-                          {merchantNames[f.merchantId] ?? f.merchantId.slice(0, 12) + '…'}
-                        </a>
-                        <p className="text-[9.5px] text-slate-700 font-mono">{f.merchantId.slice(0, 14)}…</p>
-                      </td>
                       <td className="px-4 py-2.5">
+                        <a href={`/admin/clientes/${f.merchantId}`} className="text-slate-300 hover:text-white transition-colors font-medium">
+                          {falhaMerchantNames[f.merchantId] ?? f.merchantId.slice(0, 12) + '…'}
+                        </a>
+                      </td>
+                      <td className="px-3 py-2.5">
                         <code className="text-[10.5px] font-mono text-amber-400">{f.event}</code>
                       </td>
-                      <td className="px-4 py-2.5 max-w-[180px]">
+                      <td className="px-3 py-2.5 max-w-[200px]">
                         <p className="text-[10.5px] font-mono text-slate-500 truncate">{f.url}</p>
-                        {f.error && (
-                          <p className="text-[9.5px] text-red-400/80 truncate mt-0.5">{f.error}</p>
-                        )}
+                        {f.error && <p className="text-[9.5px] text-red-400/80 truncate mt-0.5">{f.error}</p>}
                       </td>
                       <td className="px-3 py-2.5 text-center">
                         {f.statusCode ? (
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded font-mono ${
+                          <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded ${
                             f.statusCode >= 500 ? 'text-red-400 bg-red-500/10' :
                             f.statusCode >= 400 ? 'text-amber-400 bg-amber-500/10' :
                             'text-slate-400 bg-slate-700/40'
                           }`}>{f.statusCode}</span>
                         ) : (
-                          <span className="text-[10px] text-red-400">timeout</span>
+                          <span className="text-[10px] text-red-400 font-mono">timeout</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="text-[10px] text-slate-500 tabular-nums">{f.attempt}</span>
-                      </td>
-                      <td className="px-5 py-2.5 text-right">
-                        <p className="text-[10.5px] text-slate-600 tabular-nums">
-                          {f.createdAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                        </p>
+                      <td className="px-3 py-2.5 text-center tabular-nums text-slate-500">{f.attempt}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[10.5px] text-slate-600">
+                        {f.createdAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </td>
                     </tr>
                   ))}
@@ -322,47 +464,32 @@ export default async function AdminIntegracoesPage() {
           )}
         </section>
 
-        {/* Endpoints reference */}
+        {/* ── Endpoints de referência ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60">
             <p className="text-[13px] font-semibold text-white">Endpoints da API v1</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">Base URL: <code className="font-mono text-blue-300">https://api.masterpagamentos.com.br</code></p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">
+              Base URL: <code className="font-mono text-blue-300">https://api.masterpagamentos.com.br</code>
+            </p>
           </div>
           <div className="divide-y divide-slate-800/40">
             {endpoints.map((ep) => (
               <div key={ep.path} className="px-5 py-2.5 flex items-center gap-3 flex-wrap">
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded font-mono shrink-0 ${
-                  ep.method === 'GET' ? 'bg-blue-600/20 text-blue-400' : 'bg-emerald-600/20 text-emerald-400'
+                  ep.method === 'GET'
+                    ? 'bg-blue-600/20 text-blue-400'
+                    : 'bg-emerald-600/20 text-emerald-400'
                 }`}>{ep.method}</span>
                 <code className="text-[12px] font-mono text-slate-300 flex-1">{ep.path}</code>
-                <span className="text-[12px] text-slate-600 hidden sm:block">{ep.desc}</span>
+                <span className="text-[11.5px] text-slate-600 hidden sm:block">{ep.desc}</span>
                 {ep.auth === 'body' && (
-                  <span className="text-[10px] text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">apiKey no body</span>
+                  <span className="text-[10px] text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">
+                    apiKey no body
+                  </span>
                 )}
               </div>
             ))}
           </div>
-        </section>
-
-        {/* Integrações futuras */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { name: 'BAAS (Banking as a Service)', desc: 'Contas, Pix, TED e boletos. Em desenvolvimento.' },
-            { name: 'Adquirentes',                 desc: 'Cielo, Stone, Rede — crédito, débito e parcelamento. Em desenvolvimento.' },
-          ].map((integ) => (
-            <div key={integ.name} className="bg-slate-900/40 border border-slate-800/50 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-slate-800/60 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-[12px] font-semibold text-slate-400">{integ.name}</p>
-                <p className="text-[11px] text-slate-600 mt-0.5">{integ.desc}</p>
-              </div>
-              <span className="ml-auto text-[10px] font-semibold text-slate-600 bg-slate-800/40 border border-slate-700/30 px-2 py-0.5 rounded-full shrink-0">Em breve</span>
-            </div>
-          ))}
         </section>
 
       </div>
