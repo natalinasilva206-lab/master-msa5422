@@ -93,7 +93,6 @@ export default async function UsuariosPage({ searchParams }: PageProps) {
           <select
             name="role"
             defaultValue={role ?? 'todos'}
-            onChange={(e) => (e.target.form as HTMLFormElement).submit()}
             className="bg-slate-900/60 border border-slate-800/70 rounded-lg px-3 py-2 text-[12px] text-slate-300 focus:outline-none focus:border-blue-500/60"
           >
             <option value="todos">Todos os perfis</option>
