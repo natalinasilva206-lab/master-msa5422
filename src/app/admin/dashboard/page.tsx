@@ -170,13 +170,13 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
 
   const topbarActions = (
     <div className="flex items-center gap-1.5">
-      <a href="/admin/dashboard" className="flex items-center gap-1.5 text-[11.5px] text-slate-400 hover:text-slate-200 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
+      <a href="/admin/dashboard" className="flex items-center gap-1.5 text-[13px] text-slate-400 hover:text-slate-200 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50">
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         Atualizar
       </a>
-      <a href="/admin/faturamento" className="flex items-center gap-1.5 text-[11.5px] text-slate-300 hover:text-white px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
+      <a href="/admin/faturamento" className="flex items-center gap-1.5 text-[13px] text-slate-300 hover:text-white px-2.5 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50">
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
@@ -207,7 +207,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
               <Link
                 key={value}
                 href={`/admin/dashboard?periodo=${value}&status=${statusFilter}`}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
                   periodo === value
                     ? 'bg-blue-600 text-white shadow shadow-blue-500/30'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
@@ -226,7 +226,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
               <Link
                 key={value}
                 href={`/admin/dashboard?periodo=${periodo}&status=${value}`}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
                   statusFilter === value
                     ? 'bg-slate-700 text-slate-100'
                     : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
@@ -245,9 +245,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Total Disponível</p>
-                <p className="text-[17px] font-bold text-amber-400 tabular-nums leading-none">{formatBRLShort(totalPending)}</p>
-                <p className="text-[10px] text-slate-500 mt-1.5">pendingBalance de todos os sellers</p>
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Total Disponível</p>
+                <p className="text-[22px] font-bold text-amber-400 tabular-nums leading-none">{formatBRLShort(totalPending)}</p>
+                <p className="text-[12px] text-slate-500 mt-1.5">pendingBalance de todos os sellers</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -261,9 +261,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Empresas Ativas</p>
-                <p className="text-[20px] font-bold text-white tabular-nums leading-none">{activeMerchants}</p>
-                <p className="text-[10px] text-slate-500 mt-1.5">{totalMerchants} total cadastradas</p>
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Empresas Ativas</p>
+                <p className="text-[24px] font-bold text-white tabular-nums leading-none">{activeMerchants}</p>
+                <p className="text-[12px] text-slate-500 mt-1.5">{totalMerchants} total cadastradas</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -277,11 +277,11 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className={`rounded-xl p-4 transition-colors border ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Pendências</p>
-                <p className={`text-[20px] font-bold tabular-nums leading-none ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'text-amber-400' : 'text-white'}`}>
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Pendências</p>
+                <p className={`text-[24px] font-bold tabular-nums leading-none ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'text-amber-400' : 'text-white'}`}>
                   {unresolvedPendingLogs.length + pendingCdiEarly.length}
                 </p>
-                <p className="text-[10px] text-slate-500 mt-1.5">
+                <p className="text-[12px] text-slate-500 mt-1.5">
                   {unresolvedPendingLogs.length} saques · {pendingCdiEarly.length} resgates CDI
                 </p>
               </div>
@@ -297,9 +297,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className={`rounded-xl p-4 transition-colors border ${reviewMerchants > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">KYC em Revisão</p>
-                <p className={`text-[20px] font-bold tabular-nums leading-none ${reviewMerchants > 0 ? 'text-amber-400' : 'text-white'}`}>{reviewMerchants}</p>
-                <p className="text-[10px] text-slate-500 mt-1.5">
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">KYC em Revisão</p>
+                <p className={`text-[24px] font-bold tabular-nums leading-none ${reviewMerchants > 0 ? 'text-amber-400' : 'text-white'}`}>{reviewMerchants}</p>
+                <p className="text-[12px] text-slate-500 mt-1.5">
                   {reviewMerchants > 0 ? `${reviewMerchants} seller${reviewMerchants !== 1 ? 's' : ''} aguardando` : 'Nenhum em revisão'}
                 </p>
               </div>
@@ -315,9 +315,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors cursor-pointer group">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Merchants</p>
-                <p className="text-[17px] font-bold text-emerald-400 tabular-nums leading-none">{formatBRLShort(totalBalance)}</p>
-                <Link href="/admin/cdi" className="text-[10px] text-slate-600 group-hover:text-blue-400 mt-1.5 block transition-colors">
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Merchants</p>
+                <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">{formatBRLShort(totalBalance)}</p>
+                <Link href="/admin/cdi" className="text-[12px] text-slate-600 group-hover:text-blue-400 mt-1.5 block transition-colors">
                   Clique para ver detalhes
                 </Link>
               </div>
@@ -338,10 +338,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
-                <p className="text-[13px] font-semibold text-white">Volume de Transações</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Últimos 7 dias · volume de vendas aprovadas</p>
+                <p className="text-[18px] font-semibold text-white">Volume de Transações</p>
+                <p className="text-[13px] text-slate-600 mt-0.5">Últimos 7 dias · volume de vendas aprovadas</p>
               </div>
-              <a href="/admin/analise" className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+              <a href="/admin/analise" className="inline-flex items-center gap-1 text-[13px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
                 Ver relatório
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -358,7 +358,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                   formatBRLShort(maxVol * 0.25),
                   'R$ 0',
                 ].map((l, i) => (
-                  <span key={i} className="text-[9px] text-slate-700 font-mono leading-none">{l}</span>
+                  <span key={i} className="text-[10px] text-slate-700 font-mono leading-none">{l}</span>
                 ))}
               </div>
               {/* SVG chart */}
@@ -403,7 +403,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             {/* X-axis */}
             <div className="px-5 pb-3 flex justify-between">
               {dayLabels.map((d) => (
-                <span key={d} className="text-[9.5px] text-slate-700 font-medium">{d}</span>
+                <span key={d} className="text-[12px] text-slate-700 font-medium">{d}</span>
               ))}
             </div>
           </div>
@@ -411,10 +411,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           {/* Principais Empresas */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-4 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
-              <p className="text-[13px] font-semibold text-white">Principais Empresas</p>
+              <p className="text-[18px] font-semibold text-white">Principais Empresas</p>
               <Link
                 href="/admin/cdi"
-                className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium"
+                className="inline-flex items-center gap-1 text-[13px] text-slate-500 hover:text-blue-400 transition-colors font-medium"
               >
                 Ver todas
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -439,12 +439,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                           {getInitials(m.name)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold text-slate-200 truncate">{m.name}</p>
-                          <p className="text-[10px] text-slate-600">{m.plan} plan</p>
+                          <p className="text-[14px] font-semibold text-slate-200 truncate">{m.name}</p>
+                          <p className="text-[12px] text-slate-600">{m.plan} plan</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[12px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(m.balance)}</p>
-                          <p className="text-[10px] text-slate-600">{m.cdiRate.toFixed(1)}%/mês</p>
+                          <p className="text-[12px] text-slate-600">{m.cdiRate.toFixed(1)}%/mês</p>
                         </div>
                       </div>
                       <div className="ml-[46px] mt-1.5 h-0.5 bg-slate-800 rounded-full overflow-hidden">
@@ -468,17 +468,17 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className={`rounded-xl overflow-hidden border ${unresolvedPendingLogs.length > 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
             <div className={`px-5 py-3.5 border-b flex items-center justify-between ${unresolvedPendingLogs.length > 0 ? 'border-emerald-500/15' : 'border-slate-800/60'}`}>
               <div>
-                <p className="text-[13px] font-semibold text-white">Saques Pendentes</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Aguardando aprovação admin</p>
+                <p className="text-[18px] font-semibold text-white">Saques Pendentes</p>
+                <p className="text-[13px] text-slate-600 mt-0.5">Aguardando aprovação admin</p>
               </div>
               <div className="flex items-center gap-2">
                 {unresolvedPendingLogs.length > 0 && (
-                  <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     {unresolvedPendingLogs.length} pendente{unresolvedPendingLogs.length !== 1 ? 's' : ''}
                   </span>
                 )}
-                <Link href="/admin/saques" className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+                <Link href="/admin/saques" className="inline-flex items-center gap-1 text-[13px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
                   Ver todos
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -491,8 +491,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                 <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-[12.5px] font-medium">Nenhum saque pendente</p>
-                <p className="text-[11px] text-slate-800 mt-0.5">Tudo em dia.</p>
+                <p className="text-[14px] font-medium">Nenhum saque pendente</p>
+                <p className="text-[13px] text-slate-800 mt-0.5">Tudo em dia.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-800/40">
@@ -507,18 +507,18 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold text-slate-200 truncate">{log.user.name ?? log.user.email}</p>
-                        <p className="text-[10px] text-slate-600">
+                        <p className="text-[14px] font-semibold text-slate-200 truncate">{log.user.name ?? log.user.email}</p>
+                        <p className="text-[12px] text-slate-600">
                           {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
                         </p>
                       </div>
-                      <p className="text-[13px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(amount)}</p>
+                      <p className="text-[14px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(amount)}</p>
                     </div>
                   )
                 })}
                 {unresolvedPendingLogs.length > 5 && (
                   <div className="px-5 py-2.5">
-                    <Link href="/admin/saques" className="text-[11px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
+                    <Link href="/admin/saques" className="text-[13px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
                       +{unresolvedPendingLogs.length - 5} mais → Aprovar na página de Saques
                     </Link>
                   </div>
@@ -530,17 +530,17 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className={`rounded-xl overflow-hidden border ${recentDisputes.length > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
             <div className={`px-5 py-3.5 border-b flex items-center justify-between ${recentDisputes.length > 0 ? 'border-red-500/15' : 'border-slate-800/60'}`}>
               <div>
-                <p className="text-[13px] font-semibold text-white">Chargebacks Recentes</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Disputas em andamento</p>
+                <p className="text-[18px] font-semibold text-white">Chargebacks Recentes</p>
+                <p className="text-[13px] text-slate-600 mt-0.5">Disputas em andamento</p>
               </div>
               <div className="flex items-center gap-2">
                 {recentDisputes.length > 0 && (
-                  <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
                     {recentDisputes.length} ativa{recentDisputes.length !== 1 ? 's' : ''}
                   </span>
                 )}
-                <Link href="/admin/disputas" className="inline-flex items-center gap-1 text-[11.5px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
+                <Link href="/admin/disputas" className="inline-flex items-center gap-1 text-[13px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
                   Ver todas
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -553,8 +553,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                 <svg className="w-9 h-9 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-[12.5px] font-medium">Nenhum chargeback ativo</p>
-                <p className="text-[11px] text-slate-800 mt-0.5">Disputas abertas aparecerão aqui.</p>
+                <p className="text-[14px] font-medium">Nenhum chargeback ativo</p>
+                <p className="text-[13px] text-slate-800 mt-0.5">Disputas abertas aparecerão aqui.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-800/40">
@@ -566,10 +566,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-slate-200 truncate">{d.merchant.name}</p>
-                      <p className="text-[10px] text-slate-600">{d.type} · {d.status}</p>
+                      <p className="text-[14px] font-semibold text-slate-200 truncate">{d.merchant.name}</p>
+                      <p className="text-[12px] text-slate-600">{d.type} · {d.status}</p>
                     </div>
-                    <p className="text-[13px] font-bold text-red-400 tabular-nums shrink-0">R$ {formatBRL(d.contestedAmount)}</p>
+                    <p className="text-[14px] font-bold text-red-400 tabular-nums shrink-0">R$ {formatBRL(d.contestedAmount)}</p>
                   </div>
                 ))}
               </div>
@@ -582,8 +582,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-white">Sellers recentes</p>
-              <p className="text-[10.5px] text-slate-600 mt-0.5">Últimos {recentMerchants.length} cadastros</p>
+              <p className="text-[18px] font-semibold text-white">Sellers recentes</p>
+              <p className="text-[13px] text-slate-600 mt-0.5">Últimos {recentMerchants.length} cadastros</p>
             </div>
             <Link
               href="/admin/clientes"
@@ -605,10 +605,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Plano</th>
+                    <th className="text-left px-5 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-4 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
+                    <th className="text-left px-4 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Plano</th>
                     <th className="px-5 py-2.5" />
                   </tr>
                 </thead>
@@ -621,8 +621,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                             {getInitials(m.name)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[12.5px] font-semibold text-white truncate">{m.name}</p>
-                            <p className="text-[10.5px] text-slate-600 truncate">{m.email}</p>
+                            <p className="text-[14px] font-semibold text-white truncate">{m.name}</p>
+                            <p className="text-[12px] text-slate-600 truncate">{m.email}</p>
                           </div>
                         </div>
                       </td>
@@ -645,7 +645,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                       <td className="px-5 py-3 text-right">
                         <Link
                           href={`/admin/clientes/${m.id}`}
-                          className="inline-flex items-center gap-1 text-[11.5px] font-medium text-slate-600 hover:text-blue-400 group-hover:text-slate-400 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                          className="inline-flex items-center gap-1 text-[13px] font-medium text-slate-600 hover:text-blue-400 group-hover:text-slate-400 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
                         >
                           Ver
                           <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -658,10 +658,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                 </tbody>
               </table>
               <div className="px-5 py-2.5 border-t border-slate-800/50 flex items-center justify-between">
-                <span className="text-[11px] text-slate-700">
+                <span className="text-[13px] text-slate-700">
                   {recentMerchants.length} de {totalMerchants} sellers
                 </span>
-                <Link href="/admin/clientes" className="text-[11px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
+                <Link href="/admin/clientes" className="text-[13px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
                   Ver lista completa →
                 </Link>
               </div>

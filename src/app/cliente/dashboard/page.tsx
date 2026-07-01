@@ -177,8 +177,8 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div>
-              <p className="text-[11.5px] font-semibold text-amber-400">Conta em revisão</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Sua conta está em análise. Algumas operações podem estar temporariamente indisponíveis.</p>
+              <p className="text-[14px] font-semibold text-amber-400">Conta em revisão</p>
+              <p className="text-[13px] text-slate-500 mt-0.5">Sua conta está em análise. Algumas operações podem estar temporariamente indisponíveis.</p>
             </div>
           </div>
         )}
@@ -188,8 +188,8 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
             <div>
-              <p className="text-[11.5px] font-semibold text-red-400">Conta bloqueada</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Sua conta foi bloqueada. Entre em contato com o suporte para regularizar sua situação.</p>
+              <p className="text-[14px] font-semibold text-red-400">Conta bloqueada</p>
+              <p className="text-[13px] text-slate-500 mt-0.5">Sua conta foi bloqueada. Entre em contato com o suporte para regularizar sua situação.</p>
             </div>
           </div>
         )}
@@ -197,7 +197,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
         {/* ── Period Filter + Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <p className="text-[11px] text-slate-600 uppercase tracking-widest font-semibold">Período de análise</p>
+            <p className="text-[13px] text-slate-600 uppercase tracking-widest font-semibold">Período de análise</p>
           </div>
           <Suspense fallback={null}>
             <PeriodFilter />
@@ -269,9 +269,9 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
                 </svg>
               </div>
               <div>
-                <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest leading-tight mb-0.5">{c.label}</p>
-                <p className={`text-[17px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
-                <p className="text-[9.5px] text-slate-700 mt-1">{c.sub}</p>
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest leading-tight mb-0.5">{c.label}</p>
+                <p className={`text-[22px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                <p className="text-[12px] text-slate-700 mt-1">{c.sub}</p>
               </div>
             </div>
           ))}
@@ -284,8 +284,8 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-amber-300">Saldo sob proteção de risco</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[14px] font-semibold text-amber-300">Saldo sob proteção de risco</p>
+              <p className="text-[13px] text-slate-500 mt-0.5">
                 R$ {formatBRL(totalProtected)} do seu saldo está em reserva ou bloqueio de proteção da plataforma.
                 {blockedBalance > 0 && <> <span className="text-red-400 font-semibold">R$ {formatBRL(blockedBalance)} bloqueados</span> por disputa/chargeback.</> }
                 {futureBalance > 0 && <> <span className="text-blue-400 font-semibold">R$ {formatBRL(futureBalance)} com liberação agendada.</span></>}
@@ -293,8 +293,8 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               </p>
             </div>
             <div className="shrink-0 text-right hidden sm:block">
-              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-wider">Total protegido</p>
-              <p className="text-[16px] font-bold text-amber-400 tabular-nums">R$ {formatBRL(totalProtected)}</p>
+              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Total protegido</p>
+              <p className="text-[20px] font-bold text-amber-400 tabular-nums">R$ {formatBRL(totalProtected)}</p>
             </div>
           </div>
         )}
@@ -335,9 +335,9 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">{c.label}</p>
-                  <p className={`text-[16px] font-bold tabular-nums leading-tight ${c.color}`}>R$ {formatBRL(c.value)}</p>
-                  <p className="text-[9.5px] text-slate-700 mt-0.5">{c.sub}</p>
+                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest">{c.label}</p>
+                  <p className={`text-[20px] font-bold tabular-nums leading-tight ${c.color}`}>R$ {formatBRL(c.value)}</p>
+                  <p className="text-[12px] text-slate-700 mt-0.5">{c.sub}</p>
                 </div>
               </div>
             ))}
@@ -351,11 +351,11 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
           <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
-                <p className="text-[13px] font-semibold text-white">Volume de Entradas</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Vendas + rendimentos CDI no período</p>
+                <p className="text-[18px] font-semibold text-white">Volume de Entradas</p>
+                <p className="text-[13px] text-slate-600 mt-0.5">Vendas + rendimentos CDI no período</p>
               </div>
               {totalRecebido + totalCdiCredits > 0 && (
-                <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                <span className="text-[13px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
                   +{formatBRLCompact(totalRecebido + totalCdiCredits)}
                 </span>
               )}
@@ -415,15 +415,15 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
             {/* Saldo card */}
             <div className="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Disponível</p>
-              <p className="text-[24px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
-              <p className="text-[10px] text-slate-600 mt-1.5 mb-3">Disponível para saque ou aporte CDI</p>
+              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Disponível</p>
+              <p className="text-[28px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
+              <p className="text-[12px] text-slate-600 mt-1.5 mb-3">Disponível para saque ou aporte CDI</p>
               <div className="grid grid-cols-2 gap-1.5">
-                <Link href="/cliente/saques" className="flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11.5px] font-semibold transition-colors">
+                <Link href="/cliente/saques" className="flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold transition-colors">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
                   Sacar
                 </Link>
-                <Link href="/cliente/cdi" className="flex items-center justify-center gap-1 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/60 border border-slate-700/60 text-slate-300 text-[11.5px] font-semibold transition-colors">
+                <Link href="/cliente/cdi" className="flex items-center justify-center gap-1 py-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/60 border border-slate-700/60 text-slate-300 text-[13px] font-semibold transition-colors">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                   CDI
                 </Link>
@@ -436,21 +436,21 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
                 <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">Saldo em CDI</p>
                 <span className={`text-[10px] font-bold ${planColor[plano] ?? 'text-white'}`}>{plano}</span>
               </div>
-              <p className="text-[20px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(saldo)}</p>
+              <p className="text-[24px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(saldo)}</p>
               <div className="mt-3 pt-3 border-t border-slate-800/40 grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-[9px] text-slate-700 uppercase tracking-wider">Previsto/mês</p>
-                  <p className="text-[12px] font-bold text-emerald-400 tabular-nums mt-0.5">
+                  <p className="text-[11px] text-slate-700 uppercase tracking-wider">Previsto/mês</p>
+                  <p className="text-[13px] font-bold text-emerald-400 tabular-nums mt-0.5">
                     {saldo > 0 ? `+R$ ${formatBRL(rendimentoMes)}` : '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[9px] text-slate-700 uppercase tracking-wider">Taxa CDI</p>
-                  <p className="text-[12px] font-bold text-white mt-0.5">{cdiRate.toFixed(2)}%/mês</p>
+                  <p className="text-[11px] text-slate-700 uppercase tracking-wider">Taxa CDI</p>
+                  <p className="text-[13px] font-bold text-white mt-0.5">{cdiRate.toFixed(2)}%/mês</p>
                 </div>
               </div>
               {saldo === 0 && (
-                <Link href="/cliente/cdi" className="mt-3 block text-center py-1.5 rounded-lg bg-purple-600/20 border border-purple-500/20 text-purple-400 text-[11px] font-semibold hover:bg-purple-600/30 transition-colors">
+                <Link href="/cliente/cdi" className="mt-3 block text-center py-1.5 rounded-lg bg-purple-600/20 border border-purple-500/20 text-purple-400 text-[13px] font-semibold hover:bg-purple-600/30 transition-colors">
                   Aportar no CDI →
                 </Link>
               )}
@@ -461,7 +461,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-4 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-[9px] text-slate-600 uppercase tracking-widest font-bold">Aportado CDI</p>
-                  <p className="text-[13px] font-bold text-white tabular-nums mt-0.5">R$ {formatBRL(totalAportadoCdi)}</p>
+                  <p className="text-[14px] font-bold text-white tabular-nums mt-0.5">R$ {formatBRL(totalAportadoCdi)}</p>
                 </div>
                 <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -478,12 +478,12 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-white">Últimas Movimentações</p>
-              <p className="text-[10.5px] text-slate-600 mt-0.5">
+              <p className="text-[18px] font-semibold text-white">Últimas Movimentações</p>
+              <p className="text-[13px] text-slate-600 mt-0.5">
                 {recentLogs.length > 0 ? `${recentLogs.length} evento${recentLogs.length !== 1 ? 's' : ''} no período` : 'Nenhuma movimentação no período'}
               </p>
             </div>
-            <Link href="/cliente/extrato" className="text-[11px] font-medium text-slate-500 hover:text-blue-400 transition-colors">
+            <Link href="/cliente/extrato" className="text-[13px] font-medium text-slate-500 hover:text-blue-400 transition-colors">
               Ver extrato →
             </Link>
           </div>
@@ -493,7 +493,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               <svg className="w-8 h-8 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
-              <p className="text-[12px] font-medium">Nenhuma movimentação no período</p>
+              <p className="text-[14px] font-medium">Nenhuma movimentação no período</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-800/30">
@@ -508,11 +508,11 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-medium text-slate-200 truncate">{meta.label}</p>
-                      <p className="text-[10px] text-slate-600">{formatDateShort(log.createdAt)}</p>
+                      <p className="text-[14px] font-medium text-slate-200 truncate">{meta.label}</p>
+                      <p className="text-[12px] text-slate-600">{formatDateShort(log.createdAt)}</p>
                     </div>
                     {amount > 0 && (
-                      <p className={`text-[12.5px] font-bold tabular-nums shrink-0 ${meta.color}`}>
+                      <p className={`text-[14px] font-bold tabular-nums shrink-0 ${meta.color}`}>
                         {meta.sign === '-' ? '−' : meta.sign === '+' ? '+' : ''}R$ {formatBRL(amount)}
                       </p>
                     )}
@@ -530,17 +530,17 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
           {saldo > 0 && (
             <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
               <div className="px-5 py-3.5 border-b border-slate-800/60">
-                <p className="text-[12.5px] font-semibold text-white">Simulação CDI</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">{cdiRate.toFixed(2)}%/mês · {cdiAnual.toFixed(2)}% a.a.</p>
+                <p className="text-[18px] font-semibold text-white">Simulação CDI</p>
+                <p className="text-[13px] text-slate-600 mt-0.5">{cdiRate.toFixed(2)}%/mês · {cdiAnual.toFixed(2)}% a.a.</p>
               </div>
               <div className="grid grid-cols-2 divide-x divide-y divide-slate-800/40">
                 {[{ label: '1 mês', meses: 1 }, { label: '3 meses', meses: 3 }, { label: '6 meses', meses: 6 }, { label: '12 meses', meses: 12 }].map(({ label, meses }) => {
                   const rendimento = saldo * (Math.pow(1 + cdiRate / 100, meses) - 1)
                   return (
                     <div key={label} className="p-4">
-                      <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">{label}</p>
-                      <p className="text-[13.5px] font-bold text-white tabular-nums">R$ {formatBRL(saldo + rendimento)}</p>
-                      <p className="text-[10.5px] text-emerald-400 mt-0.5 tabular-nums">+R$ {formatBRL(rendimento)}</p>
+                      <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">{label}</p>
+                      <p className="text-[14px] font-bold text-white tabular-nums">R$ {formatBRL(saldo + rendimento)}</p>
+                      <p className="text-[12px] text-emerald-400 mt-0.5 tabular-nums">+R$ {formatBRL(rendimento)}</p>
                     </div>
                   )
                 })}
@@ -550,7 +550,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
           {/* Quick Links */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl p-4">
-            <p className="text-[12.5px] font-semibold text-white mb-3">Acesso Rápido</p>
+            <p className="text-[18px] font-semibold text-white mb-3">Acesso Rápido</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'Transações',    href: '/cliente/transacoes',   icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',    color: 'text-blue-400 bg-blue-500/10' },
@@ -564,7 +564,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
                       <path strokeLinecap="round" strokeLinejoin="round" d={l.icon} />
                     </svg>
                   </div>
-                  <span className="text-[11.5px] font-medium text-slate-300">{l.label}</span>
+                  <span className="text-[13px] font-medium text-slate-300">{l.label}</span>
                 </Link>
               ))}
             </div>

@@ -263,8 +263,8 @@ export function Sidebar({ role, userName }: SidebarProps) {
             </svg>
           </div>
           <div className="leading-none min-w-0">
-            <p className="text-white font-bold text-[14px] tracking-tight">MasterPag</p>
-            <p className="text-slate-500 text-[10.5px] mt-0.5 truncate">{roleLabel}</p>
+            <p className="text-white font-bold text-[15px] tracking-tight">MasterPag</p>
+            <p className="text-slate-500 text-[12px] mt-0.5 truncate">{roleLabel}</p>
           </div>
         </div>
       </div>
@@ -275,7 +275,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
       <nav className="flex-1 px-2 py-3">
         {groups.map((group, gi) => (
           <div key={group.label} className={gi > 0 ? 'mt-4' : ''}>
-            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.14em] px-2.5 mb-1">
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-[0.14em] px-2.5 mb-1">
               {group.label}
             </p>
             <div className="space-y-px">
@@ -284,7 +284,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
                   return (
                     <div
                       key={item.label}
-                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] text-slate-700 cursor-default select-none"
+                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] text-slate-700 cursor-default select-none"
                     >
                       {item.icon}
                       <span className="truncate">{item.label}</span>
@@ -296,7 +296,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
+                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 ${
                       active
                         ? 'bg-blue-600/15 text-blue-400 border border-blue-500/10'
                         : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'
@@ -320,12 +320,12 @@ export function Sidebar({ role, userName }: SidebarProps) {
         <div className="mb-2 h-px bg-slate-800/60" />
 
         <div className="flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl bg-slate-900/70 border border-slate-800/60 group hover:border-slate-700/60 transition-colors cursor-default">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-violet-700 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-violet-700 flex items-center justify-center text-[12px] font-bold text-white shrink-0">
             {initial}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-slate-200 text-[12px] font-semibold leading-none truncate">{userName}</p>
-            <p className="text-slate-600 text-[10.5px] mt-0.5 leading-none">
+            <p className="text-slate-200 text-[13px] font-semibold leading-none truncate">{userName}</p>
+            <p className="text-slate-600 text-[12px] mt-0.5 leading-none">
               {role === 'ADMIN' ? 'Administrador' : 'Seller'}
             </p>
           </div>
