@@ -46,7 +46,7 @@ export default async function IntegracoesPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Integrações / API"
         breadcrumb="Minha Conta"
         subtitle="Chaves de acesso e referência da API REST"

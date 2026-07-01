@@ -170,7 +170,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title={`Olá, ${firstName}`}
         subtitle="Visão geral da sua conta"
         breadcrumb="Dashboard"

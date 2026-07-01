@@ -214,7 +214,7 @@ export default async function ClienteCdiPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="CDI e Rendimentos"
         breadcrumb="Financeiro"
         subtitle={`Taxa atual: ${cdiRate.toFixed(2)}%/mês · ${cdiAnual.toFixed(2)}% a.a. · Plano ${plano}`}

@@ -52,7 +52,7 @@ export default async function ClienteMinhaContaPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Minha Conta"
         breadcrumb="Casa › Configurações › Minha Conta"
         subtitle="Gerencie sua conta e empresa"

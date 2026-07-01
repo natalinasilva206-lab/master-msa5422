@@ -75,7 +75,7 @@ export default async function PerfilPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Meu Perfil"
         breadcrumb="Minha Conta"
         subtitle="Dados cadastrais e informações da sua conta"

@@ -59,7 +59,7 @@ export default async function AntecipacaoClientePage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Antecipação de Recebíveis"
         subtitle={`Exclusivo para recebíveis de cartão · Taxa ${taxa}% · Aprovação necessária`}
       />

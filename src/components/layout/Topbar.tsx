@@ -1,12 +1,15 @@
+import { NotificationBell } from './NotificationBell'
+
 interface TopbarProps {
   title: string
   subtitle?: string
   breadcrumb?: string
   actions?: React.ReactNode
   lucroHoje?: number | null
+  showNotifications?: boolean
 }
 
-export function Topbar({ title, subtitle, breadcrumb, actions, lucroHoje }: TopbarProps) {
+export function Topbar({ title, subtitle, breadcrumb, actions, lucroHoje, showNotifications }: TopbarProps) {
   return (
     <header className="sticky top-0 z-10 bg-[#080c12]/96 backdrop-blur-sm border-b border-slate-800/60 px-5 md:px-6 py-0">
       <div className="flex items-center gap-3 h-[48px]">
@@ -53,12 +56,15 @@ export function Topbar({ title, subtitle, breadcrumb, actions, lucroHoje }: Topb
           </button>
 
           {/* Notification bell */}
-          <button className="relative w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/40">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full ring-1 ring-[#080c12]" />
-          </button>
+          {showNotifications ? (
+            <NotificationBell />
+          ) : (
+            <button className="relative w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-200 hover:bg-slate-800/60 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/40">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </button>
+          )}
 
           {/* Lucro hoje widget */}
           {lucroHoje !== undefined && lucroHoje !== null && (

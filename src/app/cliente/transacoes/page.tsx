@@ -54,7 +54,7 @@ export default async function ClienteTransacoesPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Transações"
         breadcrumb="Financeiro"
         subtitle="Vendas recebidas pelo seu gateway de pagamento"

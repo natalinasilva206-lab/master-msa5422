@@ -82,7 +82,7 @@ export default async function ClienteKycPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Verificação KYC"
         breadcrumb="Minha Conta"
         subtitle="Documentação obrigatória para operar como gateway de pagamento"

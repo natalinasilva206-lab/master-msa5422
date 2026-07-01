@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { sendCdiCreditEmail } from '@/lib/email'
 
 async function requireAdminSession() {
   const session = await getServerSession(authOptions)
@@ -120,32 +121,65 @@ export async function creditCdiToAll(): Promise<{ count: number; totalCredited: 
 
   const merchants = await prisma.merchant.findMany({
     where: { balance: { gt: 0 }, status: 'ACTIVE' },
-    select: { id: true, balance: true, cdiRate: true },
+    select: { id: true, name: true, email: true, balance: true, cdiRate: true },
   })
 
   if (merchants.length === 0) return { count: 0, totalCredited: 0 }
 
   let totalCredited = 0
+  let count = 0
   const now = new Date()
 
   for (const m of merchants) {
     const yield_ = Math.round(m.balance * (m.cdiRate / 100) * 100) / 100
     if (yield_ <= 0) continue
+
+    const newBalance = Math.round((m.balance + yield_) * 100) / 100
+
     await prisma.merchant.update({
       where: { id: m.id },
       data: { balance: { increment: yield_ } },
     })
+
+    const creditedAt = now.toISOString()
+    const metadata = JSON.stringify({ amount: yield_, rate: m.cdiRate, base: m.balance, creditedAt, newBalance })
+
     await prisma.auditLog.create({
       data: {
         userId, action: 'CDI_CREDIT', entity: 'Merchant', entityId: m.id,
-        metadata: JSON.stringify({ amount: yield_, rate: m.cdiRate, base: m.balance, creditedAt: now.toISOString() }),
+        metadata,
       },
     })
+
+    // Internal notification for the seller
+    const brl = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    await prisma.notification.create({
+      data: {
+        merchantId: m.id,
+        type:       'CDI_CREDIT',
+        title:      'Rendimento CDI creditado',
+        body:       `Seu rendimento CDI de R$ ${brl(yield_)} foi creditado com base no saldo de R$ ${brl(m.balance)}.`,
+        metadata,
+      },
+    })
+
+    // Optional email — no-op when SMTP is not configured
+    void sendCdiCreditEmail({
+      to:           m.email,
+      merchantName: m.name,
+      amount:       yield_,
+      base:         m.balance,
+      rate:         m.cdiRate,
+      newBalance,
+      creditedAt:   creditedAt,
+    })
+
     totalCredited += yield_
+    count++
   }
 
   revalidatePath('/admin/cdi')
   revalidatePath('/cliente/cdi')
   revalidatePath('/cliente/dashboard')
-  return { count: merchants.length, totalCredited: Math.round(totalCredited * 100) / 100 }
+  return { count, totalCredited: Math.round(totalCredited * 100) / 100 }
 }

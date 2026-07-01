@@ -54,7 +54,7 @@ export default async function ClienteSaquesPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Saques"
         breadcrumb="Financeiro"
         subtitle="Solicite a transferência do seu saldo disponível."

@@ -104,7 +104,7 @@ export default async function SuportePage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Suporte"
         breadcrumb="Minha Conta"
         subtitle="Central de ajuda e canais de atendimento"

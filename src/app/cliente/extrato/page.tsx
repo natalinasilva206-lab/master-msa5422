@@ -124,7 +124,7 @@ export default async function ExtratoPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Extrato"
         breadcrumb="Financeiro"
         subtitle="Saques, CDI e antecipações da sua conta"

@@ -94,7 +94,7 @@ export default async function PlanoPage() {
 
   return (
     <div>
-      <Topbar
+      <Topbar showNotifications
         title="Meu Plano"
         breadcrumb="Minha Conta"
         subtitle={`Plano atual: ${planoAtual} · CDI ${cdiRate.toFixed(2)}%/mês · ${cdiAnual.toFixed(2)}% a.a.`}
