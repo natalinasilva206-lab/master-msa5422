@@ -69,14 +69,15 @@ model Merchant {
 }
 
 model FeePlan {
-  id             String   @id @default(cuid())
-  name           String
-  chargedPercent Float
-  chargedFixed   Float
-  costPercent    Float
-  costFixed      Float
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  chargedPercent     Float
+  chargedFixed       Float
+  costPercent        Float
+  costFixed          Float
+  withdrawalDeadline String   @default("1 dia útil")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Dispute {

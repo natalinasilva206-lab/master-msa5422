@@ -17,12 +17,15 @@ export async function createFeePlan(formData: FormData) {
   const costFixed = parseFloat2(formData.get('costFixed'))
 
   if (!name) redirect('/admin/taxas/novo?error=name_required')
+  if (costPercent > chargedPercent) redirect('/admin/taxas/novo?error=negative_margin')
 
   const existing = await prisma.feePlan.findFirst({ where: { name } })
   if (existing) redirect('/admin/taxas/novo?error=name_exists')
 
+  const withdrawalDeadline = String(formData.get('withdrawalDeadline') ?? '1 dia útil').trim() || '1 dia útil'
+
   await prisma.feePlan.create({
-    data: { name, chargedPercent, chargedFixed, costPercent, costFixed },
+    data: { name, chargedPercent, chargedFixed, costPercent, costFixed, withdrawalDeadline },
   })
 
   revalidatePath('/admin/taxas')
@@ -37,15 +40,18 @@ export async function updateFeePlan(id: string, formData: FormData) {
   const costFixed = parseFloat2(formData.get('costFixed'))
 
   if (!name) redirect(`/admin/taxas/${id}/editar?error=name_required`)
+  if (costPercent > chargedPercent) redirect(`/admin/taxas/${id}/editar?error=negative_margin`)
 
   const existing = await prisma.feePlan.findFirst({
     where: { name, NOT: { id } },
   })
   if (existing) redirect(`/admin/taxas/${id}/editar?error=name_exists`)
 
+  const withdrawalDeadline = String(formData.get('withdrawalDeadline') ?? '1 dia útil').trim() || '1 dia útil'
+
   await prisma.feePlan.update({
     where: { id },
-    data: { name, chargedPercent, chargedFixed, costPercent, costFixed },
+    data: { name, chargedPercent, chargedFixed, costPercent, costFixed, withdrawalDeadline },
   })
 
   revalidatePath('/admin/taxas')

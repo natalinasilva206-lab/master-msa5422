@@ -9,6 +9,7 @@ import { createFeePlan } from '../actions'
 const errorMessages: Record<string, string> = {
   name_required: 'O nome do plano é obrigatório.',
   name_exists: 'Já existe um plano com esse nome.',
+  negative_margin: 'O custo (%) não pode ser maior que a taxa cobrada (%) — margem ficaria negativa.',
 }
 
 export default function NovoPlanoPage() {
@@ -113,6 +114,22 @@ export default function NovoPlanoPage() {
                 />
               </div>
             </div>
+
+            <div>
+                <label className="block text-sm text-slate-400 mb-1.5">Prazo de saque</label>
+                <select
+                  name="withdrawalDeadline"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
+                  defaultValue="1 dia útil"
+                >
+                  <option value="Instantâneo">Instantâneo</option>
+                  <option value="Mesmo dia">Mesmo dia</option>
+                  <option value="1 dia útil">1 dia útil</option>
+                  <option value="2 dias úteis">2 dias úteis</option>
+                  <option value="3 dias úteis">3 dias úteis</option>
+                </select>
+                <p className="text-slate-600 text-[11px] mt-1">Prazo exibido ao seller na página de saques</p>
+              </div>
 
             <div className="flex gap-3 pt-2">
               <button

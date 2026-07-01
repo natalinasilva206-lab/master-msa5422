@@ -14,7 +14,7 @@ function formatDate(d: Date) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
 
-const prazoMap: Record<string, string> = {
+const prazoFallback: Record<string, string> = {
   Start:  '1 dia útil',
   Growth: '1 dia útil',
   Prime:  'Mesmo dia',
@@ -32,7 +32,11 @@ export default async function ClienteSaquesPage() {
   const saldo    = merchant?.balance       ?? 0
   const pendente = merchant?.pendingBalance ?? 0
   const plano    = merchant?.plan          ?? 'Start'
-  const prazo    = prazoMap[plano] ?? '1 dia útil'
+
+  const feePlan = plano
+    ? await prisma.feePlan.findFirst({ where: { name: plano }, select: { withdrawalDeadline: true } }).catch(() => null)
+    : null
+  const prazo = (feePlan as any)?.withdrawalDeadline ?? prazoFallback[plano] ?? '1 dia útil'
 
   const withdrawLogs = merchant
     ? await prisma.auditLog.findMany({

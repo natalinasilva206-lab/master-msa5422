@@ -126,7 +126,7 @@ export default async function ClienteTransacoesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {vendas.map((log, i) => {
+                  {vendas.map((log) => {
                     const amount = getAmount(log.metadata)
                     const desc   = getDescription(log.metadata)
                     return (
@@ -137,7 +137,7 @@ export default async function ClienteTransacoesPage() {
                               +
                             </div>
                             <div>
-                              <p className="text-[13px] text-slate-200 font-medium">Venda #{String(vendas.length - i).padStart(4, '0')}</p>
+                              <p className="text-[13px] text-slate-200 font-medium">Venda #{log.id.slice(-8).toUpperCase()}</p>
                               <p className="text-[12px] text-slate-600">Aprovado · Gateway</p>
                             </div>
                           </div>
