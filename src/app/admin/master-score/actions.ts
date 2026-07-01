@@ -108,6 +108,78 @@ function resultToUpsertData(r: ReturnType<typeof calcMasterScore>) {
   }
 }
 
+// ─── Análise de motivos de alteração ─────────────────────────────────────────
+
+function analisarMotivos(
+  antes: { scoreTotal: number; volumeScore: number; chargebackScore: number; medScore: number; reembolsoScore: number; saldoScore: number; crescimentoScore: number; tempoContaScore: number; margemScore: number } | null,
+  depois: ReturnType<typeof calcMasterScore>,
+): string[] {
+  if (!antes) return ['Primeiro cálculo de score para este seller']
+
+  const motivos: string[] = []
+  const delta = depois.scoreTotal - antes.scoreTotal
+
+  const dims: Array<{ key: keyof typeof antes; label: string; dir: 'alta_ruim' | 'baixa_ruim' }> = [
+    { key: 'chargebackScore',  label: 'chargeback',          dir: 'baixa_ruim' },
+    { key: 'medScore',         label: 'MED Pix',             dir: 'baixa_ruim' },
+    { key: 'reembolsoScore',   label: 'reembolsos',          dir: 'baixa_ruim' },
+    { key: 'volumeScore',      label: 'volume mensal',       dir: 'baixa_ruim' },
+    { key: 'crescimentoScore', label: 'crescimento de volume', dir: 'baixa_ruim' },
+    { key: 'saldoScore',       label: 'saldo disponível',    dir: 'baixa_ruim' },
+    { key: 'margemScore',      label: 'margem da plataforma', dir: 'baixa_ruim' },
+    { key: 'tempoContaScore',  label: 'tempo de conta',      dir: 'baixa_ruim' },
+  ]
+
+  for (const d of dims) {
+    const diff = (depois as any)[d.key] - (antes as any)[d.key]
+    if (Math.abs(diff) < 1) continue
+    if (diff > 0) {
+      motivos.push(`melhora em ${d.label} (+${diff.toFixed(0)} pts)`)
+    } else {
+      motivos.push(`queda em ${d.label} (${diff.toFixed(0)} pts)`)
+    }
+  }
+
+  if (motivos.length === 0) {
+    if (Math.abs(delta) < 1) return ['Sem variação significativa nos indicadores']
+    return [`Variação geral de ${delta > 0 ? '+' : ''}${delta.toFixed(0)} pontos`]
+  }
+
+  return motivos
+}
+
+// ─── Persistir histórico ──────────────────────────────────────────────────────
+
+async function registrarHistorico(
+  merchantId: string,
+  antes: { scoreTotal: number; nivelScore: string; statusRisco: string; volumeScore: number; chargebackScore: number; medScore: number; reembolsoScore: number; saldoScore: number; crescimentoScore: number; tempoContaScore: number; margemScore: number } | null,
+  depois: ReturnType<typeof calcMasterScore>,
+  trigger: 'recalculo_manual' | 'recalculo_em_lote',
+) {
+  const motivos = analisarMotivos(antes, depois)
+  await prisma.masterScoreHistory.create({
+    data: {
+      merchantId,
+      scoreBefore:     antes?.scoreTotal      ?? 0,
+      scoreAfter:      depois.scoreTotal,
+      nivelBefore:     antes?.nivelScore      ?? 'Bronze',
+      nivelAfter:      depois.nivelScore,
+      statusBefore:    antes?.statusRisco     ?? 'Alto risco',
+      statusAfter:     depois.statusRisco,
+      volumeScore:     depois.volumeScore,
+      chargebackScore: depois.chargebackScore,
+      medScore:        depois.medScore,
+      reembolsoScore:  depois.reembolsoScore,
+      saldoScore:      depois.saldoScore,
+      crescimentoScore: depois.crescimentoScore,
+      tempoContaScore: depois.tempoContaScore,
+      margemScore:     depois.margemScore,
+      motivosAlteracao: JSON.stringify(motivos),
+      triggerMotivo:   trigger,
+    },
+  })
+}
+
 // ─── Actions públicas ─────────────────────────────────────────────────────────
 
 /** Recalcular o score de UM seller específico */
@@ -122,6 +194,8 @@ export async function recalcSellerScore(merchantId: string): Promise<{ ok: boole
     })
     if (!merchant) return { ok: false, error: 'Seller não encontrado' }
 
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId } })
+
     const input  = await buildScoreInput(merchantId, merchant)
     const result = calcMasterScore(input)
     const data   = resultToUpsertData(result)
@@ -131,6 +205,8 @@ export async function recalcSellerScore(merchantId: string): Promise<{ ok: boole
       create: { merchantId, ...data },
       update: data,
     })
+
+    await registrarHistorico(merchantId, anterior, result, 'recalculo_manual').catch(() => {})
 
     return { ok: true }
   } catch (err: any) {
@@ -152,6 +228,7 @@ export async function recalcAllScores(): Promise<{ ok: boolean; updated: number;
     let updated = 0
     for (const m of merchants) {
       try {
+        const anterior = await prisma.masterScore.findUnique({ where: { merchantId: m.id } })
         const input  = await buildScoreInput(m.id, m)
         const result = calcMasterScore(input)
         const data   = resultToUpsertData(result)
@@ -160,6 +237,7 @@ export async function recalcAllScores(): Promise<{ ok: boolean; updated: number;
           create: { merchantId: m.id, ...data },
           update: data,
         })
+        await registrarHistorico(m.id, anterior, result, 'recalculo_em_lote').catch(() => {})
         updated++
       } catch (inner) {
         console.error(`[recalcAllScores] merchantId=${m.id}`, inner)

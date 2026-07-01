@@ -162,6 +162,42 @@ model MasterScore {
   dataUltimaAtualizacao DateTime @default(now())
   observacaoInterna    String?
 
+  // Histórico de alterações
+  history              MasterScoreHistory[]
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+model MasterScoreHistory {
+  id              String   @id @default(cuid())
+  merchantId      String
+  masterScore     MasterScore @relation(fields: [merchantId], references: [merchantId])
+
+  // Scores antes e depois
+  scoreBefore     Float
+  scoreAfter      Float
+  nivelBefore     String
+  nivelAfter      String
+  statusBefore    String
+  statusAfter     String
+
+  // Sub-scores após o recálculo (para reconstituição do estado)
+  volumeScore     Float
+  chargebackScore Float
+  medScore        Float
+  reembolsoScore  Float
+  saldoScore      Float
+  crescimentoScore Float
+  tempoContaScore Float
+  margemScore     Float
+
+  // Análise dos motivos (JSON: string[])
+  motivosAlteracao String   // JSON string[]
+
+  // Contexto
+  triggerMotivo   String   @default("recalculo_manual") // recalculo_manual | recalculo_em_lote | api
+  observacao      String?
+
+  createdAt       DateTime @default(now())
 }

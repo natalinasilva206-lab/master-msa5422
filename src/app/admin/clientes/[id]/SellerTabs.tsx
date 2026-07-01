@@ -12,8 +12,9 @@ export default function SellerTabs({ merchantId }: Props) {
   const base = `/admin/clientes/${merchantId}`
 
   const tabs = [
-    { label: 'Visão Geral',       href: base },
+    { label: 'Visão Geral',        href: base },
     { label: 'Histórico de Risco', href: `${base}/historico` },
+    { label: 'Histórico do Score', href: `${base}/score-historico` },
   ]
 
   return (
