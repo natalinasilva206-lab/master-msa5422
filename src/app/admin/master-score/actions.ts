@@ -20,8 +20,7 @@ async function buildScoreInput(
     vendas30d,
     vendas30_60d,
     todasVendas,
-    chargebacks,
-    medPix,
+    disputas30d,
     reembolsos,
     feePlan,
   ] = await Promise.all([
@@ -37,21 +36,25 @@ async function buildScoreInput(
     }),
     // Total histórico de vendas
     prisma.auditLog.count({ where: { entityId: merchantId, action: 'BALANCE_ADJUST' } }),
-    // Chargebacks no período
-    prisma.auditLog.count({
-      where: { entityId: merchantId, action: { in: ['CHARGEBACK_OPENED', 'DISPUTE_OPENED'] }, createdAt: { gte: since30d } },
+    // Chargebacks e MEDs: fonte de verdade é a tabela Dispute
+    prisma.dispute.findMany({
+      where: {
+        merchantId,
+        status:    { notIn: ['RESOLVIDO', 'RESOLVED', 'FECHADO', 'CLOSED'] },
+        createdAt: { gte: since30d },
+      },
+      select: { type: true },
     }),
-    // MED Pix no mês corrente
-    prisma.auditLog.count({
-      where: { entityId: merchantId, action: { in: ['MED_PIX_REQUEST', 'FRAUD_FLAG', 'ANTIFRAUDE_FLAG'] }, createdAt: { gte: since30d } },
-    }),
-    // Reembolsos / estornos no período
-    prisma.auditLog.count({
-      where: { entityId: merchantId, action: { in: ['WITHDRAW_DENIED', 'ESTORNO', 'REEMBOLSO'] }, createdAt: { gte: since30d } },
+    // Reembolsos: SaleLog (REFUND completado)
+    prisma.saleLog.count({
+      where: { merchantId, type: 'REFUND', status: 'COMPLETED', createdAt: { gte: since30d } },
     }),
     // Plano de taxa para estimativa de margem
     prisma.feePlan.findFirst({ where: { name: merchant.plan } }),
   ])
+
+  const chargebacks = disputas30d.filter(d => d.type === 'CHARGEBACK').length
+  const medPix      = disputas30d.filter(d => ['MED', 'MED_PIX'].includes(d.type)).length
 
   function sumAmt(logs: { metadata: string | null }[]) {
     return logs.reduce((s, l) => {
@@ -187,6 +190,9 @@ export async function recalcSellerScore(merchantId: string): Promise<{ ok: boole
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
 
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
   try {
     const merchant = await prisma.merchant.findUnique({
       where: { id: merchantId },
@@ -207,6 +213,13 @@ export async function recalcSellerScore(merchantId: string): Promise<{ ok: boole
     })
 
     await registrarHistorico(merchantId, anterior, result, 'recalculo_manual').catch(() => {})
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: 'RECALCULO_MANUAL',
+      valorAntes:  anterior ? String(anterior.scoreTotal.toFixed(0)) : null,
+      valorDepois: String(result.scoreTotal.toFixed(0)),
+      motivo: 'Recálculo manual solicitado pelo ADM',
+    }).catch(() => {})
 
     return { ok: true }
   } catch (err: any) {
@@ -219,6 +232,9 @@ export async function recalcSellerScore(merchantId: string): Promise<{ ok: boole
 export async function recalcAllScores(): Promise<{ ok: boolean; updated: number; error?: string }> {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, updated: 0, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
 
   try {
     const merchants = await prisma.merchant.findMany({
@@ -238,6 +254,13 @@ export async function recalcAllScores(): Promise<{ ok: boolean; updated: number;
           update: data,
         })
         await registrarHistorico(m.id, anterior, result, 'recalculo_em_lote').catch(() => {})
+        await registrarAuditControle({
+          merchantId: m.id, adminEmail, adminName,
+          acao: 'RECALCULO_LOTE',
+          valorAntes:  anterior ? String(anterior.scoreTotal.toFixed(0)) : null,
+          valorDepois: String(result.scoreTotal.toFixed(0)),
+          motivo: 'Recálculo em lote solicitado pelo ADM',
+        }).catch(() => {})
         updated++
       } catch (inner) {
         console.error(`[recalcAllScores] merchantId=${m.id}`, inner)
@@ -252,7 +275,7 @@ export async function recalcAllScores(): Promise<{ ok: boolean; updated: number;
 }
 
 /** Salvar observação interna editada manualmente pelo ADM */
-export async function saveScoreObservacao(merchantId: string, observacao: string, motivo?: string): Promise<{ ok: boolean; error?: string }> {
+export async function saveScoreObservacao(merchantId: string, observacao: string, motivo: string): Promise<{ ok: boolean; error?: string }> {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
 
@@ -276,7 +299,7 @@ export async function saveScoreObservacao(merchantId: string, observacao: string
         acao: 'OBSERVACAO',
         valorAntes:  anterior?.observacaoInterna ?? null,
         valorDepois: observacao,
-        motivo: motivo ?? 'Observação interna atualizada',
+        motivo,
       },
     }).catch(() => {})
 
