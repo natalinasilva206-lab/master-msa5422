@@ -32,7 +32,7 @@ export default function SimularVendaForm({ merchantId, reservePercent }: Props) 
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Valor da Venda (R$)</label>
+            <label className="block text-[13px] font-medium text-slate-400 mb-1.5">Valor da Venda (R$)</label>
             <input
               type="number"
               min="0.01"
@@ -40,18 +40,18 @@ export default function SimularVendaForm({ merchantId, reservePercent }: Props) 
               value={amount}
               onChange={(e) => { setAmount(e.target.value); setResult(null) }}
               placeholder="0,00"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-4 py-2.5 text-[13px] text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
               required
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Descrição (opcional)</label>
+            <label className="block text-[13px] font-medium text-slate-400 mb-1.5">Descrição (opcional)</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="ex: pedido #1234"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800/60 border border-slate-700/50 rounded-lg px-4 py-2.5 text-[13px] text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
             />
           </div>
         </div>
@@ -76,7 +76,7 @@ export default function SimularVendaForm({ merchantId, reservePercent }: Props) 
         <button
           type="submit"
           disabled={isPending || amountNum <= 0}
-          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-[13px] font-semibold px-5 py-2.5 rounded-lg transition-colors"
         >
           {isPending ? 'Processando...' : 'Simular Venda Aprovada'}
         </button>

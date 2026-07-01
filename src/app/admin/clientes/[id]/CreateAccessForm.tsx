@@ -37,16 +37,16 @@ export function CreateAccessForm({ merchantId, email }: { merchantId: string; em
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nome de acesso</label>
+          <label className="block text-[13px] font-medium text-slate-400 mb-1.5">Nome de acesso</label>
           <input
             name="user_name"
             type="text"
             placeholder="Nome completo (opcional)"
-            className="w-full px-3 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-white text-[13px] placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Senha de acesso <span className="text-red-400">*</span></label>
+          <label className="block text-[13px] font-medium text-slate-400 mb-1.5">Senha de acesso <span className="text-red-400">*</span></label>
           <input
             name="user_password"
             type="password"
@@ -54,7 +54,7 @@ export function CreateAccessForm({ merchantId, email }: { merchantId: string; em
             autoComplete="new-password"
             required
             minLength={6}
-            className="w-full px-3 py-2.5 bg-slate-900/50 border border-slate-700/60 rounded-lg text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700/50 rounded-lg text-white text-[13px] placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/30 transition"
           />
         </div>
       </div>
@@ -64,7 +64,7 @@ export function CreateAccessForm({ merchantId, email }: { merchantId: string; em
       <button
         type="submit"
         disabled={pending}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[13px] font-semibold rounded-lg transition-colors"
       >
         {pending ? (
           <>
