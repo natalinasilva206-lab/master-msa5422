@@ -263,13 +263,13 @@ export default async function MasterScorePage() {
 
                         {/* Seller */}
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-2.5">
+                          <Link href={`/admin/master-score/${m.id}`} className="flex items-center gap-2.5 group">
                             <span className={`w-2 h-2 rounded-full shrink-0 ${planDot[m.plan] ?? 'bg-slate-500'}`} />
                             <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-slate-200 truncate max-w-[150px]">{m.name}</p>
+                              <p className="text-[13px] font-semibold text-slate-200 group-hover:text-white truncate max-w-[150px] transition-colors">{m.name}</p>
                               <p className="text-[11px] text-slate-600">{m.plan}</p>
                             </div>
-                          </div>
+                          </Link>
                         </td>
 
                         {/* Score bar */}
@@ -330,10 +330,10 @@ export default async function MasterScorePage() {
                           <div className="flex items-center gap-1.5 justify-end">
                             <RecalcSellerButton merchantId={m.id} />
                             <Link
-                              href={`/admin/clientes/${m.id}`}
+                              href={`/admin/master-score/${m.id}`}
                               className="inline-flex items-center px-2.5 py-1 text-[12px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 rounded-lg transition-colors"
                             >
-                              Ver
+                              Detalhes
                             </Link>
                           </div>
                         </td>
