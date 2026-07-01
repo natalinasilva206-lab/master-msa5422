@@ -164,8 +164,8 @@ export default async function KycPage({ searchParams }: PageProps) {
             <Link key={c.tab} href={`/admin/kyc?tab=${c.tab}${q ? `&q=${encodeURIComponent(q)}` : ''}`} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 hover:bg-slate-800/40 transition-colors block`}>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-                  <p className={`text-[26px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+                  <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
                 </div>
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${c.bg}`}>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -190,7 +190,7 @@ export default async function KycPage({ searchParams }: PageProps) {
                 type="text"
                 defaultValue={q}
                 placeholder="Buscar por nome, email, CPF ou empresa..."
-                className="w-full bg-slate-800/60 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-[12.5px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-colors"
+                className="w-full bg-slate-800/60 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-[13px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-colors"
               />
             </div>
           </form>
@@ -253,11 +253,11 @@ export default async function KycPage({ searchParams }: PageProps) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Responsável</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Empresa</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Data de Envio</th>
-                    <th className="px-5 py-3 text-[10px] font-bold text-slate-600 uppercase tracking-wider text-right">Ações</th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Responsável</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Empresa</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Data de Envio</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
@@ -288,22 +288,22 @@ export default async function KycPage({ searchParams }: PageProps) {
                               {getInitials(m.userName ?? m.name)}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[12.5px] font-semibold text-white truncate">{m.userName ?? m.name}</p>
-                              <p className="text-[10.5px] text-slate-600 truncate">{m.userEmail ?? m.email}</p>
+                              <p className="text-[13px] font-semibold text-white truncate">{m.userName ?? m.name}</p>
+                              <p className="text-[12px] text-slate-600 truncate">{m.userEmail ?? m.email}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3.5 hidden md:table-cell">
-                          <p className="text-[12.5px] font-semibold text-slate-300 truncate max-w-[200px]">{m.name}</p>
+                          <p className="text-[13px] font-semibold text-slate-300 truncate max-w-[200px]">{m.name}</p>
                           <p className="text-[10.5px] text-slate-600 font-mono truncate">{m.document}</p>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className={`text-[10.5px] font-bold px-2.5 py-1 rounded-full border ${subStatusStyle[m.kycSubStatus] ?? subStatusStyle['EM_ANALISE']}`}>
+                          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${subStatusStyle[m.kycSubStatus] ?? subStatusStyle['EM_ANALISE']}`}>
                             {subStatusLabel[m.kycSubStatus] ?? m.kycSubStatus}
                           </span>
                         </td>
                         <td className="px-4 py-3.5 hidden lg:table-cell">
-                          <span className="text-[11.5px] text-slate-500">
+                          <span className="text-[12px] text-slate-500">
                             {new Date(m.createdAt).toLocaleDateString('pt-BR')}
                           </span>
                         </td>

@@ -70,8 +70,8 @@ export default async function ConfiguracoesPage() {
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 text-center">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{s.label}</p>
-              <p className={`text-[26px] font-bold tabular-nums ${s.color}`}>{s.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{s.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums ${s.color}`}>{s.value}</p>
             </div>
           ))}
         </section>
@@ -85,8 +85,8 @@ export default async function ConfiguracoesPage() {
             </div>
             <div className="divide-y divide-slate-800/40">
               {platformInfo.map((row) => (
-                <div key={row.label} className="px-5 py-3 flex items-center justify-between">
-                  <span className="text-[11.5px] text-slate-500">{row.label}</span>
+                <div key={row.label} className="px-5 py-3.5 flex items-center justify-between">
+                  <span className="text-[12px] text-slate-500">{row.label}</span>
                   <span className="text-[12px] font-semibold text-slate-200">{row.value}</span>
                 </div>
               ))}
@@ -161,18 +161,18 @@ export default async function ConfiguracoesPage() {
                 <thead>
                   <tr className="border-b border-slate-800/60">
                     {['Plano', 'Taxa cobrada %', 'Fixo cobrado', 'Taxa custo %', 'Fixo custo'].map((h) => (
-                      <th key={h} className="px-5 py-2.5 text-left text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">{h}</th>
+                      <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                     ))}
-                    <th className="px-4 py-2.5 text-right text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">Ação</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
                   {feePlans.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${planColor[p.name] ?? 'bg-slate-500'}`} />
-                          <span className="text-[12.5px] font-semibold text-slate-200">{p.name}</span>
+                          <span className="text-[13px] font-semibold text-slate-200">{p.name}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-slate-300 font-mono text-[12px]">{p.chargedPercent.toFixed(2)}%</td>
@@ -208,7 +208,7 @@ export default async function ConfiguracoesPage() {
               <thead>
                 <tr className="border-b border-slate-800/60">
                   {['Plano', 'Sellers', 'CDI/mês padrão', 'Taxa transação', 'Prazo saque'].map((h) => (
-                    <th key={h} className="px-5 py-2.5 text-left text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">{h}</th>
+                    <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -218,7 +218,7 @@ export default async function ConfiguracoesPage() {
                   const taxa = fee ? `${fee.chargedPercent.toFixed(2)}% + R$${fee.chargedFixed.toFixed(2)}` : planCdiDefault[plan] ? '—' : '—'
                   return (
                     <tr key={plan} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${planColor[plan] ?? 'bg-slate-500'}`} />
                           <span className="font-semibold text-slate-200">{plan}</span>

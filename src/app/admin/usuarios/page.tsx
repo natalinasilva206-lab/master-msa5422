@@ -50,8 +50,8 @@ export default async function UsuariosPage() {
             { label: 'Sellers',           value: totalClient,  color: 'text-blue-400',   border: 'border-blue-500/20' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[24px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
             </div>
           ))}
         </section>
@@ -67,7 +67,7 @@ export default async function UsuariosPage() {
               <thead>
                 <tr className="border-b border-slate-800/60">
                   {['Usuário', 'E-mail', 'Perfil', 'Empresa vinculada', 'Plano', 'Cadastro'].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[9.5px] font-bold text-slate-600 uppercase tracking-widest whitespace-nowrap">
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -79,27 +79,27 @@ export default async function UsuariosPage() {
                   const badge = roleBadge[u.role] ?? 'bg-slate-700/40 text-slate-400 border-slate-700/40'
                   return (
                     <tr key={u.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-violet-700 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
                             {initial}
                           </div>
-                          <span className="font-semibold text-slate-200 truncate max-w-[120px]">{u.name ?? '—'}</span>
+                          <span className="text-[13px] font-semibold text-slate-200 truncate max-w-[120px]">{u.name ?? '—'}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-400 truncate max-w-[180px]">{u.email}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge}`}>
+                      <td className="px-4 py-3.5 text-[12px] text-slate-400 truncate max-w-[180px]">{u.email}</td>
+                      <td className="px-4 py-3.5">
+                        <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${badge}`}>
                           {roleLabel[u.role] ?? u.role}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-400 truncate max-w-[160px]">
+                      <td className="px-4 py-3.5 text-[12px] text-slate-400 truncate max-w-[160px]">
                         {u.merchant?.name ?? <span className="text-slate-700">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-400">
+                      <td className="px-4 py-3.5 text-[12px] text-slate-400">
                         {u.merchant?.plan ?? <span className="text-slate-700">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(u.createdAt)}</td>
+                      <td className="px-4 py-3.5 text-[12px] text-slate-600 whitespace-nowrap">{formatDate(u.createdAt)}</td>
                     </tr>
                   )
                 })}

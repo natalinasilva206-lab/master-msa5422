@@ -90,8 +90,8 @@ export default async function AntifaudePage() {
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-                  <p className={`text-[26px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+                  <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
                 </div>
                 {highRiskCount > 0 && c.label === 'Bloqueadas' && (
                   <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded">
@@ -134,12 +134,12 @@ export default async function AntifaudePage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Risco</th>
-                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Bloqueado</th>
-                    <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Disputas</th>
-                    <th className="text-right px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Ações</th>
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Risco</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Bloqueado</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Disputas</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
@@ -148,39 +148,39 @@ export default async function AntifaudePage() {
                     const rk = riskMeta[m.riskLevel] ?? riskMeta['MEDIUM']
                     return (
                       <tr key={m.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-5 py-3">
+                        <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
                               {getInitials(m.name)}
                             </div>
                             <div>
-                              <Link href={`/admin/clientes/${m.id}`} className="text-[12px] font-semibold text-slate-200 hover:text-white transition-colors truncate max-w-[130px] block">
+                              <Link href={`/admin/clientes/${m.id}`} className="text-[13px] font-semibold text-slate-200 hover:text-white transition-colors truncate max-w-[130px] block">
                                 {m.name}
                               </Link>
-                              <p className="text-[10px] text-slate-600 truncate max-w-[130px]">{m.email}</p>
+                              <p className="text-[12px] text-slate-600 truncate max-w-[130px]">{m.email}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1.5">
                             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${st.dot}`} />
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${st.color}`}>{st.label}</span>
+                            <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${st.color}`}>{st.label}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${rk.color}`}>{rk.label}</span>
+                        <td className="px-4 py-3.5 hidden md:table-cell">
+                          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${rk.color}`}>{rk.label}</span>
                         </td>
-                        <td className="px-4 py-3 text-right hidden lg:table-cell">
-                          <span className={`text-[12px] font-semibold tabular-nums ${m.blockedBalance > 0 ? 'text-red-400' : 'text-slate-600'}`}>
+                        <td className="px-4 py-3.5 text-right hidden lg:table-cell">
+                          <span className={`text-[13px] font-semibold tabular-nums ${m.blockedBalance > 0 ? 'text-red-400' : 'text-slate-600'}`}>
                             {m.blockedBalance > 0 ? `R$ ${m.blockedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right hidden lg:table-cell">
-                          <span className={`text-[12px] font-semibold tabular-nums ${m._count.disputes > 0 ? 'text-orange-400' : 'text-slate-600'}`}>
+                        <td className="px-4 py-3.5 text-right hidden lg:table-cell">
+                          <span className={`text-[13px] font-semibold tabular-nums ${m._count.disputes > 0 ? 'text-orange-400' : 'text-slate-600'}`}>
                             {m._count.disputes > 0 ? m._count.disputes : '—'}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right">
+                        <td className="px-5 py-3.5 text-right">
                           <MerchantActions merchantId={m.id} merchantName={m.name} currentStatus={m.status} />
                         </td>
                       </tr>
@@ -202,10 +202,10 @@ export default async function AntifaudePage() {
               <div key={r.name} className="px-5 py-3.5 flex items-center gap-4">
                 <div className={`shrink-0 w-2 h-2 rounded-full ${r.status === 'Ativo' ? 'bg-emerald-500' : 'bg-slate-600'}`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[12.5px] font-semibold text-slate-200">{r.name}</p>
+                  <p className="text-[13px] font-semibold text-slate-200">{r.name}</p>
                   <p className="text-[11px] text-slate-600 mt-0.5">{r.desc}</p>
                 </div>
-                <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
                   r.status === 'Ativo'
                     ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
                     : 'bg-slate-700/40 text-slate-500 border-slate-700/40'
@@ -240,19 +240,19 @@ export default async function AntifaudePage() {
                   if (m.adminName)    adminName    = m.adminName
                 } catch {}
                 return (
-                  <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                  <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
                     <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold ${
                       isBlock ? 'bg-red-500/10 text-red-400' : isReview ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'
                     }`}>
                       {isBlock ? '✕' : isReview ? '?' : '✓'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[12.5px] font-semibold text-slate-200 truncate">
+                      <p className="text-[13px] font-semibold text-slate-200 truncate">
                         {merchantName || 'Merchant'}
                       </p>
-                      <p className="text-[10.5px] text-slate-600">{adminName ? `por ${adminName} · ` : ''}{formatDate(log.createdAt)}</p>
+                      <p className="text-[12px] text-slate-600">{adminName ? `por ${adminName} · ` : ''}{formatDate(log.createdAt)}</p>
                     </div>
-                    <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
                       isBlock ? 'bg-red-500/15 text-red-400' : isReview ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'
                     }`}>
                       {isBlock ? 'Bloqueado' : isReview ? 'Em revisão' : 'Desbloqueado'}

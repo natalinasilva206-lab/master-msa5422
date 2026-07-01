@@ -38,19 +38,19 @@ function RequestRow({ req }: { req: WithdrawRequest }) {
   return (
     <tr className="hover:bg-slate-800/20 transition-colors">
       <td className="px-5 py-3.5">
-        <p className="text-[12.5px] font-semibold text-white">{req.sellerName}</p>
-        <p className="text-[10.5px] text-slate-600 mt-0.5">{formatDate(req.createdAt)}</p>
+        <p className="text-[13px] font-semibold text-white">{req.sellerName}</p>
+        <p className="text-[12px] text-slate-600 mt-0.5">{formatDate(req.createdAt)}</p>
       </td>
       <td className="px-4 py-3.5">
         <p className="text-[13px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(req.amount)}</p>
-        <p className="text-[10.5px] text-slate-600 mt-0.5">Disp: R$ {formatBRL(req.pendingBalance)}</p>
+        <p className="text-[12px] text-slate-600 mt-0.5">Disp: R$ {formatBRL(req.pendingBalance)}</p>
         {req.pixKey && (
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 uppercase tracking-wide">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 uppercase tracking-wide">
               Pix {req.pixType ?? ''}
             </span>
-            <span className="text-[10.5px] text-slate-400 font-mono truncate max-w-[160px]">{req.pixKey}</span>
-            {req.bankName && <span className="text-[10px] text-slate-600">· {req.bankName}</span>}
+            <span className="text-[12px] text-slate-400 font-mono truncate max-w-[160px]">{req.pixKey}</span>
+            {req.bankName && <span className="text-[11px] text-slate-600">· {req.bankName}</span>}
           </div>
         )}
       </td>
@@ -59,14 +59,14 @@ function RequestRow({ req }: { req: WithdrawRequest }) {
           <button
             onClick={() => handle(false)}
             disabled={isPending}
-            className="text-[11.5px] font-semibold text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+            className="text-[12px] font-semibold text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
           >
             Negar
           </button>
           <button
             onClick={() => handle(true)}
             disabled={isPending}
-            className="text-[11.5px] font-semibold text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+            className="text-[12px] font-semibold text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
           >
             {isPending ? '...' : 'Aprovar'}
           </button>
@@ -91,9 +91,9 @@ export function WithdrawPendingRequests({ requests }: { requests: WithdrawReques
       <table className="w-full">
         <thead>
           <tr className="border-b border-emerald-500/10">
-            <th className="text-left px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
-            <th className="text-right px-4 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Valor solicitado</th>
-            <th className="text-right px-5 py-2.5 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Ação</th>
+            <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
+            <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Valor solicitado</th>
+            <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ação</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/40">
