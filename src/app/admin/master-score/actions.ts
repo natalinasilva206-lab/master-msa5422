@@ -252,15 +252,215 @@ export async function recalcAllScores(): Promise<{ ok: boolean; updated: number;
 }
 
 /** Salvar observação interna editada manualmente pelo ADM */
-export async function saveScoreObservacao(merchantId: string, observacao: string): Promise<{ ok: boolean; error?: string }> {
+export async function saveScoreObservacao(merchantId: string, observacao: string, motivo?: string): Promise<{ ok: boolean; error?: string }> {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
 
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
   try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { observacaoInterna: true } })
+
     await prisma.masterScore.upsert({
       where:  { merchantId },
       create: { merchantId, observacaoInterna: observacao },
       update: { observacaoInterna: observacao, updatedAt: new Date() },
+    })
+
+    await prisma.masterScoreAudit.create({
+      data: {
+        merchantId,
+        adminEmail,
+        adminName,
+        acao: 'OBSERVACAO',
+        valorAntes:  anterior?.observacaoInterna ?? null,
+        valorDepois: observacao,
+        motivo: motivo ?? 'Observação interna atualizada',
+      },
+    }).catch(() => {})
+
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Erro interno' }
+  }
+}
+
+// ─── Helper interno para auditoria de controles manuais ─────────────────────
+
+async function registrarAuditControle(opts: {
+  merchantId:  string
+  adminEmail:  string
+  adminName:   string
+  acao:        string
+  valorAntes:  string | null | undefined
+  valorDepois: string | null | undefined
+  motivo:      string
+}) {
+  await prisma.masterScoreAudit.create({
+    data: {
+      merchantId:  opts.merchantId,
+      adminEmail:  opts.adminEmail,
+      adminName:   opts.adminName,
+      acao:        opts.acao,
+      valorAntes:  opts.valorAntes ?? null,
+      valorDepois: opts.valorDepois ?? null,
+      motivo:      opts.motivo,
+    },
+  })
+}
+
+// ─── Controles manuais do ADM ─────────────────────────────────────────────────
+
+/** Marcar / desmarcar seller como monitorado */
+export async function setMonitorado(merchantId: string, valor: boolean, motivo: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
+  try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { monitorado: true } })
+    if (!anterior) return { ok: false, error: 'Score não encontrado' }
+
+    await prisma.masterScore.update({ where: { merchantId }, data: { monitorado: valor, updatedAt: new Date() } })
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: 'MONITORADO',
+      valorAntes:  String(anterior.monitorado),
+      valorDepois: String(valor),
+      motivo,
+    })
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Erro interno' }
+  }
+}
+
+/** Marcar / desmarcar seller como estratégico */
+export async function setEstrategico(merchantId: string, valor: boolean, motivo: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
+  try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { estrategico: true } })
+    if (!anterior) return { ok: false, error: 'Score não encontrado' }
+
+    await prisma.masterScore.update({ where: { merchantId }, data: { estrategico: valor, updatedAt: new Date() } })
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: 'ESTRATEGICO',
+      valorAntes:  String(anterior.estrategico),
+      valorDepois: String(valor),
+      motivo,
+    })
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Erro interno' }
+  }
+}
+
+/** Alterar nível de risco manualmente (null = remover override) */
+export async function setNivelManual(merchantId: string, nivel: string | null, motivo: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
+  try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { nivelManual: true } })
+    if (!anterior) return { ok: false, error: 'Score não encontrado' }
+
+    await prisma.masterScore.update({ where: { merchantId }, data: { nivelManual: nivel, updatedAt: new Date() } })
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: 'NIVEL_MANUAL',
+      valorAntes:  anterior.nivelManual ?? 'automático',
+      valorDepois: nivel ?? 'automático',
+      motivo,
+    })
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Erro interno' }
+  }
+}
+
+/** Congelar / descongelar benefício do seller */
+export async function setBeneficioCongelado(merchantId: string, congelar: boolean, motivo: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
+  try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { beneficioCongelado: true } })
+    if (!anterior) return { ok: false, error: 'Score não encontrado' }
+
+    await prisma.masterScore.update({ where: { merchantId }, data: { beneficioCongelado: congelar, updatedAt: new Date() } })
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: congelar ? 'BENEFICIO_CONGELADO' : 'BENEFICIO_DESCONGELADO',
+      valorAntes:  anterior.beneficioCongelado ? 'congelado' : 'ativo',
+      valorDepois: congelar ? 'congelado' : 'ativo',
+      motivo,
+    })
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Erro interno' }
+  }
+}
+
+/** Ignorar sugestão automática */
+export async function ignorarSugestaoScore(merchantId: string, motivo: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
+  try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { sugestaoStatus: true } })
+    if (!anterior) return { ok: false, error: 'Score não encontrado' }
+
+    await prisma.masterScore.update({ where: { merchantId }, data: { sugestaoStatus: 'ignorada', updatedAt: new Date() } })
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: 'SUGESTAO_IGNORADA',
+      valorAntes:  anterior.sugestaoStatus,
+      valorDepois: 'ignorada',
+      motivo,
+    })
+    return { ok: true }
+  } catch (err: any) {
+    return { ok: false, error: err?.message ?? 'Erro interno' }
+  }
+}
+
+/** Aplicar sugestão automática (registra decisão; a aplicação real é via MasterScoreRiskBanner) */
+export async function aplicarSugestaoScore(merchantId: string, motivo: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await getServerSession(authOptions)
+  if ((session?.user as any)?.role !== 'ADMIN') return { ok: false, error: 'Não autorizado' }
+
+  const adminEmail = (session!.user as any).email ?? ''
+  const adminName  = (session!.user as any).name  ?? adminEmail
+
+  try {
+    const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { sugestaoStatus: true } })
+    if (!anterior) return { ok: false, error: 'Score não encontrado' }
+
+    await prisma.masterScore.update({ where: { merchantId }, data: { sugestaoStatus: 'aplicada', updatedAt: new Date() } })
+    await registrarAuditControle({
+      merchantId, adminEmail, adminName,
+      acao: 'SUGESTAO_APLICADA',
+      valorAntes:  anterior.sugestaoStatus,
+      valorDepois: 'aplicada',
+      motivo,
     })
     return { ok: true }
   } catch (err: any) {

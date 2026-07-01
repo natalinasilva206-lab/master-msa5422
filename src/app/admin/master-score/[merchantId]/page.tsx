@@ -9,6 +9,7 @@ import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/layout/Topbar'
 import { SCORE_MAX, gerarSugestoes, type ScoreLevel, type ScoreStatus, type SugestaoCategoria, type SugestaoUrgencia } from '@/lib/masterScore'
 import { RecalcSellerButton } from '../ScoreActions'
+import AdminControls from './AdminControls'
 
 // ─── Formatadores ─────────────────────────────────────────────────────────────
 
@@ -125,7 +126,9 @@ export default async function MasterScoreDetalhe({ params }: Props) {
       balance: true, pendingBalance: true, reservedBalance: true,
       riskReservePercent: true, riskReleaseDays: true,
       createdAt: true,
-      masterScore: true,
+      masterScore: {
+        include: { audits: { orderBy: { createdAt: 'desc' }, take: 50 } },
+      },
     },
   })
 
@@ -605,6 +608,95 @@ export default async function MasterScoreDetalhe({ params }: Props) {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Controle Manual do ADM ── */}
+        {ms && (
+          <AdminControls
+            merchantId={merchant.id}
+            monitorado={ms.monitorado ?? false}
+            estrategico={ms.estrategico ?? false}
+            beneficioCongelado={ms.beneficioCongelado ?? false}
+            nivelManual={ms.nivelManual ?? null}
+            sugestaoStatus={(ms.sugestaoStatus ?? 'pendente') as any}
+            observacaoInterna={ms.observacaoInterna ?? null}
+          />
+        )}
+
+        {/* ── Auditoria de Ações Manuais ── */}
+        {ms && (ms as any).audits && (ms as any).audits.length > 0 && (
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+              <div>
+                <p className="text-[13px] font-semibold text-white">Log de Ações Manuais</p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">Registro completo de intervenções do ADM neste seller</p>
+              </div>
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-slate-700/40 bg-slate-800/60 text-slate-400">
+                {(ms as any).audits.length} registro{(ms as any).audits.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-800/40">
+              {((ms as any).audits as any[]).map((a: any) => {
+                const acaoMeta: Record<string, { label: string; cls: string; icon: string }> = {
+                  OBSERVACAO:            { label: 'Observação',        cls: 'text-slate-300 bg-slate-700/40 border-slate-600/30', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+                  MONITORADO:            { label: 'Monitorado',        cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20',    icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
+                  ESTRATEGICO:           { label: 'Estratégico',       cls: 'text-purple-400 bg-purple-500/10 border-purple-500/20', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
+                  NIVEL_MANUAL:          { label: 'Nível Manual',      cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20',  icon: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4' },
+                  SUGESTAO_IGNORADA:     { label: 'Sugestão Ignorada', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20',  icon: 'M6 18L18 6M6 6l12 12' },
+                  SUGESTAO_APLICADA:     { label: 'Sugestão Aplicada', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: 'M5 13l4 4L19 7' },
+                  BENEFICIO_CONGELADO:   { label: 'Benefício Congelado',  cls: 'text-orange-400 bg-orange-500/10 border-orange-500/20', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+                  BENEFICIO_DESCONGELADO:{ label: 'Benefício Ativado',    cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+                }
+                const am = acaoMeta[a.acao] ?? { label: a.acao, cls: 'text-slate-400 bg-slate-700/40 border-slate-600/30', icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+
+                return (
+                  <div key={a.id} className="px-5 py-3.5 hover:bg-slate-800/10 transition-colors">
+                    <div className="flex items-start gap-3">
+                      {/* Badge da ação */}
+                      <div className="shrink-0 mt-0.5">
+                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-full border ${am.cls}`}>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={am.icon} />
+                          </svg>
+                          {am.label}
+                        </span>
+                      </div>
+                      {/* Detalhe */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap mb-1">
+                          <p className="text-[12px] font-semibold text-slate-300">{a.adminName}</p>
+                          <span className="text-[11px] text-slate-600">{a.adminEmail}</span>
+                          <span className="text-[10.5px] text-slate-700 ml-auto">{fmtDate(a.createdAt)}</span>
+                        </div>
+                        {/* Antes → Depois */}
+                        {(a.valorAntes !== null || a.valorDepois !== null) && (
+                          <div className="flex items-center gap-2 mb-1.5">
+                            {a.valorAntes !== null && (
+                              <span className="text-[11px] px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/15 text-red-400 line-through">
+                                {a.valorAntes}
+                              </span>
+                            )}
+                            {a.valorAntes !== null && a.valorDepois !== null && (
+                              <svg className="w-3 h-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                              </svg>
+                            )}
+                            {a.valorDepois !== null && (
+                              <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/15 text-emerald-400">
+                                {a.valorDepois}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {/* Motivo */}
+                        <p className="text-[11px] text-slate-500 italic">&quot;{a.motivo}&quot;</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

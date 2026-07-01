@@ -162,8 +162,16 @@ model MasterScore {
   dataUltimaAtualizacao DateTime @default(now())
   observacaoInterna    String?
 
+  // Controles manuais do ADM
+  monitorado           Boolean  @default(false)
+  estrategico          Boolean  @default(false)
+  beneficioCongelado   Boolean  @default(false)
+  nivelManual          String?
+  sugestaoStatus       String   @default("pendente") // pendente | ignorada | aplicada
+
   // Histórico de alterações
   history              MasterScoreHistory[]
+  audits               MasterScoreAudit[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -200,4 +208,20 @@ model MasterScoreHistory {
   observacao      String?
 
   createdAt       DateTime @default(now())
+}
+
+model MasterScoreAudit {
+  id          String   @id @default(cuid())
+  merchantId  String
+  masterScore MasterScore @relation(fields: [merchantId], references: [merchantId])
+  adminEmail  String
+  adminName   String
+  acao        String   // OBSERVACAO | MONITORADO | ESTRATEGICO | NIVEL_MANUAL | SUGESTAO_IGNORADA | SUGESTAO_APLICADA | BENEFICIO_CONGELADO | BENEFICIO_DESCONGELADO
+  valorAntes  String?
+  valorDepois String?
+  motivo      String
+  createdAt   DateTime @default(now())
+
+  @@index([merchantId])
+  @@index([createdAt])
 }
