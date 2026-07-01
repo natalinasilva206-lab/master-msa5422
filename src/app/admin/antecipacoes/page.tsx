@@ -24,7 +24,8 @@ const avatarGradients = [
   'from-amber-500 to-amber-600',
 ]
 
-const taxaAntecipacao = 2.5
+const taxaPlano: Record<string, number> = { Start: 2.5, Growth: 2.0, Prime: 1.5, Black: 1.0 }
+const TAXA_DEFAULT = 2.5
 
 export default async function AntecipacoesPage() {
   const [merchants, antecipacaoLogs] = await Promise.all([
@@ -41,7 +42,11 @@ export default async function AntecipacoesPage() {
   ])
 
   const totalPendente    = merchants.reduce((s, m) => s + m.pendingBalance, 0)
-  const totalAntecipavel = totalPendente * (1 - taxaAntecipacao / 100)
+  const totalTaxas       = merchants.reduce((s, m) => {
+    const pct = taxaPlano[m.plan] ?? TAXA_DEFAULT
+    return s + Math.round(m.pendingBalance * (pct / 100) * 100) / 100
+  }, 0)
+  const totalAntecipavel = totalPendente - totalTaxas
 
   const totalAntecipado = antecipacaoLogs.reduce((s, l) => {
     try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
@@ -52,7 +57,7 @@ export default async function AntecipacoesPage() {
       <Topbar
         title="Antecipações"
         breadcrumb="Casa › Financeiro"
-        subtitle={`Taxa de antecipação: ${taxaAntecipacao}% sobre o valor pendente.`}
+        subtitle="Taxa por plano: Start 2.5% · Growth 2.0% · Prime 1.5% · Black 1.0%"
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -71,7 +76,7 @@ export default async function AntecipacoesPage() {
             {
               label: 'Antecipável Líquido',
               value: `R$ ${formatBRL(totalAntecipavel)}`,
-              sub: `após taxa de ${taxaAntecipacao}%`,
+              sub: 'após taxas por plano',
               color: 'text-emerald-400',
               bg: 'bg-emerald-500/10 text-emerald-500',
               icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
@@ -86,8 +91,8 @@ export default async function AntecipacoesPage() {
             },
             {
               label: 'Taxa de Antecipação',
-              value: `${taxaAntecipacao}%`,
-              sub: 'sobre o valor bruto',
+              value: `1–2.5%`,
+              sub: 'varia por plano do seller',
               color: 'text-purple-400',
               bg: 'bg-purple-500/10 text-purple-500',
               icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
@@ -148,7 +153,8 @@ export default async function AntecipacoesPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-800/40">
                     {merchants.map((m, i) => {
-                      const taxa    = Math.round(m.pendingBalance * (taxaAntecipacao / 100) * 100) / 100
+                      const taxaPercent = taxaPlano[m.plan] ?? TAXA_DEFAULT
+                      const taxa    = Math.round(m.pendingBalance * (taxaPercent / 100) * 100) / 100
                       const liquido = Math.round((m.pendingBalance - taxa) * 100) / 100
                       return (
                         <AntecipacaoRow
@@ -156,6 +162,7 @@ export default async function AntecipacoesPage() {
                           merchantId={m.id}
                           name={m.name}
                           plan={m.plan}
+                          taxaPercent={taxaPercent}
                           initial={getInitials(m.name)}
                           gradient={avatarGradients[i % avatarGradients.length]}
                           pendingBalance={m.pendingBalance}
@@ -172,7 +179,7 @@ export default async function AntecipacoesPage() {
                         <span className="text-[13px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(totalPendente)}</span>
                       </td>
                       <td className="px-4 py-2.5 text-right hidden md:table-cell">
-                        <span className="text-[13px] text-red-400 tabular-nums">−R$ {formatBRL(totalPendente * taxaAntecipacao / 100)}</span>
+                        <span className="text-[13px] text-red-400 tabular-nums">−R$ {formatBRL(totalTaxas)}</span>
                       </td>
                       <td className="px-5 py-2.5 text-right">
                         <span className="text-[13px] font-semibold text-emerald-400 tabular-nums">R$ {formatBRL(totalAntecipavel)}</span>
@@ -244,7 +251,7 @@ export default async function AntecipacoesPage() {
           <div>
             <p className="text-[12px] font-semibold text-blue-400">Como funciona a antecipação</p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              O seller solicita antecipação do saldo pendente. Uma taxa de {taxaAntecipacao}% é descontada e o valor líquido é liberado imediatamente no saldo disponível. O saldo pendente é gerenciado pela Master Pagamentos.
+              O seller solicita antecipação do saldo pendente. A taxa varia por plano: Start 2.5%, Growth 2.0%, Prime 1.5%, Black 1.0%. O valor líquido é liberado imediatamente no saldo disponível em CDI.
             </p>
           </div>
         </div>

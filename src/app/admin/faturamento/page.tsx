@@ -16,14 +16,6 @@ function formatBRLShort(v: number) {
   return `R$${v.toFixed(0)}`
 }
 
-function parseMeta(desc: string | null) {
-  if (!desc) return null
-  try { return JSON.parse(desc) } catch { return null }
-}
-
-function startOfDay(d: Date) {
-  const r = new Date(d); r.setHours(0,0,0,0); return r
-}
 
 type DayBucket = { date: string; volume: number; fees: number; count: number }
 
@@ -53,15 +45,22 @@ export default async function FaturamentoPage({
     days = 30
   }
 
-  const sales = await prisma.saleLog.findMany({
-    where: {
-      type: 'VENDA',
-      status: 'APPROVED',
-      createdAt: { gte: startDate },
-    },
-    select: { amount: true, description: true, createdAt: true },
-    orderBy: { createdAt: 'asc' },
-  })
+  const [sales, feePlans, allMerchants] = await Promise.all([
+    prisma.saleLog.findMany({
+      where: {
+        type: 'VENDA',
+        status: 'APROVADO',
+        createdAt: { gte: startDate },
+      },
+      select: { amount: true, description: true, createdAt: true, merchantId: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.feePlan.findMany({ select: { name: true, chargedPercent: true } }),
+    prisma.merchant.findMany({ select: { id: true, plan: true } }),
+  ])
+
+  const planFeeMap = new Map(feePlans.map(f => [f.name, f.chargedPercent]))
+  const merchantPlanMap = new Map(allMerchants.map(m => [m.id, m.plan]))
 
   // Build day buckets
   const bucketMap = new Map<string, DayBucket>()
@@ -77,8 +76,9 @@ export default async function FaturamentoPage({
     const key = s.createdAt.toISOString().slice(0, 10)
     const b = bucketMap.get(key)
     if (!b) continue
-    const meta = parseMeta(s.description)
-    const fee = typeof meta?.fee === 'number' ? meta.fee : s.amount * 0.07
+    const plan = merchantPlanMap.get(s.merchantId) ?? ''
+    const chargedPct = planFeeMap.get(plan) ?? 0
+    const fee = chargedPct > 0 ? s.amount * (chargedPct / 100) : 0
     b.volume += s.amount
     b.fees += fee
     b.count++
@@ -287,7 +287,7 @@ export default async function FaturamentoPage({
 async function EmpresaRanking({ startDate }: { startDate: Date }) {
   const rows = await prisma.saleLog.groupBy({
     by: ['merchantId'],
-    where: { type: 'VENDA', status: 'APPROVED', createdAt: { gte: startDate } },
+    where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: startDate } },
     _sum: { amount: true },
     _count: { id: true },
     orderBy: { _sum: { amount: 'desc' } },

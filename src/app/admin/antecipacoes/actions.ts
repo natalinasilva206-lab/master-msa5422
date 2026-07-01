@@ -20,7 +20,8 @@ function getIp(): string {
   } catch { return 'unknown' }
 }
 
-const TAXA_ANTECIPACAO = 2.5
+const taxaPlano: Record<string, number> = { Start: 2.5, Growth: 2.0, Prime: 1.5, Black: 1.0 }
+const TAXA_DEFAULT = 2.5
 
 export async function approveAntecipacao(merchantId: string) {
   const admin = await getAdminSession()
@@ -30,8 +31,9 @@ export async function approveAntecipacao(merchantId: string) {
   if (!merchant) throw new Error('Seller não encontrado.')
   if (merchant.pendingBalance <= 0) throw new Error('Sem saldo pendente para antecipar.')
 
+  const taxaPercent = taxaPlano[merchant.plan] ?? TAXA_DEFAULT
   const grossAmount = merchant.pendingBalance
-  const taxa        = Math.round(grossAmount * (TAXA_ANTECIPACAO / 100) * 100) / 100
+  const taxa        = Math.round(grossAmount * (taxaPercent / 100) * 100) / 100
   const netAmount   = Math.round((grossAmount - taxa) * 100) / 100
 
   await prisma.$transaction(async (tx) => {
@@ -52,7 +54,7 @@ export async function approveAntecipacao(merchantId: string) {
         metadata: JSON.stringify({
           grossAmount,
           taxa,
-          taxaPercent: TAXA_ANTECIPACAO,
+          taxaPercent,
           netAmount,
           merchantName:  merchant.name,
           adminName:     admin.name,
