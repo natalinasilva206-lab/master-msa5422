@@ -309,38 +309,82 @@ export async function useReserveForDispute(
 
     // Marca as ReserveRelease mais antigas como DISPUTA para impedir que o cron
     // libere automaticamente saldo que já foi movido para blockedBalance.
+    // Se um entry é apenas parcialmente consumido, ele é dividido:
+    //   - entry original: amount = parcela consumida, status = DISPUTA
+    //   - novo entry: amount = restante, todos os outros campos iguais, status = RESERVADO
     const reservesToMark = await prisma.reserveRelease.findMany({
       where: { merchantId: dispute.merchantId, status: 'RESERVADO' },
       orderBy: { saleDate: 'asc' },
-      select: { id: true, amount: true },
+      select: {
+        id: true, amount: true, merchantId: true, saleLogId: true,
+        saleAmount: true, reservePercent: true, releaseDays: true,
+        saleDate: true, releaseAt: true,
+      },
     })
+
     let remaining = amount
     const reserveIdsToMark: string[] = []
+    let partialEntry: (typeof reservesToMark)[0] | null = null
+    let partialConsumed = 0
+
     for (const r of reservesToMark) {
       if (remaining <= 0) break
-      reserveIdsToMark.push(r.id)
-      remaining -= r.amount
+      if (r.amount <= remaining) {
+        // Entry inteiramente consumido
+        reserveIdsToMark.push(r.id)
+        remaining -= r.amount
+      } else {
+        // Entry parcialmente consumido — registra para split
+        partialEntry = r
+        partialConsumed = remaining
+        remaining = 0
+      }
     }
 
-    await prisma.$transaction([
-      prisma.merchant.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.merchant.update({
         where: { id: dispute.merchantId },
         data: {
           reservedBalance: { decrement: amount },
           blockedBalance:  { increment: amount },
         },
-      }),
-      prisma.dispute.update({
+      })
+
+      await tx.dispute.update({
         where: { id: disputeId },
         data: { blockedAmount: { increment: amount } },
-      }),
-      ...(reserveIdsToMark.length > 0
-        ? [prisma.reserveRelease.updateMany({
-            where: { id: { in: reserveIdsToMark } },
-            data: { status: 'DISPUTA' },
-          })]
-        : []),
-      prisma.auditLog.create({
+      })
+
+      if (reserveIdsToMark.length > 0) {
+        await tx.reserveRelease.updateMany({
+          where: { id: { in: reserveIdsToMark } },
+          data: { status: 'DISPUTA' },
+        })
+      }
+
+      if (partialEntry && partialConsumed > 0) {
+        // Reduz o entry original ao valor consumido e marca como DISPUTA
+        await tx.reserveRelease.update({
+          where: { id: partialEntry.id },
+          data: { amount: partialConsumed, status: 'DISPUTA' },
+        })
+        // Cria entry para o restante, mantendo prazo e metadados originais
+        await tx.reserveRelease.create({
+          data: {
+            merchantId:     partialEntry.merchantId,
+            saleLogId:      partialEntry.saleLogId,
+            amount:         partialEntry.amount - partialConsumed,
+            saleAmount:     partialEntry.saleAmount,
+            reservePercent: partialEntry.reservePercent,
+            releaseDays:    partialEntry.releaseDays,
+            saleDate:       partialEntry.saleDate,
+            releaseAt:      partialEntry.releaseAt,
+            status:         'RESERVADO',
+          },
+        })
+      }
+
+      await tx.auditLog.create({
         data: {
           userId:   admin.id,
           action:   'DISPUTE_USE_RESERVE',
@@ -353,6 +397,7 @@ export async function useReserveForDispute(
             from:           'reservedBalance',
             to:             'blockedBalance',
             markedReserves: reserveIdsToMark,
+            partialSplit:   partialEntry ? { id: partialEntry.id, consumed: partialConsumed, remainder: partialEntry.amount - partialConsumed } : null,
             before,
             after: {
               reservedBalance: before.reservedBalance - amount,
@@ -360,8 +405,8 @@ export async function useReserveForDispute(
             },
           }, admin, ip),
         },
-      }),
-    ])
+      })
+    })
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
