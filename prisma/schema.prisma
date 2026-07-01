@@ -290,3 +290,24 @@ model SystemConfig {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  endpointId String
+  merchantId String
+  event      String
+  url        String
+  payload    String
+  statusCode Int?
+  response   String?
+  error      String?
+  attempt    Int      @default(1)
+  success    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([merchantId])
+  @@index([endpointId])
+  @@index([event])
+  @@index([success])
+  @@index([createdAt])
+}
