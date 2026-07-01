@@ -242,12 +242,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
 
           {/* Saldo Disponível Total */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Total Disponível</p>
-                <p className="text-[22px] font-bold text-amber-400 tabular-nums leading-none">{formatBRLShort(totalPending)}</p>
-                <p className="text-[12px] text-slate-500 mt-1.5">pendingBalance de todos os sellers</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Total Disponível</p>
+                <p className="text-[20px] font-bold text-amber-400 tabular-nums leading-none">{formatBRLShort(totalPending)}</p>
+                <p className="text-[12px] text-slate-600 mt-1.5">saldo disponível dos sellers</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -258,12 +258,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* Empresas Ativas */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Empresas Ativas</p>
-                <p className="text-[24px] font-bold text-white tabular-nums leading-none">{activeMerchants}</p>
-                <p className="text-[12px] text-slate-500 mt-1.5">{totalMerchants} total cadastradas</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Empresas Ativas</p>
+                <p className="text-[20px] font-bold text-white tabular-nums leading-none">{activeMerchants}</p>
+                <p className="text-[12px] text-slate-600 mt-1.5">{totalMerchants} total cadastradas</p>
               </div>
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 ml-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -274,14 +274,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* Pendências */}
-          <div className={`rounded-xl p-4 transition-colors border ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
+          <div className={`rounded-xl p-5 transition-colors border ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Pendências</p>
-                <p className={`text-[24px] font-bold tabular-nums leading-none ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'text-amber-400' : 'text-white'}`}>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Pendências</p>
+                <p className={`text-[20px] font-bold tabular-nums leading-none ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'text-amber-400' : 'text-white'}`}>
                   {unresolvedPendingLogs.length + pendingCdiEarly.length}
                 </p>
-                <p className="text-[12px] text-slate-500 mt-1.5">
+                <p className="text-[12px] text-slate-600 mt-1.5">
                   {unresolvedPendingLogs.length} saques · {pendingCdiEarly.length} resgates CDI
                 </p>
               </div>
@@ -294,12 +294,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* KYC em revisão */}
-          <div className={`rounded-xl p-4 transition-colors border ${reviewMerchants > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
+          <div className={`rounded-xl p-5 transition-colors border ${reviewMerchants > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">KYC em Revisão</p>
-                <p className={`text-[24px] font-bold tabular-nums leading-none ${reviewMerchants > 0 ? 'text-amber-400' : 'text-white'}`}>{reviewMerchants}</p>
-                <p className="text-[12px] text-slate-500 mt-1.5">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">KYC em Revisão</p>
+                <p className={`text-[20px] font-bold tabular-nums leading-none ${reviewMerchants > 0 ? 'text-amber-400' : 'text-white'}`}>{reviewMerchants}</p>
+                <p className="text-[12px] text-slate-600 mt-1.5">
                   {reviewMerchants > 0 ? `${reviewMerchants} seller${reviewMerchants !== 1 ? 's' : ''} aguardando` : 'Nenhum em revisão'}
                 </p>
               </div>
@@ -312,11 +312,11 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* Saldo Merchants */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors cursor-pointer group">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 hover:bg-slate-800/40 transition-colors cursor-pointer group">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Merchants</p>
-                <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">{formatBRLShort(totalBalance)}</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Saldo Merchants</p>
+                <p className="text-[20px] font-bold text-emerald-400 tabular-nums leading-none">{formatBRLShort(totalBalance)}</p>
                 <Link href="/admin/cdi" className="text-[12px] text-slate-600 group-hover:text-blue-400 mt-1.5 block transition-colors">
                   Clique para ver detalhes
                 </Link>
@@ -336,7 +336,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
 
           {/* Gráfico area/line */}
           <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
               <div>
                 <p className="text-[18px] font-semibold text-white">Volume de Transações</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Últimos 7 dias · volume de vendas aprovadas</p>
@@ -410,7 +410,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
 
           {/* Principais Empresas */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-4 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div className="px-4 py-4 border-b border-slate-800/60 flex items-center justify-between">
               <p className="text-[18px] font-semibold text-white">Principais Empresas</p>
               <Link
                 href="/admin/cdi"
@@ -466,7 +466,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           <div className={`rounded-xl overflow-hidden border ${unresolvedPendingLogs.length > 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
-            <div className={`px-5 py-3.5 border-b flex items-center justify-between ${unresolvedPendingLogs.length > 0 ? 'border-emerald-500/15' : 'border-slate-800/60'}`}>
+            <div className={`px-5 py-4 border-b flex items-center justify-between ${unresolvedPendingLogs.length > 0 ? 'border-emerald-500/15' : 'border-slate-800/60'}`}>
               <div>
                 <p className="text-[18px] font-semibold text-white">Saques Pendentes</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Aguardando aprovação admin</p>
@@ -528,7 +528,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           <div className={`rounded-xl overflow-hidden border ${recentDisputes.length > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
-            <div className={`px-5 py-3.5 border-b flex items-center justify-between ${recentDisputes.length > 0 ? 'border-red-500/15' : 'border-slate-800/60'}`}>
+            <div className={`px-5 py-4 border-b flex items-center justify-between ${recentDisputes.length > 0 ? 'border-red-500/15' : 'border-slate-800/60'}`}>
               <div>
                 <p className="text-[18px] font-semibold text-white">Chargebacks Recentes</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Disputas em andamento</p>

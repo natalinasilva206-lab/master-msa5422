@@ -281,17 +281,17 @@ export default async function ClienteCdiPage() {
               icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
             },
           ].map((c) => (
-            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 hover:bg-slate-800/40 transition-colors`}>
+            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-5 hover:bg-slate-800/40 transition-colors`}>
               <div className="flex items-start justify-between mb-2">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest leading-tight">{c.label}</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest leading-tight">{c.label}</p>
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-1 ${c.iconBg}`}>
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                     <path strokeLinecap="round" strokeLinejoin="round" d={c.icon} />
                   </svg>
                 </div>
               </div>
-              <p className={`text-[18px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
-              <p className="text-[10px] text-slate-600 mt-1.5">{c.sub}</p>
+              <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+              <p className="text-[12px] text-slate-600 mt-1.5">{c.sub}</p>
             </div>
           ))}
         </section>
@@ -302,7 +302,7 @@ export default async function ClienteCdiPage() {
           {/* Growth Chart */}
           {saldo > 0 && (
             <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+              <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-white">Curva de Crescimento CDI</p>
                   <p className="text-[10.5px] text-slate-500 mt-0.5">
@@ -345,7 +345,7 @@ export default async function ClienteCdiPage() {
 
           {/* Histórico de Rendimentos CDI */}
           <div className={`bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden ${saldo === 0 ? 'lg:col-span-2' : ''}`}>
-            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
               <div>
                 <p className="text-[13px] font-semibold text-white">Histórico de Rendimentos</p>
                 <p className="text-[10.5px] text-slate-500 mt-0.5">
@@ -427,7 +427,7 @@ export default async function ClienteCdiPage() {
           <CdiSimulator cdiRate={cdiRate} initialBalance={saldo} />
 
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <div className="px-5 py-4 border-b border-slate-800/60">
               <p className="text-[13px] font-semibold text-white">Projeção de Rendimento</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">
                 {saldo > 0 ? `Juros compostos sobre R$ ${formatBRL(saldo)}` : 'Aporte para ver a projeção'}
@@ -471,7 +471,7 @@ export default async function ClienteCdiPage() {
         {/* Histórico de solicitações de resgate antecipado */}
         {earlyRequestLogs.length > 0 && (
           <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <div className="px-5 py-4 border-b border-slate-800/60">
               <p className="text-[13px] font-semibold text-white">Solicitações de Resgate Antecipado</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">Histórico das suas solicitações de títulos bloqueados</p>
             </div>

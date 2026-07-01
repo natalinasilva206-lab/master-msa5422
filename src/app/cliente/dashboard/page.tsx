@@ -262,15 +262,15 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               iconBg: 'bg-amber-500/10 text-amber-400',
             },
           ].map((c) => (
-            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-3.5 flex flex-col gap-2`}>
+            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 flex flex-col gap-2`}>
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${c.iconBg}`}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={c.icon} />
                 </svg>
               </div>
               <div>
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest leading-tight mb-0.5">{c.label}</p>
-                <p className={`text-[22px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest leading-tight mb-0.5">{c.label}</p>
+                <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
                 <p className="text-[12px] text-slate-700 mt-1">{c.sub}</p>
               </div>
             </div>
@@ -279,7 +279,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
         {/* ── Aviso de saldo protegido (só exibe quando há algum) ── */}
         {totalProtected > 0 && (
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-5 py-3.5 flex items-start gap-3">
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-5 py-4 flex items-start gap-3">
             <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
@@ -349,7 +349,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
           {/* Activity Chart */}
           <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
               <div>
                 <p className="text-[18px] font-semibold text-white">Volume de Entradas</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Vendas + rendimentos CDI no período</p>
@@ -414,9 +414,9 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
           <div className="flex flex-col gap-3">
 
             {/* Saldo card */}
-            <div className="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4">
-              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">Saldo Disponível</p>
-              <p className="text-[28px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
+            <div className="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-5">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Saldo Disponível</p>
+              <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(pendente)}</p>
               <p className="text-[12px] text-slate-600 mt-1.5 mb-3">Disponível para saque ou aporte CDI</p>
               <div className="grid grid-cols-2 gap-1.5">
                 <Link href="/cliente/saques" className="flex items-center justify-center gap-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold transition-colors">
@@ -431,12 +431,12 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
             </div>
 
             {/* CDI quick stats */}
-            <div className={`border rounded-2xl p-4 ${planBg[plano] ?? 'bg-slate-900/60 border-slate-800/70'}`}>
+            <div className={`border rounded-2xl p-5 ${planBg[plano] ?? 'bg-slate-900/60 border-slate-800/70'}`}>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest">Saldo em CDI</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Saldo em CDI</p>
                 <span className={`text-[10px] font-bold ${planColor[plano] ?? 'text-white'}`}>{plano}</span>
               </div>
-              <p className="text-[24px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(saldo)}</p>
+              <p className="text-[20px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(saldo)}</p>
               <div className="mt-3 pt-3 border-t border-slate-800/40 grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-[11px] text-slate-700 uppercase tracking-wider">Previsto/mês</p>
@@ -476,7 +476,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
 
         {/* ── Últimas Movimentações ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
             <div>
               <p className="text-[18px] font-semibold text-white">Últimas Movimentações</p>
               <p className="text-[13px] text-slate-600 mt-0.5">
@@ -529,7 +529,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
           {/* CDI Simulation */}
           {saldo > 0 && (
             <div className="bg-slate-900/60 border border-slate-800/70 rounded-2xl overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-slate-800/60">
+              <div className="px-5 py-4 border-b border-slate-800/60">
                 <p className="text-[18px] font-semibold text-white">Simulação CDI</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">{cdiRate.toFixed(2)}%/mês · {cdiAnual.toFixed(2)}% a.a.</p>
               </div>

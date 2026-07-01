@@ -195,9 +195,9 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
               { label: 'Liberação Futura',  value: merchant.futureBalance,   color: 'text-blue-400',    border: 'border-blue-500/15',    sub: 'agendado' },
             ].map((c) => (
               <div key={c.label} className={`bg-slate-800/50 border ${c.border} rounded-xl p-4`}>
-                <p className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">{c.label}</p>
-                <p className={`text-[17px] font-bold tabular-nums leading-none ${c.color}`}>R$ {formatBRL(c.value)}</p>
-                <p className="text-[9.5px] text-slate-600 mt-1">{c.sub}</p>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1.5">{c.label}</p>
+                <p className={`text-[18px] font-bold tabular-nums leading-none ${c.color}`}>R$ {formatBRL(c.value)}</p>
+                <p className="text-[12px] text-slate-600 mt-1">{c.sub}</p>
               </div>
             ))}
           </div>
@@ -336,9 +336,9 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
                 },
               ].map((c) => (
                 <div key={c.label} className="bg-slate-800/50 border border-slate-700/40 rounded-xl p-3">
-                  <p className="text-[9.5px] font-bold text-slate-500 uppercase tracking-widest mb-1">{c.label}</p>
-                  <p className={`text-[17px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
-                  <p className="text-[9.5px] text-slate-600 mt-1 leading-tight">{c.sub}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1">{c.label}</p>
+                  <p className={`text-[18px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                  <p className="text-[12px] text-slate-600 mt-1 leading-tight">{c.sub}</p>
                 </div>
               ))}
             </div>
