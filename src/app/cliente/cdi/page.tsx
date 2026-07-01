@@ -17,7 +17,7 @@ function anualizarTaxa(mensal: number) {
   return (Math.pow(1 + mensal / 100, 12) - 1) * 100
 }
 
-function formatDate(d: Date) {
+function formatDate(d: Date | string) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
 
@@ -35,6 +35,22 @@ function smoothPath(pts: { x: number; y: number }[]): string {
   return d
 }
 
+function nextCreditDate(lastCreditAt: Date | null): { label: string; daysLeft: number } {
+  const base = lastCreditAt ? new Date(lastCreditAt) : new Date()
+  const next = new Date(base)
+  if (lastCreditAt) {
+    next.setMonth(next.getMonth() + 1)
+  } else {
+    // No credit yet — next 1st of next month
+    next.setDate(1)
+    next.setMonth(next.getMonth() + 1)
+  }
+  next.setHours(0, 0, 0, 0)
+  const daysLeft = Math.ceil((next.getTime() - Date.now()) / 86400000)
+  const label = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(next)
+  return { label, daysLeft: Math.max(0, daysLeft) }
+}
+
 const meses = [
   { label: '1 mês',    n: 1  },
   { label: '3 meses',  n: 3  },
@@ -43,6 +59,21 @@ const meses = [
   { label: '24 meses', n: 24 },
   { label: '36 meses', n: 36 },
 ]
+
+// Comparativo de rentabilidade (referências de mercado — valores ilustrativos fixos)
+const SELIC_ANUAL  = 10.50  // % a.a. (referência)
+const POUP_MENSAL  = 0.5    // % a.m. (referência)
+const SELIC_MENSAL = (Math.pow(1 + SELIC_ANUAL / 100, 1 / 12) - 1) * 100
+
+const extratoMeta: Record<string, { label: string; icon: string; color: string; sign: '+' | '-' | '' }> = {
+  ADD_TO_CDI:         { label: 'Aporte CDI',            icon: 'M12 4v16m8-8H4',                                                        color: 'text-emerald-400', sign: '+' },
+  CDI_WITHDRAW:       { label: 'Resgate CDI',           icon: 'M5 10l7-7m0 0l7 7m-7-7v18',                                             color: 'text-orange-400',  sign: '-' },
+  CDI_CREDIT:         { label: 'Rendimento creditado',  icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',                                        color: 'text-emerald-300', sign: '+' },
+  CDI_LOCK_SET:       { label: 'Título bloqueado',      icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', color: 'text-blue-400', sign: '' },
+  CDI_EARLY_REQUEST:  { label: 'Resgate antecip. pedido', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',                        color: 'text-amber-400',   sign: '' },
+  CDI_EARLY_APPROVED: { label: 'Resgate antecip. aprovado', icon: 'M5 13l4 4L19 7',                                                    color: 'text-emerald-400', sign: '-' },
+  CDI_EARLY_DENIED:   { label: 'Resgate antecip. negado',   icon: 'M6 18L18 6M6 6l12 12',                                              color: 'text-red-400',     sign: '' },
+}
 
 export default async function ClienteCdiPage() {
   const session = await getServerSession(authOptions)
@@ -58,7 +89,7 @@ export default async function ClienteCdiPage() {
   const cdiAnual = anualizarTaxa(cdiRate)
   const plano    = merchant?.plan      ?? '—'
 
-  const [lockLogs, earlyRequestLogs, earlyResolvedLogs, cdiCreditLogs] = merchant
+  const [lockLogs, earlyRequestLogs, earlyResolvedLogs, allCdiLogs, lastCreditLog, firstDepositLog] = merchant
     ? await Promise.all([
         prisma.auditLog.findMany({
           where: { entityId: merchant.id, action: 'CDI_LOCK_SET' },
@@ -71,13 +102,25 @@ export default async function ClienteCdiPage() {
         prisma.auditLog.findMany({
           where: { entityId: merchant.id, action: { in: ['CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] } },
         }),
+        // Full CDI statement — all events
         prisma.auditLog.findMany({
+          where: {
+            entityId: merchant.id,
+            action: { in: ['ADD_TO_CDI', 'CDI_WITHDRAW', 'CDI_CREDIT', 'CDI_LOCK_SET', 'CDI_EARLY_REQUEST', 'CDI_EARLY_APPROVED', 'CDI_EARLY_DENIED'] },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 40,
+        }),
+        prisma.auditLog.findFirst({
           where: { entityId: merchant.id, action: 'CDI_CREDIT' },
           orderBy: { createdAt: 'desc' },
-          take: 24,
+        }),
+        prisma.auditLog.findFirst({
+          where: { entityId: merchant.id, action: 'ADD_TO_CDI' },
+          orderBy: { createdAt: 'asc' },
         }),
       ])
-    : [[], [], [], []]
+    : [[], [], [], [], null, null]
 
   const resolvedReqIds = new Set<string>()
   for (const log of earlyResolvedLogs) {
@@ -103,17 +146,12 @@ export default async function ClienteCdiPage() {
     try {
       const m = JSON.parse(log.metadata ?? '{}')
       if (!m.expiresAt || !m.amount) continue
-      const exp = m.expiresAt as string
-      if (new Date(exp + 'T23:59:59') <= new Date()) continue
+      if (new Date(m.expiresAt + 'T23:59:59') <= new Date()) continue
       const pending = pendingByLock.get(log.id)
       titulos.push({
-        id: log.id,
-        amount: parseFloat(m.amount),
-        expiresAt: exp,
-        rate: parseFloat(m.rate ?? cdiRate),
-        createdAt: log.createdAt.toISOString(),
-        pendingRequestId: pending?.id,
-        pendingAmount: pending?.amount,
+        id: log.id, amount: parseFloat(m.amount), expiresAt: m.expiresAt,
+        rate: parseFloat(m.rate ?? cdiRate), createdAt: log.createdAt.toISOString(),
+        pendingRequestId: pending?.id, pendingAmount: pending?.amount,
       })
       lockedTotal += parseFloat(m.amount)
     } catch {}
@@ -121,10 +159,18 @@ export default async function ClienteCdiPage() {
 
   const freeCdiBalance = Math.max(0, saldo - lockedTotal)
 
-  // Rendimento acumulado real (soma dos CDI_CREDIT)
+  // CDI credits only (for mini chart)
+  const cdiCreditLogs = allCdiLogs.filter((l) => l.action === 'CDI_CREDIT')
+
   const totalCdiEarned = cdiCreditLogs.reduce((s, l) => {
     try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
   }, 0)
+
+  const totalAportado = allCdiLogs.filter((l) => l.action === 'ADD_TO_CDI').reduce((s, l) => {
+    try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
+  }, 0)
+
+  const retornoTotal = totalAportado > 0 ? (totalCdiEarned / totalAportado) * 100 : 0
 
   // Group CDI credits by month for mini chart
   const creditsByMonth: Record<string, number> = {}
@@ -145,8 +191,7 @@ export default async function ClienteCdiPage() {
   const W = 500, H = 130, PAD = 12
   const chartMonths = 36
   const chartPts = Array.from({ length: chartMonths + 1 }, (_, n) => {
-    const val = saldo > 0 ? saldo * Math.pow(1 + cdiRate / 100, n) : n * 10
-    return val
+    return saldo > 0 ? saldo * Math.pow(1 + cdiRate / 100, n) : n * 10
   })
   const minV = chartPts[0]
   const maxV = chartPts[chartMonths]
@@ -157,6 +202,14 @@ export default async function ClienteCdiPage() {
   const linePath = smoothPath(svgPts)
   const areaPath = linePath + ` L ${svgPts[chartMonths].x} ${H - PAD} L ${svgPts[0].x} ${H - PAD} Z`
   const milestones = [0, 6, 12, 24, 36]
+
+  // Próximo crédito
+  const { label: proximoCreditoLabel, daysLeft: diasParaCredito } = nextCreditDate(lastCreditLog?.createdAt ?? null)
+
+  // Tempo desde primeiro aporte
+  const diasInvestido = firstDepositLog
+    ? Math.floor((Date.now() - new Date(firstDepositLog.createdAt).getTime()) / 86400000)
+    : 0
 
   return (
     <div>
@@ -174,7 +227,34 @@ export default async function ClienteCdiPage() {
 
       <div className="p-4 xl:p-6 space-y-4">
 
-        {/* Aporte — always visible */}
+        {/* Próximo crédito banner */}
+        {saldo > 0 && (
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-5 py-3.5 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[12.5px] font-semibold text-emerald-300">
+                  Próximo rendimento em <span className="text-white">{diasParaCredito} dia{diasParaCredito !== 1 ? 's' : ''}</span>
+                  {' '}— {proximoCreditoLabel}
+                </p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">
+                  Rendimento estimado: <span className="text-emerald-400 font-semibold">+R$ {formatBRL(rendimentoMes)}</span>
+                </p>
+              </div>
+            </div>
+            {diasInvestido > 0 && (
+              <span className="text-[11px] text-slate-500 font-medium">
+                {diasInvestido} dia{diasInvestido !== 1 ? 's' : ''} investindo
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Aporte */}
         <div className={`border rounded-xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap ${pendente > 0 ? 'bg-amber-500/5 border-amber-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
           <div className="flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${pendente > 0 ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-800/60 text-slate-500'}`}>
@@ -186,7 +266,7 @@ export default async function ClienteCdiPage() {
               <p className={`text-[12.5px] font-semibold ${pendente > 0 ? 'text-amber-300' : 'text-slate-400'}`}>
                 {pendente > 0
                   ? `R$ ${formatBRL(pendente)} disponível para aportar no CDI`
-                  : 'Aportar saldo pendente no CDI'}
+                  : 'Aportar saldo disponível no CDI'}
               </p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">
                 {pendente > 0
@@ -212,9 +292,7 @@ export default async function ClienteCdiPage() {
                   R$ {formatBRL(freeCdiBalance)} CDI livre — resgatar para disponível
                 </p>
                 <p className="text-[10.5px] text-slate-500 mt-0.5">
-                  {lockedTotal > 0
-                    ? `R$ ${formatBRL(lockedTotal)} bloqueados em títulos`
-                    : 'O valor resgatado vai para seu saldo disponível'}
+                  {lockedTotal > 0 ? `R$ ${formatBRL(lockedTotal)} bloqueados em títulos` : 'O valor vai para seu saldo disponível'}
                 </p>
               </div>
             </div>
@@ -232,7 +310,7 @@ export default async function ClienteCdiPage() {
           />
         )}
 
-        {/* KPIs — 5 cards */}
+        {/* KPIs */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             {
@@ -254,27 +332,27 @@ export default async function ClienteCdiPage() {
               icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
             },
             {
-              label: 'Taxa Mensal',
-              value: `${cdiRate.toFixed(2)}%`,
-              sub: `plano ${plano} · ${cdiAnual.toFixed(2)}% a.a.`,
-              color: 'text-amber-400',
-              border: 'border-amber-500/20',
-              iconBg: 'bg-amber-500/10 text-amber-400',
-              icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
+              label: 'Retorno Total',
+              value: totalAportado > 0 ? `+${retornoTotal.toFixed(2)}%` : '—',
+              sub: totalAportado > 0 ? `sobre R$ ${formatBRL(totalAportado)} aportados` : 'aporte para começar',
+              color: retornoTotal > 0 ? 'text-emerald-300' : 'text-slate-500',
+              border: 'border-slate-800/70',
+              iconBg: 'bg-emerald-500/10 text-emerald-500',
+              icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
             },
             {
               label: 'Rendimento/Mês',
               value: saldo > 0 ? `R$ ${formatBRL(rendimentoMes)}` : '—',
-              sub: 'projeção do mês atual',
+              sub: `${cdiRate.toFixed(2)}%/mês · plano ${plano}`,
               color: 'text-white',
               border: 'border-slate-800/70',
               iconBg: 'bg-purple-500/10 text-purple-400',
-              icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+              icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
             },
             {
               label: 'Em 12 Meses',
               value: saldo > 0 ? `R$ ${formatBRL(rendimento12m)}` : '—',
-              sub: 'rendimento projetado',
+              sub: `${cdiAnual.toFixed(2)}% a.a. equivalente`,
               color: 'text-purple-400',
               border: 'border-slate-800/70',
               iconBg: 'bg-slate-800/60 text-slate-400',
@@ -296,7 +374,7 @@ export default async function ClienteCdiPage() {
           ))}
         </section>
 
-        {/* Chart + Histórico de rendimentos lado a lado */}
+        {/* Chart + Comparativo */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Growth Chart */}
@@ -305,9 +383,7 @@ export default async function ClienteCdiPage() {
               <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-white">Curva de Crescimento CDI</p>
-                  <p className="text-[10.5px] text-slate-500 mt-0.5">
-                    Projeção em 36 meses · {cdiRate.toFixed(2)}%/mês juros compostos
-                  </p>
+                  <p className="text-[10.5px] text-slate-500 mt-0.5">Projeção em 36 meses · juros compostos</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Em 36 meses</p>
@@ -330,8 +406,7 @@ export default async function ClienteCdiPage() {
                   <path d={areaPath} fill="url(#cdiAreaGrad)" />
                   <path d={linePath} fill="none" stroke="#10b981" strokeWidth={2.5} strokeLinejoin="round" />
                   {milestones.map((m) => (
-                    <circle key={m} cx={svgPts[m]?.x ?? 0} cy={svgPts[m]?.y ?? 0}
-                      r={m === 0 || m === 36 ? 4 : 3} fill="#10b981" stroke="#080c12" strokeWidth={1.5} />
+                    <circle key={m} cx={svgPts[m]?.x ?? 0} cy={svgPts[m]?.y ?? 0} r={m === 0 || m === 36 ? 4 : 3} fill="#10b981" stroke="#080c12" strokeWidth={1.5} />
                   ))}
                 </svg>
               </div>
@@ -343,86 +418,79 @@ export default async function ClienteCdiPage() {
             </div>
           )}
 
-          {/* Histórico de Rendimentos CDI */}
+          {/* Comparativo CDI vs Selic vs Poupança */}
           <div className={`bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden ${saldo === 0 ? 'lg:col-span-2' : ''}`}>
-            <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
-              <div>
-                <p className="text-[13px] font-semibold text-white">Histórico de Rendimentos</p>
-                <p className="text-[10.5px] text-slate-500 mt-0.5">
-                  {cdiCreditLogs.length > 0
-                    ? `${cdiCreditLogs.length} crédito${cdiCreditLogs.length !== 1 ? 's' : ''} · Total: R$ ${formatBRL(totalCdiEarned)}`
-                    : 'Créditos mensais de CDI aparecerão aqui'}
-                </p>
-              </div>
-              {totalCdiEarned > 0 && (
-                <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-                  +R$ {formatBRL(totalCdiEarned)}
-                </span>
-              )}
+            <div className="px-5 py-4 border-b border-slate-800/60">
+              <p className="text-[13px] font-semibold text-white">Comparativo de Rentabilidade</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                Referências de mercado · valores ilustrativos
+              </p>
             </div>
-
-            {cdiCreditLogs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800/60 flex items-center justify-center mb-3">
-                  <svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                </div>
-                <p className="text-[12.5px] font-semibold text-slate-600">Nenhum rendimento ainda</p>
-                <p className="text-[11px] text-slate-700 mt-1 max-w-xs">
-                  {saldo > 0
-                    ? 'Seu primeiro crédito CDI será creditado no próximo ciclo mensal.'
-                    : 'Aporte saldo no CDI para começar a receber rendimentos mensalmente.'}
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Mini bar chart by month */}
-                {creditMonthEntries.length > 1 && (
-                  <div className="px-5 pt-3.5 pb-2">
-                    <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest mb-2">Rendimentos por mês</p>
-                    <div className="flex items-end gap-1.5 h-10">
-                      {creditMonthEntries.map(([month, val], i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${month}: R$ ${formatBRL(val)}`}>
-                          <div
-                            className="w-full rounded-t-sm bg-gradient-to-t from-emerald-700/60 to-emerald-500/40"
-                            style={{ height: `${Math.max((val / creditMax) * 100, 8)}%` }}
-                          />
-                          <span className="text-[7.5px] text-slate-700 truncate w-full text-center">{month.slice(0, 3)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="divide-y divide-slate-800/30 max-h-[280px] overflow-y-auto">
-                  {cdiCreditLogs.map((log) => {
-                    let amount = 0
-                    try { amount = parseFloat(JSON.parse(log.metadata ?? '{}').amount || 0) } catch {}
-                    return (
-                      <div key={log.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
-                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-medium text-slate-200">Crédito CDI</p>
-                          <p className="text-[10px] text-slate-600">{formatDate(new Date(log.createdAt))}</p>
-                        </div>
-                        <p className="text-[12.5px] font-bold text-emerald-400 tabular-nums shrink-0">
-                          +R$ {formatBRL(amount)}
-                        </p>
+            <div className="p-4 space-y-3">
+              {[
+                {
+                  label: `Master Pagamentos CDI`,
+                  mensal: cdiRate,
+                  anual: cdiAnual,
+                  color: 'bg-emerald-500',
+                  textColor: 'text-emerald-400',
+                  badge: 'Seu rendimento',
+                  badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                  highlight: true,
+                },
+                {
+                  label: 'Selic (CDI de mercado)',
+                  mensal: SELIC_MENSAL,
+                  anual: SELIC_ANUAL,
+                  color: 'bg-blue-500',
+                  textColor: 'text-blue-400',
+                  badge: 'Referência',
+                  badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                  highlight: false,
+                },
+                {
+                  label: 'Poupança',
+                  mensal: POUP_MENSAL,
+                  anual: (Math.pow(1 + POUP_MENSAL / 100, 12) - 1) * 100,
+                  color: 'bg-slate-500',
+                  textColor: 'text-slate-400',
+                  badge: 'Referência',
+                  badgeColor: 'bg-slate-700/60 text-slate-500 border-slate-600/40',
+                  highlight: false,
+                },
+              ].map((item) => {
+                const barPct = (item.anual / Math.max(cdiAnual, SELIC_ANUAL, 12)) * 100
+                return (
+                  <div key={item.label} className={`rounded-xl p-3.5 border ${item.highlight ? 'bg-emerald-500/5 border-emerald-500/15' : 'bg-slate-800/30 border-slate-700/30'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className={`text-[12.5px] font-semibold ${item.textColor}`}>{item.label}</p>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${item.badgeColor}`}>{item.badge}</span>
                       </div>
-                    )
-                  })}
-                </div>
-              </>
-            )}
+                      <div className="text-right">
+                        <p className={`text-[15px] font-bold tabular-nums ${item.textColor}`}>{item.anual.toFixed(2)}% a.a.</p>
+                        <p className="text-[10px] text-slate-600">{item.mensal.toFixed(2)}%/mês</p>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div className={`h-full ${item.color} rounded-full transition-all`} style={{ width: `${Math.min(barPct, 100)}%` }} />
+                    </div>
+                    {item.highlight && saldo > 0 && (
+                      <p className="text-[10px] text-slate-600 mt-1.5">
+                        Em 12 meses: <span className="text-emerald-400 font-semibold">R$ {formatBRL(saldo * (1 + item.anual / 100))}</span>
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+              <p className="text-[9.5px] text-slate-700 text-center pt-1">
+                Valores de Selic e Poupança são ilustrativos — sujeitos a variação de mercado
+              </p>
+            </div>
           </div>
-
         </div>
 
-        {/* Simulator + Projection */}
+        {/* Projeção + Simulador */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <CdiSimulator cdiRate={cdiRate} initialBalance={saldo} />
 
@@ -436,14 +504,13 @@ export default async function ClienteCdiPage() {
             {saldo === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-slate-700">
                 <p className="text-[12.5px] font-medium">Sem saldo para projetar</p>
-                <p className="text-[11px] text-slate-800 mt-1">Quando aportado, a projeção aparece aqui.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-800/40">
                 {meses.map(({ label, n }) => {
                   const rend  = saldo * (Math.pow(1 + cdiRate / 100, n) - 1)
                   const total = saldo + rend
-                  const pct   = ((rend / (maxRend || 1)) * 100)
+                  const pct   = (rend / (maxRend || 1)) * 100
                   const rendPct = ((rend / saldo) * 100).toFixed(2)
                   return (
                     <div key={label} className="px-5 py-3 hover:bg-slate-800/25 transition-colors">
@@ -455,10 +522,7 @@ export default async function ClienteCdiPage() {
                         </div>
                       </div>
                       <div className="h-0.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
+                        <div className="h-full bg-gradient-to-r from-emerald-700 to-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   )
@@ -468,58 +532,109 @@ export default async function ClienteCdiPage() {
           </div>
         </section>
 
-        {/* Histórico de solicitações de resgate antecipado */}
-        {earlyRequestLogs.length > 0 && (
-          <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-800/60">
-              <p className="text-[13px] font-semibold text-white">Solicitações de Resgate Antecipado</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">Histórico das suas solicitações de títulos bloqueados</p>
+        {/* Extrato CDI Unificado */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Extrato CDI</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                Todas as movimentações da sua conta CDI
+              </p>
             </div>
-            <div className="divide-y divide-slate-800/40">
-              {earlyRequestLogs.map((req) => {
-                const isPending = !resolvedReqIds.has(req.id)
+            {creditMonthEntries.length > 1 && (
+              <div className="flex items-end gap-1.5 h-8 shrink-0">
+                {creditMonthEntries.map(([month, val], i) => (
+                  <div key={i} className="flex flex-col items-center gap-0.5" style={{ width: 18 }} title={`${month}: R$ ${formatBRL(val)}`}>
+                    <div
+                      className="w-full rounded-t-sm bg-gradient-to-t from-emerald-700/60 to-emerald-500/40"
+                      style={{ height: `${Math.max((val / creditMax) * 100, 10)}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {allCdiLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-12 h-12 rounded-2xl bg-slate-800/60 flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <p className="text-[12.5px] font-semibold text-slate-600">Nenhuma movimentação ainda</p>
+              <p className="text-[11px] text-slate-700 mt-1 max-w-xs">
+                Aporte saldo no CDI para começar. Todas as operações aparecerão aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-800/30 max-h-[420px] overflow-y-auto">
+              {allCdiLogs.map((log) => {
+                const meta = extratoMeta[log.action]
+                if (!meta) return null
                 let amount = 0
-                try { amount = parseFloat(JSON.parse(req.metadata ?? '{}').amount || 0) } catch {}
-                const resolved = earlyResolvedLogs.find((r) => {
-                  try { return JSON.parse(r.metadata ?? '{}').requestLogId === req.id } catch { return false }
-                })
-                const approved = resolved?.action === 'CDI_EARLY_APPROVED'
+                let extra = ''
+                try {
+                  const m = JSON.parse(log.metadata ?? '{}')
+                  amount = parseFloat(m.amount || 0)
+                  if (m.expiresAt) extra = `Vence em ${new Intl.DateTimeFormat('pt-BR').format(new Date(m.expiresAt + 'T12:00:00'))}`
+                  if (m.rate && log.action === 'CDI_CREDIT') extra = `${parseFloat(m.rate).toFixed(2)}%/mês sobre R$ ${formatBRL(parseFloat(m.base || 0))}`
+                } catch {}
+
+                const isPendingRequest = log.action === 'CDI_EARLY_REQUEST' && !resolvedReqIds.has(log.id)
+                const resolvedLog = log.action === 'CDI_EARLY_REQUEST'
+                  ? earlyResolvedLogs.find((r) => {
+                      try { return JSON.parse(r.metadata ?? '{}').requestLogId === log.id } catch { return false }
+                    })
+                  : undefined
+
                 return (
-                  <div key={req.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isPending ? 'bg-amber-500/10' : approved ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                      {isPending ? (
-                        <svg className="w-3.5 h-3.5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : approved ? (
-                        <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] font-semibold text-slate-200">
-                        Resgate antecipado · R$ {amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-[10.5px] text-slate-600">{formatDate(new Date(req.createdAt))}</p>
-                    </div>
-                    <span className={`text-[10.5px] font-semibold px-2.5 py-1 rounded-full border ${
-                      isPending ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                        : approved ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                        : 'text-red-400 bg-red-500/10 border-red-500/20'
+                  <div key={log.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                      log.action === 'CDI_CREDIT'     ? 'bg-emerald-500/10' :
+                      log.action === 'ADD_TO_CDI'     ? 'bg-emerald-500/10' :
+                      log.action === 'CDI_WITHDRAW'   ? 'bg-orange-500/10' :
+                      log.action === 'CDI_LOCK_SET'   ? 'bg-blue-500/10' :
+                      log.action.includes('EARLY')    ? 'bg-amber-500/10' :
+                      'bg-slate-800/60'
                     }`}>
-                      {isPending ? 'Aguardando' : approved ? 'Aprovado' : 'Negado'}
-                    </span>
+                      <svg className={`w-4 h-4 ${meta.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={meta.icon} />
+                      </svg>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[12.5px] font-semibold text-slate-200">{meta.label}</p>
+                        {isPendingRequest && (
+                          <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">Aguardando</span>
+                        )}
+                        {resolvedLog && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                            resolvedLog.action === 'CDI_EARLY_APPROVED'
+                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                              : 'text-red-400 bg-red-500/10 border-red-500/20'
+                          }`}>
+                            {resolvedLog.action === 'CDI_EARLY_APPROVED' ? 'Aprovado' : 'Negado'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        {formatDate(log.createdAt)}{extra ? ` · ${extra}` : ''}
+                      </p>
+                    </div>
+
+                    {amount > 0 && (
+                      <p className={`text-[13px] font-bold tabular-nums shrink-0 ${meta.color}`}>
+                        {meta.sign}{meta.sign ? ' ' : ''}R$ {formatBRL(amount)}
+                      </p>
+                    )}
                   </div>
                 )
               })}
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
         {/* Info */}
         <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-5 py-4 flex items-start gap-3">
@@ -529,7 +644,7 @@ export default async function ClienteCdiPage() {
           <div>
             <p className="text-[12px] font-semibold text-emerald-400">Como funciona o CDI Master Pagamentos</p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Seu saldo rende automaticamente à taxa de <strong className="text-slate-400">{cdiRate.toFixed(2)}% ao mês</strong> ({cdiAnual.toFixed(2)}% a.a.) em juros compostos. A taxa é definida pelo plano <strong className="text-slate-400">{plano}</strong>. O rendimento é creditado mensalmente — nenhuma ação necessária.
+              Seu saldo rende automaticamente à taxa de <strong className="text-slate-400">{cdiRate.toFixed(2)}% ao mês</strong> ({cdiAnual.toFixed(2)}% a.a.) em juros compostos. A taxa é definida pelo plano <strong className="text-slate-400">{plano}</strong>. O rendimento é creditado mensalmente — nenhuma ação necessária. Você pode criar títulos com prazo fixo para rendimentos diferenciados, ou resgatar a qualquer momento (saldo livre).
             </p>
           </div>
         </div>

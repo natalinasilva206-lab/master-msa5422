@@ -12,11 +12,16 @@ async function requireAdminSession() {
 }
 
 export async function updateCdiRate(merchantId: string, rate: number) {
-  await requireAdminSession()
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
   if (rate < 0 || rate > 100) throw new Error('Taxa inválida')
-  await prisma.merchant.update({
-    where: { id: merchantId },
-    data: { cdiRate: rate },
+  const prev = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { cdiRate: true } })
+  await prisma.merchant.update({ where: { id: merchantId }, data: { cdiRate: rate } })
+  await prisma.auditLog.create({
+    data: {
+      userId, action: 'CDI_RATE_UPDATED', entity: 'Merchant', entityId: merchantId,
+      metadata: JSON.stringify({ previousRate: prev?.cdiRate, rate }),
+    },
   })
   revalidatePath('/admin/cdi')
 }
@@ -88,11 +93,59 @@ export async function resolveEarlyWithdraw(
 export async function applyGlobalRate(rate: number, plan?: string) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') redirect('/login')
+  const userId = (session.user as any)?.id as string
   if (rate < 0 || rate > 100) throw new Error('Taxa inválida')
 
-  await prisma.merchant.updateMany({
+  const merchants = await prisma.merchant.findMany({
     where: plan ? { plan } : {},
-    data: { cdiRate: rate },
+    select: { id: true },
   })
+  await prisma.merchant.updateMany({ where: plan ? { plan } : {}, data: { cdiRate: rate } })
+
+  // Audit log per merchant (batch)
+  if (merchants.length > 0) {
+    await prisma.auditLog.createMany({
+      data: merchants.map((m) => ({
+        userId, action: 'CDI_RATE_UPDATED', entity: 'Merchant', entityId: m.id,
+        metadata: JSON.stringify({ rate, plan: plan ?? 'all', bulk: true }),
+      })),
+    })
+  }
   revalidatePath('/admin/cdi')
+}
+
+export async function creditCdiToAll(): Promise<{ count: number; totalCredited: number }> {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+
+  const merchants = await prisma.merchant.findMany({
+    where: { balance: { gt: 0 }, status: 'ACTIVE' },
+    select: { id: true, balance: true, cdiRate: true },
+  })
+
+  if (merchants.length === 0) return { count: 0, totalCredited: 0 }
+
+  let totalCredited = 0
+  const now = new Date()
+
+  for (const m of merchants) {
+    const yield_ = Math.round(m.balance * (m.cdiRate / 100) * 100) / 100
+    if (yield_ <= 0) continue
+    await prisma.merchant.update({
+      where: { id: m.id },
+      data: { balance: { increment: yield_ } },
+    })
+    await prisma.auditLog.create({
+      data: {
+        userId, action: 'CDI_CREDIT', entity: 'Merchant', entityId: m.id,
+        metadata: JSON.stringify({ amount: yield_, rate: m.cdiRate, base: m.balance, creditedAt: now.toISOString() }),
+      },
+    })
+    totalCredited += yield_
+  }
+
+  revalidatePath('/admin/cdi')
+  revalidatePath('/cliente/cdi')
+  revalidatePath('/cliente/dashboard')
+  return { count: merchants.length, totalCredited: Math.round(totalCredited * 100) / 100 }
 }
