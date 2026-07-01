@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { ConfigActionsPanel } from './ConfigActionsPanel'
+import packageJson from '../../../../package.json'
 
 const planColor: Record<string, string> = {
   Start:  'bg-slate-400',
@@ -14,25 +15,35 @@ const planColor: Record<string, string> = {
   Black:  'bg-white',
 }
 
-const planCdiDefault: Record<string, string> = {
-  Start: '0.80', Growth: '0.90', Prime: '1.00', Black: '1.20',
-}
-const planSaque: Record<string, string> = {
-  Start: '1 dia útil', Growth: '1 dia útil', Prime: 'Mesmo dia', Black: 'Instantâneo',
-}
-
 export default async function ConfiguracoesPage() {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  const [merchantCount, userCount, logCount, feePlans, merchantsByPlan, disputeCount, pendingReserves] = await Promise.all([
+  const [
+    merchantCount,
+    activeMerchantCount,
+    userCount,
+    logCount,
+    feePlans,
+    merchantsByPlan,
+    disputeCount,
+    pendingReserves,
+    cdiRatesByPlan,
+  ] = await Promise.all([
     prisma.merchant.count(),
+    prisma.merchant.count({ where: { status: 'ACTIVE' } }),
     prisma.user.count(),
     prisma.auditLog.count(),
-    prisma.feePlan.findMany({ orderBy: { name: 'asc' } }).catch(() => []),
-    prisma.merchant.groupBy({ by: ['plan'], _count: { id: true } }).catch(() => []),
+    prisma.feePlan.findMany({ orderBy: { name: 'asc' } }).catch(() => [] as any[]),
+    prisma.merchant.groupBy({ by: ['plan'], _count: { id: true }, where: { status: 'ACTIVE' } }).catch(() => [] as any[]),
     prisma.dispute.count({ where: { status: 'ABERTO' } }).catch(() => 0),
     prisma.reserveRelease.count({ where: { status: 'RESERVADO', releaseAt: { lte: new Date() } } }).catch(() => 0),
+    // Average CDI rate per plan from real merchant data
+    prisma.merchant.groupBy({
+      by: ['plan'],
+      _avg: { cdiRate: true },
+      where: { status: 'ACTIVE' },
+    }).catch(() => [] as any[]),
   ])
 
   const planCountMap: Record<string, number> = {}
@@ -40,20 +51,25 @@ export default async function ConfiguracoesPage() {
     planCountMap[row.plan] = row._count.id
   }
 
+  const planCdiMap: Record<string, number | null> = {}
+  for (const row of cdiRatesByPlan) {
+    planCdiMap[row.plan] = row._avg?.cdiRate ?? null
+  }
+
   const platformInfo = [
-    { label: 'Plataforma',       value: 'Master Pagamentos' },
-    { label: 'Versão',           value: 'v1.5.0' },
-    { label: 'Ambiente',         value: 'Produção' },
-    { label: 'Banco de Dados',   value: 'PostgreSQL (Neon)' },
-    { label: 'Framework',        value: 'Next.js 14 App Router' },
-    { label: 'ORM',              value: 'Prisma' },
+    { label: 'Plataforma',     value: 'Master Pagamentos' },
+    { label: 'Versão',         value: `v${packageJson.version}` },
+    { label: 'Ambiente',       value: 'Produção' },
+    { label: 'Banco de Dados', value: 'PostgreSQL (Neon)' },
+    { label: 'Framework',      value: 'Next.js 14 App Router' },
+    { label: 'ORM',            value: 'Prisma' },
   ]
 
   const stats = [
-    { label: 'Merchants',        value: merchantCount, color: 'text-white' },
-    { label: 'Usuários',         value: userCount,     color: 'text-blue-400' },
-    { label: 'Audit Events',     value: logCount,      color: 'text-purple-400' },
-    { label: 'Disputas Abertas', value: disputeCount,  color: disputeCount > 0 ? 'text-red-400' : 'text-slate-500' },
+    { label: 'Merchants Ativos', value: activeMerchantCount, color: 'text-white' },
+    { label: 'Usuários',         value: userCount,           color: 'text-blue-400' },
+    { label: 'Audit Events',     value: logCount,            color: 'text-purple-400' },
+    { label: 'Disputas Abertas', value: disputeCount,        color: disputeCount > 0 ? 'text-red-400' : 'text-slate-500' },
   ]
 
   const planOrder = ['Start', 'Growth', 'Prime', 'Black']
@@ -95,15 +111,16 @@ export default async function ConfiguracoesPage() {
             </div>
           </section>
 
-          {/* Merchants por plano */}
+          {/* Merchants por plano — apenas ACTIVE */}
           <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <p className="text-[13px] font-semibold text-white">Merchants por Plano</p>
+              <span className="text-[10px] text-slate-600">apenas ativos · total {activeMerchantCount}</span>
             </div>
             <div className="p-5 space-y-3">
               {planOrder.map((plan) => {
                 const count = planCountMap[plan] ?? 0
-                const pct   = merchantCount > 0 ? (count / merchantCount) * 100 : 0
+                const pct   = activeMerchantCount > 0 ? (count / activeMerchantCount) * 100 : 0
                 const color = planColor[plan] ?? 'bg-slate-500'
                 return (
                   <div key={plan}>
@@ -162,44 +179,56 @@ export default async function ConfiguracoesPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    {['Plano', 'Taxa cobrada %', 'Fixo cobrado', 'Taxa custo %', 'Fixo custo'].map((h) => (
+                    {['Plano', 'Taxa cobrada %', 'Fixo cobrado', 'Taxa custo %', 'Fixo custo', 'Spread', 'Prazo saque', 'Atualizado'].map((h) => (
                       <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                     ))}
                     <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {feePlans.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${planColor[p.name] ?? 'bg-slate-500'}`} />
-                          <span className="text-[13px] font-semibold text-slate-200">{p.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-slate-300 font-mono text-[12px]">{p.chargedPercent.toFixed(2)}%</td>
-                      <td className="px-5 py-3 text-slate-400 font-mono text-[12px]">R$ {p.chargedFixed.toFixed(2)}</td>
-                      <td className="px-5 py-3 text-slate-500 font-mono text-[12px]">{p.costPercent.toFixed(2)}%</td>
-                      <td className="px-5 py-3 text-slate-500 font-mono text-[12px]">R$ {p.costFixed.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <a href={`/admin/taxas/${p.id}/editar`} className="text-[10.5px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 px-2.5 py-1 rounded-lg transition-colors">
-                          Editar
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                  {feePlans.map((p) => {
+                    const spread = p.chargedPercent - p.costPercent
+                    const spreadColor = spread <= 0 ? 'text-red-400 font-bold' : spread < 0.5 ? 'text-amber-400' : 'text-emerald-400'
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${planColor[p.name] ?? 'bg-slate-500'}`} />
+                            <span className="text-[13px] font-semibold text-slate-200">{p.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-slate-300 font-mono text-[12px]">{p.chargedPercent.toFixed(2)}%</td>
+                        <td className="px-5 py-3 text-slate-400 font-mono text-[12px]">R$ {p.chargedFixed.toFixed(2)}</td>
+                        <td className="px-5 py-3 text-slate-500 font-mono text-[12px]">{p.costPercent.toFixed(2)}%</td>
+                        <td className="px-5 py-3 text-slate-500 font-mono text-[12px]">R$ {p.costFixed.toFixed(2)}</td>
+                        <td className={`px-5 py-3 font-mono text-[12px] ${spreadColor}`}>
+                          {spread >= 0 ? '+' : ''}{spread.toFixed(2)}%
+                          {spread <= 0 && <span className="ml-1 text-[9px]">⚠</span>}
+                        </td>
+                        <td className="px-5 py-3 text-slate-400 text-[11.5px]">{p.withdrawalDeadline}</td>
+                        <td className="px-5 py-3 text-slate-600 text-[10px] tabular-nums whitespace-nowrap">
+                          {p.updatedAt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <a href={`/admin/taxas/${p.id}/editar`} className="text-[10.5px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 px-2.5 py-1 rounded-lg transition-colors">
+                            Editar
+                          </a>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </section>
 
-        {/* CDI defaults */}
+        {/* Parâmetros por plano — CDI real do DB, prazo do FeePlan */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[13px] font-semibold text-white">Parâmetros Padrão por Plano</p>
-              <p className="text-[10.5px] text-slate-500 mt-0.5">Para alterar taxas CDI individuais, use a página CDI e Rendimentos</p>
+              <p className="text-[13px] font-semibold text-white">Parâmetros por Plano</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">CDI médio real dos sellers ativos · prazo de saque do FeePlan cadastrado</p>
             </div>
             <a href="/admin/cdi" className="text-[10.5px] font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-colors">
               Ir para CDI →
@@ -209,15 +238,18 @@ export default async function ConfiguracoesPage() {
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-slate-800/60">
-                  {['Plano', 'Sellers', 'CDI/mês padrão', 'Taxa transação', 'Prazo saque'].map((h) => (
+                  {['Plano', 'Sellers ativos', 'CDI médio/mês', 'Taxa transação', 'Prazo saque'].map((h) => (
                     <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/40">
                 {planOrder.map((plan) => {
-                  const fee = feePlans.find((f) => f.name === plan)
-                  const taxa = fee ? `${fee.chargedPercent.toFixed(2)}% + R$${fee.chargedFixed.toFixed(2)}` : planCdiDefault[plan] ? '—' : '—'
+                  const fee = feePlans.find((f: any) => f.name === plan)
+                  const taxa = fee ? `${fee.chargedPercent.toFixed(2)}% + R$${fee.chargedFixed.toFixed(2)}` : '—'
+                  const prazo = fee?.withdrawalDeadline ?? '—'
+                  const cdiAvg = planCdiMap[plan]
+                  const cdiLabel = cdiAvg != null ? `${cdiAvg.toFixed(2)}%` : '—'
                   return (
                     <tr key={plan} className="hover:bg-slate-800/20 transition-colors">
                       <td className="px-5 py-3.5">
@@ -227,9 +259,9 @@ export default async function ConfiguracoesPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3 text-slate-400 tabular-nums">{planCountMap[plan] ?? 0}</td>
-                      <td className="px-5 py-3 text-slate-300 font-mono">{planCdiDefault[plan] ?? '—'}%</td>
+                      <td className="px-5 py-3 text-slate-300 font-mono">{cdiLabel}</td>
                       <td className="px-5 py-3 text-slate-400">{taxa}</td>
-                      <td className="px-5 py-3 text-slate-400">{planSaque[plan] ?? '—'}</td>
+                      <td className="px-5 py-3 text-slate-400">{prazo}</td>
                     </tr>
                   )
                 })}
