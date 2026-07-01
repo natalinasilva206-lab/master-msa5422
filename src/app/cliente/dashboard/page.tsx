@@ -99,7 +99,22 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
   const userId = (session?.user as any)?.id as string | undefined
 
   const user = userId
-    ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: { include: { masterScore: true } } } })
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          merchant: {
+            include: {
+              masterScore: {
+                select: {
+                  scoreTotal:  true,
+                  nivelScore:  true,
+                  updatedAt:   true,
+                },
+              },
+            },
+          },
+        },
+      })
     : null
 
   const merchant    = user?.merchant
@@ -116,12 +131,6 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
   const totalProtected   = reservedBalance + blockedBalance + futureBalance
   const masterScore      = (merchant as any)?.masterScore ?? null
 
-  const levelColor: Record<string, { text: string; bg: string; border: string }> = {
-    Diamante: { text: 'text-cyan-300',   bg: 'bg-cyan-500/10',   border: 'border-cyan-500/25' },
-    Ouro:     { text: 'text-amber-300',  bg: 'bg-amber-500/10',  border: 'border-amber-500/25' },
-    Prata:    { text: 'text-slate-300',  bg: 'bg-slate-700/40',  border: 'border-slate-600/40' },
-    Bronze:   { text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/25' },
-  }
 
   const periodo     = searchParams?.periodo ?? '30d'
   const periodoStart = getPeriodStart(periodo)

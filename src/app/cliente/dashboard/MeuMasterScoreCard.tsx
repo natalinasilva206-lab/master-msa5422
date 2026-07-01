@@ -1,18 +1,19 @@
 import Link from 'next/link'
 import { MeuScoreDetalhesModal } from './MeuScoreDetalhesModal'
 
-type MasterScoreData = {
+// Only the fields the seller is allowed to see — no internal risk fields
+type SellerScoreView = {
   scoreTotal: number
   nivelScore: string
-  statusRisco: string
   updatedAt?: Date | string | null
 }
 
-const FRIENDLY_STATUS: Record<string, string> = {
-  'Alto risco': 'Nível inicial',
-  'Atenção':    'Em evolução',
-  'Saudável':   'Bom desempenho',
-  'Premium':    'Seller premium',
+// Derived from score ranges — never from the internal statusRisco field
+function resolveStatusAmigavel(score: number): string {
+  if (score >= 80) return 'Seller premium'
+  if (score >= 60) return 'Bom desempenho'
+  if (score >= 40) return 'Em evolução'
+  return 'Nível inicial'
 }
 
 const LEVEL_NEXT: Record<string, { label: string; target: number } | null> = {
@@ -163,10 +164,10 @@ function ScoreGauge({ score, nivel }: { score: number; nivel: string }) {
   )
 }
 
-export function MeuMasterScoreCard({ masterScore }: { masterScore: MasterScoreData }) {
+export function MeuMasterScoreCard({ masterScore }: { masterScore: SellerScoreView }) {
   const nivel  = masterScore.nivelScore as string
   const score  = Math.round(masterScore.scoreTotal)
-  const status = FRIENDLY_STATUS[masterScore.statusRisco] ?? masterScore.statusRisco
+  const status = resolveStatusAmigavel(score)
   const p      = LEVEL_PALETTE[nivel] ?? LEVEL_PALETTE.Bronze
   const next   = LEVEL_NEXT[nivel]
   const tips   = TIPS[nivel]   ?? TIPS.Bronze
