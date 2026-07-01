@@ -69,8 +69,8 @@ export default async function ClienteSaquesPage() {
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
               <div className="flex items-start justify-between">
                 <div className="min-w-0">
-                  <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-                  <p className={`text-[17px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+                  <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-slate-800/60 flex items-center justify-center shrink-0 ml-2 text-slate-500">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

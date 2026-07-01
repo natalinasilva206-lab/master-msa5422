@@ -92,10 +92,10 @@ export default async function PerfilPage() {
             { label: 'Rendimento CDI',   value: `R$ ${formatBRL(totalRendido)}`,   color: 'text-blue-400',    sub: 'acumulado total' },
             { label: 'Total Sacado',     value: `R$ ${formatBRL(totalSacado)}`,    color: 'text-purple-400',  sub: 'aprovado' },
           ].map((s) => (
-            <div key={s.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-3.5">
-              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">{s.label}</p>
-              <p className={`text-[15px] font-bold tabular-nums leading-none ${s.color}`}>{s.value}</p>
-              <p className="text-[9.5px] text-slate-700 mt-1">{s.sub}</p>
+            <div key={s.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{s.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums leading-none ${s.color}`}>{s.value}</p>
+              <p className="text-[12px] text-slate-600 mt-1">{s.sub}</p>
             </div>
           ))}
         </section>

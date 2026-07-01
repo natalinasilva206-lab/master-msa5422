@@ -64,8 +64,8 @@ export default async function IntegracoesPage() {
             ].map((row) => (
               <div key={row.label} className="px-5 py-3.5 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{row.label}</p>
-                  <p className="text-[11.5px] text-slate-300 font-mono mt-1 truncate">{row.value}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{row.label}</p>
+                  <p className="text-[12px] text-slate-300 font-mono mt-1 truncate">{row.value}</p>
                   <p className="text-[10px] text-slate-700 mt-0.5">{row.hint}</p>
                 </div>
                 <CopyButton value={row.value} />
@@ -76,7 +76,7 @@ export default async function IntegracoesPage() {
 
         {/* Base URL */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Base URL</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Base URL</p>
           <div className="flex items-center gap-3">
             <code className="flex-1 text-[12px] font-mono text-blue-300 bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-700/40 truncate">
               https://api.masterpagamentos.com.br
@@ -108,11 +108,11 @@ export default async function IntegracoesPage() {
           <div className="divide-y divide-slate-800/40">
             {endpoints.map((ep) => (
               <div key={ep.path} className="px-5 py-3 flex items-center gap-3">
-                <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded font-mono ${methodColor[ep.method] ?? 'bg-slate-700/40 text-slate-400'}`}>
+                <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded font-mono ${methodColor[ep.method] ?? 'bg-slate-700/40 text-slate-400'}`}>
                   {ep.method}
                 </span>
-                <code className="text-[11.5px] font-mono text-slate-300 flex-1">{ep.path}</code>
-                <span className="text-[10.5px] text-slate-600 hidden sm:block">{ep.desc}</span>
+                <code className="text-[12px] font-mono text-slate-300 flex-1">{ep.path}</code>
+                <span className="text-[12px] text-slate-600 hidden sm:block">{ep.desc}</span>
               </div>
             ))}
           </div>

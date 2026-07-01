@@ -103,9 +103,9 @@ export default async function ExtratoPage() {
             { label: 'Total Antecipado',  value: `R$ ${formatBRL(totalAntecipado)}`,   color: 'text-purple-400',  border: 'border-slate-800/70',   sub: 'antecipações cartão' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[17px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
-              <p className="text-[9.5px] text-slate-700 mt-1">{c.sub}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className="text-[12px] text-slate-600 mt-1">{c.sub}</p>
             </div>
           ))}
         </section>

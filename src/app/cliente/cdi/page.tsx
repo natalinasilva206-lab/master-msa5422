@@ -281,7 +281,7 @@ export default async function ClienteCdiPage() {
               icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
             },
           ].map((c) => (
-            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-5 hover:bg-slate-800/40 transition-colors`}>
+            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 hover:bg-slate-800/40 transition-colors`}>
               <div className="flex items-start justify-between mb-2">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest leading-tight">{c.label}</p>
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-1 ${c.iconBg}`}>
@@ -310,7 +310,7 @@ export default async function ClienteCdiPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider">Em 36 meses</p>
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Em 36 meses</p>
                   <p className="text-[14px] font-bold text-emerald-400 tabular-nums">
                     R$ {formatBRL(saldo * Math.pow(1 + cdiRate / 100, 36))}
                   </p>

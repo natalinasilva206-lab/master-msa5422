@@ -111,18 +111,18 @@ export default async function PlanoPage() {
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Plano atual</p>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${currentPlan.badge}`}>{planoAtual}</span>
               </div>
-              <p className={`text-[22px] font-bold ${currentPlan.color}`}>{planoAtual}</p>
+              <p className={`text-[20px] font-bold ${currentPlan.color}`}>{planoAtual}</p>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 Taxa CDI: <strong className="text-slate-300">{cdiRate.toFixed(2)}%/mês</strong> ({cdiAnual.toFixed(2)}% a.a.) ·
                 Saldo em CDI: <strong className="text-slate-300">R$ {formatBRL(saldo)}</strong>
               </p>
             </div>
             <div className="shrink-0 text-right hidden sm:block">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-wider mb-1">Rendimento / Mês</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Rendimento / Mês</p>
               <p className="text-[20px] font-bold text-emerald-400 tabular-nums">
                 R$ {formatBRL(saldo * (cdiRate / 100))}
               </p>
-              <p className="text-[9.5px] text-slate-600 mt-0.5">sobre R$ {formatBRL(saldo)} em CDI</p>
+              <p className="text-[12px] text-slate-600 mt-0.5">sobre R$ {formatBRL(saldo)} em CDI</p>
             </div>
           </div>
         </div>
