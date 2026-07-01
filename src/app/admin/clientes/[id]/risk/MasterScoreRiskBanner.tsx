@@ -45,7 +45,11 @@ export default function MasterScoreRiskBanner({
   const [error, setError]     = useState<string | null>(null)
   const [ignored, setIgnored] = useState(false)
 
-  if (ignored) return null
+  if (ignored) return (
+    <div className="rounded-xl border border-slate-700/40 bg-slate-800/40 px-4 py-3 text-sm text-slate-400">
+      Sugestão ignorada. Mantendo configuração atual de reserva.
+    </div>
+  )
 
   const nivel = nivelColor[nivelScore] ?? nivelColor['Bronze']
   const acao  = acaoStyle[reservaSugerida.acaoSugerida]
