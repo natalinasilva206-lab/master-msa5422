@@ -36,7 +36,7 @@ async function buildInput(merchantId: string, merchant: {
   const since30d = new Date(now.getTime() - ms30)
   const since60d = new Date(now.getTime() - ms30 * 2)
 
-  const [vendas30d, vendas30_60d, todasVendas, chargebacks, medPix, reembolsos, feePlan] =
+  const [vendas30d, vendas30_60d, todasVendas, disputas30d, reembolsos, feePlan] =
     await Promise.all([
       prisma.auditLog.findMany({
         where: { entityId: merchantId, action: 'BALANCE_ADJUST', createdAt: { gte: since30d } },
@@ -47,17 +47,23 @@ async function buildInput(merchantId: string, merchant: {
         select: { metadata: true },
       }),
       prisma.auditLog.count({ where: { entityId: merchantId, action: 'BALANCE_ADJUST' } }),
-      prisma.auditLog.count({
-        where: { entityId: merchantId, action: { in: ['CHARGEBACK_OPENED', 'DISPUTE_OPENED'] }, createdAt: { gte: since30d } },
+      // Source of truth for disputes: the Dispute table, not AuditLog
+      prisma.dispute.findMany({
+        where: {
+          merchantId,
+          status:    { notIn: ['RESOLVIDO', 'RESOLVED', 'FECHADO', 'CLOSED'] },
+          createdAt: { gte: since30d },
+        },
+        select: { type: true },
       }),
-      prisma.auditLog.count({
-        where: { entityId: merchantId, action: { in: ['MED_PIX_REQUEST', 'FRAUD_FLAG', 'ANTIFRAUDE_FLAG'] }, createdAt: { gte: since30d } },
-      }),
-      prisma.auditLog.count({
-        where: { entityId: merchantId, action: { in: ['WITHDRAW_DENIED', 'ESTORNO', 'REEMBOLSO'] }, createdAt: { gte: since30d } },
+      prisma.saleLog.count({
+        where: { merchantId, type: 'REFUND', status: 'COMPLETED', createdAt: { gte: since30d } },
       }),
       prisma.feePlan.findFirst({ where: { name: merchant.plan } }),
     ])
+
+  const chargebacks = disputas30d.filter(d => d.type === 'CHARGEBACK').length
+  const medPix      = disputas30d.filter(d => ['MED', 'MED_PIX'].includes(d.type)).length
 
   const sumAmt = (logs: { metadata: string | null }[]) =>
     logs.reduce((s, l) => {
