@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { MeuScoreDetalhesModal } from './MeuScoreDetalhesModal'
 
 type MasterScoreData = {
   scoreTotal: number
@@ -273,6 +274,16 @@ export function MeuMasterScoreCard({ masterScore }: { masterScore: MasterScoreDa
             ))}
           </ul>
         </div>
+      </div>
+
+      {/* Footer — link para detalhes */}
+      <div className="border-t border-slate-800/40 px-5 py-3 flex items-center justify-between">
+        <MeuScoreDetalhesModal
+          nivelAtual={nivel}
+          scoreAtual={score}
+          statusAmigavel={status}
+        />
+        <p className="text-[11px] text-slate-700">Atualizado automaticamente</p>
       </div>
 
     </div>
