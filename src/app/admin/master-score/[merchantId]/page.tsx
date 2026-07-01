@@ -7,7 +7,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/layout/Topbar'
-import { SCORE_MAX, type ScoreLevel, type ScoreStatus } from '@/lib/masterScore'
+import { SCORE_MAX, gerarSugestoes, type ScoreLevel, type ScoreStatus, type SugestaoCategoria, type SugestaoUrgencia } from '@/lib/masterScore'
 import { RecalcSellerButton } from '../ScoreActions'
 
 // ─── Formatadores ─────────────────────────────────────────────────────────────
@@ -211,7 +211,8 @@ export default async function MasterScoreDetalhe({ params }: Props) {
   const lm     = levelMeta[level]
   const sm     = statusMeta[status]
   const sc     = scoreColor(score)
-  const motivos = ms ? gerarMotivos(ms) : []
+  const motivos   = ms ? gerarMotivos(ms) : []
+  const sugestoes = ms ? gerarSugestoes(ms as any) : []
 
   // Dimensões para o breakdown
   const dimensoes = [
@@ -502,6 +503,77 @@ export default async function MasterScoreDetalhe({ params }: Props) {
           </div>
 
         </div>
+
+        {/* ── Sugestões do Sistema ── */}
+        {sugestoes.length > 0 && (
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[13px] font-semibold text-white">Sugestões do Sistema</p>
+                <p className="text-[10.5px] text-slate-500 mt-0.5">
+                  Geradas automaticamente · O ADM decide se aplica ou ignora cada sugestão
+                </p>
+              </div>
+              <span className="shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-slate-700/40 bg-slate-800/60 text-slate-400">
+                {sugestoes.length} sugestão{sugestoes.length !== 1 ? 'ões' : ''}
+              </span>
+            </div>
+            <div className="divide-y divide-slate-800/40">
+              {sugestoes.map((s) => {
+                const urgenciaMeta = {
+                  alta:  { dot: 'bg-red-400',    label: 'Alta',  labelCls: 'text-red-400 bg-red-500/10 border-red-500/20' },
+                  media: { dot: 'bg-amber-400',  label: 'Média', labelCls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                  baixa: { dot: 'bg-slate-500',  label: 'Baixa', labelCls: 'text-slate-500 bg-slate-700/30 border-slate-600/30' },
+                }[s.urgencia]
+
+                const categoriaMetas: Record<SugestaoCategoria, { icon: string; label: string }> = {
+                  reserva:       { label: 'Reserva',       icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+                  prazo:         { label: 'Prazo',         icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                  beneficio:     { label: 'Benefício',     icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
+                  risco:         { label: 'Risco',         icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+                  suporte:       { label: 'Suporte',       icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z' },
+                  monitoramento: { label: 'Monitoramento', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+                }
+                const categoriaMeta = categoriaMetas[s.categoria]
+
+                return (
+                  <div key={s.id} className="px-5 py-3.5 flex items-start gap-3 hover:bg-slate-800/10 transition-colors">
+                    {/* Ícone da categoria */}
+                    <div className="w-8 h-8 rounded-lg bg-slate-800/60 border border-slate-700/40 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={categoriaMeta.icon} />
+                      </svg>
+                    </div>
+
+                    {/* Conteúdo */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <p className="text-[12px] font-semibold text-slate-200">{s.titulo}</p>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${urgenciaMeta.labelCls}`}>
+                          {urgenciaMeta.label}
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wider">
+                          {categoriaMeta.label}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">{s.descricao}</p>
+                    </div>
+
+                    {/* Dot de urgência */}
+                    <div className="flex items-center gap-1.5 shrink-0 mt-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${urgenciaMeta.dot}`} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="px-5 py-3 border-t border-slate-800/50 bg-slate-900/30">
+              <p className="text-[10.5px] text-slate-700">
+                Estas sugestões são geradas automaticamente pelo Master Score e não alteram nenhuma configuração do seller. Cabe ao ADM avaliar e agir conforme necessário.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── Evolução do score ── */}
         {evolucao.length > 0 && (

@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import Link from 'next/link'
 import { RecalcAllButton, RecalcSellerButton } from './ScoreActions'
-import { SCORE_MAX, type ScoreLevel, type ScoreStatus } from '@/lib/masterScore'
+import { SCORE_MAX, sugestaoResumida, type ScoreLevel, type ScoreStatus } from '@/lib/masterScore'
 
 function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -239,6 +239,7 @@ export default async function MasterScorePage() {
                     <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left min-w-[340px] hidden xl:table-cell">Composição (pts)</th>
                     <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center hidden sm:table-cell">Nível</th>
                     <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-center">Status</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left hidden xl:table-cell">Sugestão do Sistema</th>
                     <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left hidden lg:table-cell">Observação</th>
                     <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right hidden lg:table-cell">Atualizado</th>
                     <th className="px-4 py-3 w-20"></th>
@@ -309,6 +310,24 @@ export default async function MasterScorePage() {
                           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${sm.color} ${sm.bg} ${sm.border}`}>
                             {status}
                           </span>
+                        </td>
+
+                        {/* Sugestão do Sistema */}
+                        <td className="px-4 py-3.5 hidden xl:table-cell max-w-[200px]">
+                          {ms ? (() => {
+                            const resumo = sugestaoResumida(ms)
+                            const isAlto   = status === 'Alto risco'
+                            const isAtencao = status === 'Atenção'
+                            const isPremium = status === 'Premium'
+                            const dotCls = isAlto ? 'bg-red-400' : isAtencao ? 'bg-amber-400' : isPremium ? 'bg-cyan-400' : 'bg-emerald-400'
+                            const txtCls = isAlto ? 'text-red-300' : isAtencao ? 'text-amber-300' : isPremium ? 'text-cyan-300' : 'text-emerald-300'
+                            return (
+                              <div className="flex items-start gap-1.5">
+                                <span className={`mt-[4px] w-1.5 h-1.5 rounded-full shrink-0 ${dotCls}`} />
+                                <p className={`text-[11px] font-medium leading-snug ${txtCls}`}>{resumo}</p>
+                              </div>
+                            )
+                          })() : <span className="text-slate-800 text-[11px] italic">—</span>}
                         </td>
 
                         {/* Observação */}

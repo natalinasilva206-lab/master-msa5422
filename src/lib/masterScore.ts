@@ -251,3 +251,221 @@ export function calcMasterScore(input: ScoreInput): ScoreResult {
 
   return { ...partial, observacaoInterna: buildObservacao(partial as ScoreResult) }
 }
+
+// ─── Motor de sugestões automáticas ──────────────────────────────────────────
+// Sugestões são informativas — o ADM decide se aplica ou ignora.
+
+export type SugestaoCategoria = 'reserva' | 'prazo' | 'beneficio' | 'risco' | 'suporte' | 'monitoramento'
+export type SugestaoUrgencia  = 'alta' | 'media' | 'baixa'
+
+export interface Sugestao {
+  id:        string
+  categoria: SugestaoCategoria
+  urgencia:  SugestaoUrgencia
+  titulo:    string
+  descricao: string
+}
+
+/** Resumo de uma linha para a tabela do ranking */
+export function sugestaoResumida(result: Pick<ScoreResult, 'nivelScore' | 'statusRisco' | 'chargebackScore' | 'medScore' | 'saldoScore'>): string {
+  const { nivelScore, statusRisco, chargebackScore, medScore } = result
+  if (statusRisco === 'Alto risco') {
+    if (chargebackScore === 0) return 'Revisar chargeback crítico'
+    if (medScore === 0)        return 'Revisar MED Pix — alto risco'
+    return 'Alto risco operacional'
+  }
+  if (statusRisco === 'Atenção') {
+    if (chargebackScore < 18) return 'Revisar chargebacks'
+    if (medScore < 10)        return 'Revisar MED Pix'
+    return 'Aumentar reserva sugerida'
+  }
+  if (nivelScore === 'Ouro')     return 'Manter política atual'
+  if (nivelScore === 'Diamante') return 'Pode reduzir reserva'
+  return 'Acompanhar crescimento'
+}
+
+export function gerarSugestoes(result: ScoreResult): Sugestao[] {
+  const { nivelScore, chargebackScore, medScore, reembolsoScore, saldoScore, crescimentoScore, volumeScore } = result
+  const sugestoes: Sugestao[] = []
+
+  if (nivelScore === 'Diamante') {
+    sugestoes.push({
+      id: 'reduzir-reserva',
+      categoria: 'reserva',
+      urgencia: 'baixa',
+      titulo: 'Reduzir reserva de risco',
+      descricao: 'Seller com score Diamante apresenta histórico excelente. Considere reduzir a reserva de risco para liberar capital de giro.',
+    })
+    sugestoes.push({
+      id: 'reduzir-prazo',
+      categoria: 'prazo',
+      urgencia: 'baixa',
+      titulo: 'Reduzir prazo de liberação',
+      descricao: 'Perfil de baixo risco permite encurtar o prazo padrão de liberação de saques.',
+    })
+    sugestoes.push({
+      id: 'rendimento-premium',
+      categoria: 'beneficio',
+      urgencia: 'baixa',
+      titulo: 'Liberar rendimento premium',
+      descricao: 'Ative rendimento CDI+ ou taxa especial de remuneração de saldo para este seller.',
+    })
+    sugestoes.push({
+      id: 'taxa-especial',
+      categoria: 'beneficio',
+      urgencia: 'baixa',
+      titulo: 'Oferecer taxa especial',
+      descricao: 'Volume e margem justificam negociação de taxa personalizada abaixo do plano padrão.',
+    })
+    sugestoes.push({
+      id: 'limite-futuro',
+      categoria: 'beneficio',
+      urgencia: 'baixa',
+      titulo: 'Avaliar limite de crédito futuro',
+      descricao: 'Com histórico consolidado, este seller pode ser elegível para linha de crédito ou antecipação preferencial.',
+    })
+    sugestoes.push({
+      id: 'suporte-prioritario',
+      categoria: 'suporte',
+      urgencia: 'baixa',
+      titulo: 'Priorizar suporte',
+      descricao: 'Seller estratégico — atendimento prioritário e gerente de conta dedicado são recomendados.',
+    })
+  }
+
+  else if (nivelScore === 'Ouro') {
+    sugestoes.push({
+      id: 'manter-reserva',
+      categoria: 'reserva',
+      urgencia: 'baixa',
+      titulo: 'Manter reserva atual',
+      descricao: 'Nível Ouro com operação saudável. Não há necessidade de alterar a reserva neste momento.',
+    })
+    sugestoes.push({
+      id: 'manter-prazo',
+      categoria: 'prazo',
+      urgencia: 'baixa',
+      titulo: 'Manter prazo atual',
+      descricao: 'Prazo padrão adequado ao perfil. Reavalie em 60 dias se o score atingir Diamante.',
+    })
+    sugestoes.push({
+      id: 'acompanhar-crescimento',
+      categoria: 'monitoramento',
+      urgencia: 'baixa',
+      titulo: 'Acompanhar crescimento',
+      descricao: 'Seller em trajetória positiva. Monitore para eventual elegibilidade ao nível Diamante.',
+    })
+    if (crescimentoScore >= 10) {
+      sugestoes.push({
+        id: 'beneficios-moderados',
+        categoria: 'beneficio',
+        urgencia: 'baixa',
+        titulo: 'Liberar benefícios moderados',
+        descricao: 'Crescimento acima de 10% ao mês justifica oferta de benefícios incrementais (ex: prazo reduzido, taxa de CDI melhorada).',
+      })
+    }
+  }
+
+  else if (nivelScore === 'Prata') {
+    if (chargebackScore < 18) {
+      sugestoes.push({
+        id: 'revisar-chargebacks',
+        categoria: 'risco',
+        urgencia: 'media',
+        titulo: 'Revisar chargebacks',
+        descricao: 'Taxa de chargeback entre 1% e 2%. Contate o seller e verifique as transações contestadas recentes.',
+      })
+    }
+    if (medScore < 10) {
+      sugestoes.push({
+        id: 'revisar-med-pix-prata',
+        categoria: 'risco',
+        urgencia: 'media',
+        titulo: 'Revisar MED Pix',
+        descricao: 'Mais de 1 MED Pix no mês. Oriente o seller sobre devoluções e analise o padrão de reclamações.',
+      })
+    }
+    if (reembolsoScore < 10) {
+      sugestoes.push({
+        id: 'acompanhar-reembolsos',
+        categoria: 'monitoramento',
+        urgencia: 'media',
+        titulo: 'Acompanhar reembolsos',
+        descricao: 'Taxa de reembolso acima do ideal. Verifique se há falhas no produto/serviço ou fraudes de estorno.',
+      })
+    }
+    sugestoes.push({
+      id: 'manter-ou-aumentar-reserva',
+      categoria: 'reserva',
+      urgencia: 'media',
+      titulo: 'Manter ou aumentar reserva',
+      descricao: 'Perfil em Atenção. Não reduza a reserva. Avalie aumento caso chargebacks ou MEDs piorem.',
+    })
+    sugestoes.push({
+      id: 'saque-padrao',
+      categoria: 'prazo',
+      urgencia: 'baixa',
+      titulo: 'Manter saque padrão',
+      descricao: 'Não libere saque rápido enquanto o score estiver em Prata/Atenção.',
+    })
+  }
+
+  else {
+    // Bronze / Alto risco
+    sugestoes.push({
+      id: 'aumentar-reserva',
+      categoria: 'reserva',
+      urgencia: 'alta',
+      titulo: 'Aumentar reserva de risco',
+      descricao: 'Score crítico indica exposição elevada. Aumente a reserva de risco para proteger a plataforma.',
+    })
+    sugestoes.push({
+      id: 'aumentar-prazo',
+      categoria: 'prazo',
+      urgencia: 'alta',
+      titulo: 'Aumentar prazo de liberação',
+      descricao: 'Amplie o prazo de liberação de saques para reduzir risco de fraude ou inadimplência.',
+    })
+    sugestoes.push({
+      id: 'bloquear-saque-rapido',
+      categoria: 'prazo',
+      urgencia: 'alta',
+      titulo: 'Bloquear saque rápido',
+      descricao: 'Desative antecipação e saque D+0 enquanto o seller estiver em Alto Risco.',
+    })
+    sugestoes.push({
+      id: 'revisar-manualmente',
+      categoria: 'risco',
+      urgencia: 'alta',
+      titulo: 'Revisar seller manualmente',
+      descricao: 'Analise o cadastro, documentos, histórico de transações e comportamento operacional deste seller.',
+    })
+    sugestoes.push({
+      id: 'alerta-interno',
+      categoria: 'risco',
+      urgencia: 'alta',
+      titulo: 'Abrir alerta interno de risco',
+      descricao: 'Sinalize o seller internamente para monitoramento intensificado pela equipe de risco.',
+    })
+    if (chargebackScore === 0) {
+      sugestoes.push({
+        id: 'chargeback-critico',
+        categoria: 'risco',
+        urgencia: 'alta',
+        titulo: 'Chargeback acima de 2% — crítico',
+        descricao: 'Taxa de chargeback ultrapassou o limite crítico. Risco iminente de bloqueio por adquirente. Ação imediata necessária.',
+      })
+    }
+    if (medScore === 0) {
+      sugestoes.push({
+        id: 'med-pix-critico',
+        categoria: 'risco',
+        urgencia: 'alta',
+        titulo: 'Mais de 3 MEDs Pix — ação urgente',
+        descricao: 'Volume de MEDs Pix acima do threshold do Banco Central. Risco de bloqueio preventivo da chave Pix.',
+      })
+    }
+  }
+
+  return sugestoes
+}
