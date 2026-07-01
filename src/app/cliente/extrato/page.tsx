@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
+import { ExtratoExportButton } from './ExtratoExportButton'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -100,6 +101,26 @@ export default async function ExtratoPage({ searchParams }: PageProps) {
   const totalCdiRendido = cdiLogs
     .filter((l) => l.action === 'CDI_CREDIT')
     .reduce((s, l) => s + getAmount(l.metadata), 0)
+
+  const csvRows = [
+    ...saqueLogs.map((l) => {
+      const m   = metaSaque[l.action]
+      const amt = getAmount(l.metadata)
+      return { data: formatDate(l.createdAt), tipo: 'Saque', descricao: m?.label ?? l.action, valor: formatBRL(amt), status: m?.status ?? '' }
+    }),
+    ...cdiLogs.map((l) => {
+      const m   = metaCdi[l.action]
+      const amt = getAmount(l.metadata)
+      return { data: formatDate(l.createdAt), tipo: 'CDI', descricao: m?.label ?? l.action, valor: formatBRL(amt), status: '' }
+    }),
+    ...vendaLogs.map((v) => ({
+      data: formatDate(v.createdAt),
+      tipo: 'Venda',
+      descricao: v.description ?? v.type,
+      valor: formatBRL(v.amount),
+      status: v.status,
+    })),
+  ]
 
   return (
     <div>
@@ -246,7 +267,7 @@ export default async function ExtratoPage({ searchParams }: PageProps) {
               <p className="text-[13px] font-semibold text-white">Histórico de Transações</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">Vendas, estornos e devoluções processados pela API</p>
             </div>
-            <span className="text-[10px] text-slate-600">{vendaCount as number} registros</span>
+            <ExtratoExportButton rows={csvRows} />
           </div>
           {(vendaCount as number) === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-slate-700">

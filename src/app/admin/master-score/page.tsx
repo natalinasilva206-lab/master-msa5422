@@ -725,6 +725,12 @@ export default async function MasterScorePage() {
                           <div className="flex items-center gap-1.5 justify-end">
                             <RecalcSellerButton merchantId={m.id} />
                             <Link
+                              href={`/admin/clientes/${m.id}`}
+                              className="inline-flex items-center px-2.5 py-1 text-[12px] font-semibold text-slate-500 hover:text-slate-300 bg-slate-800/40 hover:bg-slate-800 border border-slate-700/30 rounded-lg transition-colors"
+                            >
+                              Perfil
+                            </Link>
+                            <Link
                               href={`/admin/master-score/${m.id}`}
                               className="inline-flex items-center px-2.5 py-1 text-[12px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 rounded-lg transition-colors"
                             >
