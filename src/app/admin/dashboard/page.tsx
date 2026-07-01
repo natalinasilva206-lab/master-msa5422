@@ -242,7 +242,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
 
           {/* Saldo Disponível Total */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 hover:bg-slate-800/40 transition-colors">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Total Disponível</p>
@@ -258,7 +258,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* Empresas Ativas */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 hover:bg-slate-800/40 transition-colors">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Empresas Ativas</p>
@@ -274,7 +274,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* Pendências */}
-          <div className={`rounded-xl p-5 transition-colors border ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
+          <div className={`rounded-xl p-4 transition-colors border ${(unresolvedPendingLogs.length + pendingCdiEarly.length) > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Pendências</p>
@@ -294,7 +294,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* KYC em revisão */}
-          <div className={`rounded-xl p-5 transition-colors border ${reviewMerchants > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
+          <div className={`rounded-xl p-4 transition-colors border ${reviewMerchants > 0 ? 'bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10' : 'bg-slate-900/60 border-slate-800/70 hover:bg-slate-800/40'}`}>
             <div className="flex items-start justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">KYC em Revisão</p>
@@ -312,7 +312,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           </div>
 
           {/* Saldo Merchants */}
-          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5 hover:bg-slate-800/40 transition-colors cursor-pointer group">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-colors cursor-pointer group">
             <div className="flex items-start justify-between">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Saldo Merchants</p>
@@ -338,7 +338,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
               <div>
-                <p className="text-[18px] font-semibold text-white">Volume de Transações</p>
+                <p className="text-[13px] font-semibold text-white">Volume de Transações</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Últimos 7 dias · volume de vendas aprovadas</p>
               </div>
               <a href="/admin/analise" className="inline-flex items-center gap-1 text-[13px] text-slate-500 hover:text-blue-400 transition-colors font-medium">
@@ -411,7 +411,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           {/* Principais Empresas */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-4 py-4 border-b border-slate-800/60 flex items-center justify-between">
-              <p className="text-[18px] font-semibold text-white">Principais Empresas</p>
+              <p className="text-[13px] font-semibold text-white">Principais Empresas</p>
               <Link
                 href="/admin/cdi"
                 className="inline-flex items-center gap-1 text-[13px] text-slate-500 hover:text-blue-400 transition-colors font-medium"
@@ -439,7 +439,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                           {getInitials(m.name)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-semibold text-slate-200 truncate">{m.name}</p>
+                          <p className="text-[13px] font-semibold text-slate-200 truncate">{m.name}</p>
                           <p className="text-[12px] text-slate-600">{m.plan} plan</p>
                         </div>
                         <div className="text-right shrink-0">
@@ -468,7 +468,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className={`rounded-xl overflow-hidden border ${unresolvedPendingLogs.length > 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
             <div className={`px-5 py-4 border-b flex items-center justify-between ${unresolvedPendingLogs.length > 0 ? 'border-emerald-500/15' : 'border-slate-800/60'}`}>
               <div>
-                <p className="text-[18px] font-semibold text-white">Saques Pendentes</p>
+                <p className="text-[13px] font-semibold text-white">Saques Pendentes</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Aguardando aprovação admin</p>
               </div>
               <div className="flex items-center gap-2">
@@ -507,12 +507,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-slate-200 truncate">{log.user.name ?? log.user.email}</p>
+                        <p className="text-[13px] font-semibold text-slate-200 truncate">{log.user.name ?? log.user.email}</p>
                         <p className="text-[12px] text-slate-600">
                           {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(log.createdAt))}
                         </p>
                       </div>
-                      <p className="text-[14px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(amount)}</p>
+                      <p className="text-[13px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(amount)}</p>
                     </div>
                   )
                 })}
@@ -530,7 +530,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <div className={`rounded-xl overflow-hidden border ${recentDisputes.length > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-slate-900/60 border-slate-800/70'}`}>
             <div className={`px-5 py-4 border-b flex items-center justify-between ${recentDisputes.length > 0 ? 'border-red-500/15' : 'border-slate-800/60'}`}>
               <div>
-                <p className="text-[18px] font-semibold text-white">Chargebacks Recentes</p>
+                <p className="text-[13px] font-semibold text-white">Chargebacks Recentes</p>
                 <p className="text-[13px] text-slate-600 mt-0.5">Disputas em andamento</p>
               </div>
               <div className="flex items-center gap-2">
@@ -566,10 +566,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-slate-200 truncate">{d.merchant.name}</p>
+                      <p className="text-[13px] font-semibold text-slate-200 truncate">{d.merchant.name}</p>
                       <p className="text-[12px] text-slate-600">{d.type} · {d.status}</p>
                     </div>
-                    <p className="text-[14px] font-bold text-red-400 tabular-nums shrink-0">R$ {formatBRL(d.contestedAmount)}</p>
+                    <p className="text-[13px] font-bold text-red-400 tabular-nums shrink-0">R$ {formatBRL(d.contestedAmount)}</p>
                   </div>
                 ))}
               </div>
@@ -582,7 +582,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
-              <p className="text-[18px] font-semibold text-white">Sellers recentes</p>
+              <p className="text-[13px] font-semibold text-white">Sellers recentes</p>
               <p className="text-[13px] text-slate-600 mt-0.5">Últimos {recentMerchants.length} cadastros</p>
             </div>
             <Link
@@ -605,44 +605,44 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-800/60">
-                    <th className="text-left px-5 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider">Seller</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-bold text-slate-600 uppercase tracking-wider hidden md:table-cell">Plano</th>
+                    <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Tipo</th>
+                    <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Plano</th>
                     <th className="px-5 py-2.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
                   {recentMerchants.map((m, i) => (
                     <tr key={m.id} className="hover:bg-slate-800/25 transition-colors group">
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
                             {getInitials(m.name)}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-[14px] font-semibold text-white truncate">{m.name}</p>
+                            <p className="text-[13px] font-semibold text-white truncate">{m.name}</p>
                             <p className="text-[12px] text-slate-600 truncate">{m.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
+                      <td className="px-4 py-3.5 hidden sm:table-cell">
                         <span className="text-[11px] font-medium text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-md">
                           {typeLabel[m.type] ?? m.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3.5">
                         <Badge variant={statusVariant[m.status] ?? 'neutral'}>
                           {statusLabel[m.status] ?? m.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
+                      <td className="px-4 py-3.5 hidden md:table-cell">
                         <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-400">
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${planDot[m.plan] ?? 'bg-slate-500'}`} />
                           {m.plan}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3.5 text-right">
                         <Link
                           href={`/admin/clientes/${m.id}`}
                           className="inline-flex items-center gap-1 text-[13px] font-medium text-slate-600 hover:text-blue-400 group-hover:text-slate-400 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"

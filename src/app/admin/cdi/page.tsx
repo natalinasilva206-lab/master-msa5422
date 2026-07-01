@@ -117,52 +117,52 @@ export default async function CdiPage() {
         subtitle="Gerencie a taxa de rendimento CDI por conta de seller."
       />
 
-      <div className="p-5 xl:p-8 space-y-6">
+      <div className="p-4 xl:p-6 space-y-4">
 
         {/* ── Resumo geral ── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 hover:bg-slate-800/40 transition-all duration-200">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-all duration-200">
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center mb-3">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Total de Sellers</p>
-            <p className="text-[22px] font-bold text-white tabular-nums leading-none">{merchants.length}</p>
+            <p className="text-[20px] font-bold text-white tabular-nums leading-none">{merchants.length}</p>
             <p className="text-[11px] text-slate-600 mt-2">{totalActive} ativos</p>
           </div>
 
-          <div className="bg-slate-900/50 border border-emerald-500/20 rounded-xl p-5 hover:bg-slate-800/40 hover:border-emerald-500/30 transition-all duration-200">
+          <div className="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-4 hover:bg-slate-800/40 hover:border-emerald-500/30 transition-all duration-200">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-3">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Saldo Total em Custódia</p>
-            <p className="text-[22px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(totalBalance)}</p>
+            <p className="text-[20px] font-bold text-emerald-400 tabular-nums leading-none">R$ {formatBRL(totalBalance)}</p>
             <p className="text-[11px] text-slate-600 mt-2">Total em CDI rendendo</p>
           </div>
 
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 hover:bg-slate-800/40 transition-all duration-200">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-all duration-200">
             <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-3">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Rendimento Est. / Mês</p>
-            <p className="text-[22px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(totalRendimento)}</p>
+            <p className="text-[20px] font-bold text-white tabular-nums leading-none">R$ {formatBRL(totalRendimento)}</p>
             <p className="text-[11px] text-slate-600 mt-2">Projeção com taxas atuais</p>
           </div>
 
-          <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-5 hover:bg-slate-800/40 transition-all duration-200">
+          <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 hover:bg-slate-800/40 transition-all duration-200">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center mb-3">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
               </svg>
             </div>
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Taxa Média CDI</p>
-            <p className="text-[22px] font-bold text-amber-400 tabular-nums leading-none">{avgRate.toFixed(2)}%</p>
+            <p className="text-[20px] font-bold text-amber-400 tabular-nums leading-none">{avgRate.toFixed(2)}%</p>
             <p className="text-[11px] text-slate-600 mt-2">Média entre todos os sellers</p>
           </div>
 
@@ -175,8 +175,8 @@ export default async function CdiPage() {
         <GlobalRateForm merchantCounts={merchantCounts} />
 
         {/* ── Tabela de sellers ── */}
-        <section className="bg-slate-900/50 border border-slate-800/80 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between">
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
             <div>
               <p className="text-[13px] font-semibold text-white">Sellers cadastrados</p>
               <p className="text-[11px] text-slate-500 mt-0.5">
@@ -204,20 +204,20 @@ export default async function CdiPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-800/80">
-                    <th className="text-left px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
-                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Plano</th>
-                    <th className="text-right px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
+                  <tr className="border-b border-slate-800/60">
+                    <th className="text-left px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Plano</th>
+                    <th className="text-right px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                       Saldo em CDI
                       <span className="ml-1 text-slate-700 normal-case tracking-normal font-normal">(editável)</span>
                     </th>
-                    <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="text-center px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                       Taxa CDI / mês
                     </th>
-                    <th className="text-left px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Prazo CDI</th>
-                    <th className="text-center px-4 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Equiv. anual</th>
-                    <th className="text-right px-5 py-3 text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Rend. / mês</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Prazo CDI</th>
+                    <th className="text-center px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden xl:table-cell">Equiv. anual</th>
+                    <th className="text-right px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Rend. / mês</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">

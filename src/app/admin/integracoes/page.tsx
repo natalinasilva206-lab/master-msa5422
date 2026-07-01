@@ -109,9 +109,9 @@ export default async function AdminIntegracoesPage() {
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {health.map((h) => (
             <div key={h.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{h.label}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{h.label}</p>
               <p className={`text-[20px] font-bold tabular-nums ${h.color}`}>{h.value}</p>
-              <p className="text-[9.5px] text-slate-700 mt-1">{h.sub}</p>
+              <p className="text-[12px] text-slate-600 mt-1">{h.sub}</p>
             </div>
           ))}
         </section>
@@ -132,13 +132,13 @@ export default async function AdminIntegracoesPage() {
                     <p className="text-[10.5px] text-slate-600 mt-0.5">Versão {integ.version}</p>
                   </div>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${integ.statusColor}`}>
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shrink-0 ${integ.statusColor}`}>
                   {integ.status}
                 </span>
               </div>
-              <p className="text-[11.5px] text-slate-500 leading-relaxed">{integ.desc}</p>
+              <p className="text-[12px] text-slate-500 leading-relaxed">{integ.desc}</p>
               {integ.endpoints > 0 && (
-                <p className="text-[10.5px] text-slate-700 mt-2">{integ.endpoints} endpoints disponíveis</p>
+                <p className="text-[11px] text-slate-600 mt-2">{integ.endpoints} endpoints disponíveis</p>
               )}
             </div>
           ))}
@@ -171,9 +171,9 @@ export default async function AdminIntegracoesPage() {
               { method: 'POST', path: '/v1/webhooks',        desc: 'Configurar webhook',         color: 'bg-emerald-600/20 text-emerald-400' },
             ].map((ep) => (
               <div key={ep.path} className="px-5 py-2.5 flex items-center gap-3">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${ep.color} shrink-0`}>{ep.method}</span>
-                <code className="text-[11.5px] font-mono text-slate-300 flex-1">{ep.path}</code>
-                <span className="text-[11px] text-slate-600 hidden sm:block">{ep.desc}</span>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${ep.color} shrink-0`}>{ep.method}</span>
+                <code className="text-[12px] font-mono text-slate-300 flex-1">{ep.path}</code>
+                <span className="text-[12px] text-slate-600 hidden sm:block">{ep.desc}</span>
               </div>
             ))}
           </div>

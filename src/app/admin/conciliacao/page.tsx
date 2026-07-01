@@ -81,7 +81,7 @@ export default async function ConciliacaoPage() {
             { label: 'Saques Solicitados', value: `${withdrawLogs.length}`,             color: 'text-amber-400',    border: 'border-amber-500/20' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
               <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
             </div>
           ))}
@@ -102,7 +102,7 @@ export default async function ConciliacaoPage() {
                 <thead>
                   <tr className="border-b border-slate-800/60">
                     {['Ação', 'Merchant', 'Usuário', 'Detalhes', 'Data'].map((h) => (
-                      <th key={h} className="px-4 py-2.5 text-left text-[9.5px] font-bold text-slate-600 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -117,20 +117,20 @@ export default async function ConciliacaoPage() {
                     } catch {}
                     return (
                       <tr key={log.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-4 py-3.5 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
-                            <span className="text-slate-300 font-medium">{meta.label}</span>
+                            <span className="text-[13px] text-slate-300 font-semibold">{meta.label}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-400 truncate max-w-[140px]">
+                        <td className="px-4 py-3.5 text-[12px] text-slate-400 truncate max-w-[140px]">
                           {log.user?.merchant?.name ?? (log.entityId ?? log.id).slice(0, 8) + '…'}
                         </td>
-                        <td className="px-4 py-3 text-slate-500 truncate max-w-[140px]">
+                        <td className="px-4 py-3.5 text-[12px] text-slate-500 truncate max-w-[140px]">
                           {log.user?.name ?? log.user?.email ?? log.userId.slice(0, 8) + '…'}
                         </td>
-                        <td className="px-4 py-3 text-slate-500 font-mono text-[11px]">{details || '—'}</td>
-                        <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(log.createdAt)}</td>
+                        <td className="px-4 py-3.5 text-[12px] text-slate-500 font-mono">{details || '—'}</td>
+                        <td className="px-4 py-3.5 text-[12px] text-slate-600 whitespace-nowrap">{formatDate(log.createdAt)}</td>
                       </tr>
                     )
                   })}

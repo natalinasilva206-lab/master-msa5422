@@ -79,8 +79,8 @@ export default async function AdminSuportePage() {
             { label: 'Respondidos',       value: fechados.length,  color: 'text-emerald-400',  border: 'border-emerald-500/20' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[24px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
             </div>
           ))}
         </section>
@@ -136,7 +136,7 @@ export default async function AdminSuportePage() {
                           {plano && (
                             <span className="text-[9.5px] font-bold text-slate-500 bg-slate-800/60 border border-slate-700/40 px-1.5 py-0.5 rounded">{plano}</span>
                           )}
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badgeClass}`}>{subject || 'Outro'}</span>
+                          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${badgeClass}`}>{subject || 'Outro'}</span>
                         </div>
                         <p className="text-[11px] text-slate-500 truncate">{ticket.user?.email ?? '—'}</p>
                         <p className="text-[12px] text-slate-400 mt-2 leading-relaxed line-clamp-3">{message}</p>
@@ -176,19 +176,19 @@ export default async function AdminSuportePage() {
                 } catch {}
                 const badgeClass = subjectColor[subject] ?? subjectColor['Outro']
                 return (
-                  <div key={ticket.id} className="px-5 py-3 flex items-center gap-3 opacity-60 hover:opacity-80 transition-opacity">
-                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
+                  <div key={ticket.id} className="px-5 py-3.5 flex items-center gap-3 opacity-60 hover:opacity-80 transition-opacity">
+                    <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${avatarGradients[i % avatarGradients.length]} flex items-center justify-center text-[11px] font-bold text-white shrink-0`}>
                       {getInitials(sellerName)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[12px] font-semibold text-slate-300 truncate">{sellerName}</p>
-                        {plano && <span className="text-[9px] font-bold text-slate-600">{plano}</span>}
-                        <span className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full border ${badgeClass}`}>{subject || 'Outro'}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[13px] font-semibold text-slate-300 truncate">{sellerName}</p>
+                        {plano && <span className="text-[11px] font-semibold text-slate-500 bg-slate-800/60 border border-slate-700/40 px-1.5 py-0.5 rounded">{plano}</span>}
+                        <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${badgeClass}`}>{subject || 'Outro'}</span>
                       </div>
-                      <p className="text-[10px] text-slate-700">{formatDate(ticket.createdAt)}</p>
+                      <p className="text-[12px] text-slate-600 mt-0.5">{formatDate(ticket.createdAt)}</p>
                     </div>
-                    <span className="shrink-0 text-[9.5px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    <span className="shrink-0 text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
                       Respondido
                     </span>
                   </div>

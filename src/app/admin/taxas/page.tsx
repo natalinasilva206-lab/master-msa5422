@@ -4,74 +4,119 @@ import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { prisma } from '@/lib/prisma'
 
+const planColor: Record<string, string> = {
+  Start:  'bg-slate-400',
+  Growth: 'bg-blue-500',
+  Prime:  'bg-purple-500',
+  Black:  'bg-white',
+}
+
 export default async function TaxasPage() {
   const plans = await prisma.feePlan.findMany({ orderBy: { createdAt: 'asc' } })
 
   return (
     <div>
-      <Topbar title="Taxas" subtitle="Planos de taxas e margens da plataforma" />
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-white font-semibold text-lg">Planos cadastrados</h2>
-          <Link
-            href="/admin/taxas/novo"
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-semibold rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Novo plano
-          </Link>
-        </div>
+      <Topbar
+        title="Taxas e Planos"
+        breadcrumb="Casa › Gestão"
+        subtitle="Planos de taxas e margens da plataforma"
+      />
+      <div className="p-4 xl:p-6 space-y-4">
 
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Planos cadastrados</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                {plans.length > 0
+                  ? `${plans.length} plano${plans.length > 1 ? 's' : ''} cadastrado${plans.length > 1 ? 's' : ''}`
+                  : 'Nenhum plano cadastrado ainda'}
+              </p>
+            </div>
+            <Link
+              href="/admin/taxas/novo"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-semibold rounded-lg transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Novo plano
+            </Link>
+          </div>
+
           {plans.length === 0 ? (
-            <div className="text-center py-16 text-slate-500 text-sm">Nenhum plano cadastrado.</div>
+            <div className="flex flex-col items-center justify-center py-16 text-slate-700">
+              <svg className="w-8 h-8 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </svg>
+              <p className="text-[12.5px] font-medium">Nenhum plano cadastrado</p>
+              <p className="text-[11px] text-slate-800 mt-1">Crie um plano para definir taxas e margens.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700/50">
-                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Nome</th>
-                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Cobrado %</th>
-                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Cobrado fixo</th>
-                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Custo %</th>
-                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Custo fixo</th>
-                    <th className="text-left px-4 py-3 text-slate-400 font-medium">Margem %</th>
-                    <th className="px-4 py-3 text-right text-slate-400 font-medium">Ações</th>
+                  <tr className="border-b border-slate-800/60">
+                    {['Plano', 'Cobrado %', 'Cobrado fixo', 'Custo %', 'Custo fixo', 'Margem %', ''].map((h) => (
+                      <th
+                        key={h}
+                        className={`px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider ${h === '' ? '' : 'text-left'}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {plans.map((p) => (
-                    <tr key={p.id} className="border-b border-slate-700/30 hover:bg-slate-700/20 transition-colors">
-                      <td className="px-4 py-3 text-white font-medium">{p.name}</td>
-                      <td className="px-4 py-3 text-slate-300">{p.chargedPercent.toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-slate-300">R$ {p.chargedFixed.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-slate-400">{p.costPercent.toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-slate-400">R$ {p.costFixed.toFixed(2)}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-green-400 font-semibold">
-                          {(p.chargedPercent - p.costPercent).toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/admin/taxas/${p.id}`}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-blue-400 hover:text-white hover:bg-blue-600 border border-blue-500/30 hover:border-blue-600 rounded-lg transition-colors"
-                        >
-                          Ver detalhes
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-slate-800/40">
+                  {plans.map((p) => {
+                    const margem = p.chargedPercent - p.costPercent
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${planColor[p.name] ?? 'bg-slate-500'}`} />
+                            <span className="text-[13px] font-semibold text-slate-200">{p.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-[13px] font-semibold text-slate-200 tabular-nums font-mono">{p.chargedPercent.toFixed(2)}%</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-[12px] text-slate-400 tabular-nums font-mono">R$ {p.chargedFixed.toFixed(2)}</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-[12px] text-slate-500 tabular-nums font-mono">{p.costPercent.toFixed(2)}%</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-[12px] text-slate-500 tabular-nums font-mono">R$ {p.costFixed.toFixed(2)}</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`text-[13px] font-semibold tabular-nums font-mono ${margem > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {margem.toFixed(2)}%
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <Link
+                            href={`/admin/taxas/${p.id}`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 rounded-lg transition-colors"
+                          >
+                            Editar
+                          </Link>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
-              <p className="text-slate-500 text-xs px-4 pt-3 pb-2">
-                {plans.length} {plans.length === 1 ? 'plano cadastrado' : 'planos cadastrados'}
-              </p>
+              <div className="px-5 py-3 border-t border-slate-800/50">
+                <span className="text-[11px] text-slate-700">
+                  {plans.length} {plans.length === 1 ? 'plano cadastrado' : 'planos cadastrados'}
+                </span>
+              </div>
             </div>
           )}
         </div>
+
       </div>
     </div>
   )

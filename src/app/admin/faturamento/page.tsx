@@ -168,10 +168,10 @@ export default async function FaturamentoPage({
             { label: 'Total de Transações', value: `${totalCount.toLocaleString('pt-BR')}`, color: 'text-blue-400', sub: 'transações aprovadas' },
             { label: 'Ticket Médio',        value: `R$ ${formatBRL(ticketMedio)}`, color: 'text-slate-200',     sub: 'por transação' },
           ].map((c) => (
-            <div key={c.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5">
+            <div key={c.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
               <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
               <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
-              <p className="text-[13px] text-slate-600 mt-1">{c.sub}</p>
+              <p className="text-[12px] text-slate-600 mt-1">{c.sub}</p>
             </div>
           ))}
         </section>

@@ -102,8 +102,8 @@ export default async function AnalisePage() {
             { label: 'Empresas',        value: `${totalMerch}`,                 color: 'text-slate-200',   border: 'border-slate-800/70' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[22px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
             </div>
           ))}
         </section>
@@ -198,8 +198,8 @@ export default async function AnalisePage() {
             { label: 'Em Revisão', value: (statusCounts['PENDING'] ?? 0) + (statusCounts['REVIEW'] ?? 0) },
           ].map((c) => (
             <div key={c.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4 text-center">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className="text-[26px] font-bold text-slate-200 tabular-nums">{c.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className="text-[20px] font-bold text-slate-200 tabular-nums">{c.value}</p>
             </div>
           ))}
         </div>
