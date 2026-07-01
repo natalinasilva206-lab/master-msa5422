@@ -54,6 +54,7 @@ export default async function EditarClientePage({ params, searchParams }: PagePr
     status: merchant.status,
     plan: merchant.plan,
     cdiRate: merchant.cdiRate,
+    anticipationFeePercent: (merchant as any).anticipationFeePercent ?? 2.5,
     tradeName: merchant.tradeName,
     commercialPhone: merchant.commercialPhone,
     website: merchant.website,

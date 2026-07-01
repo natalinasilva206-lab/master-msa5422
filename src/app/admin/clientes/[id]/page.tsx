@@ -500,6 +500,12 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
             } />
             <InfoRow label="Plano" value={<span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300">{merchant.plan}</span>} />
             <InfoRow label="Taxa CDI" value={<span className="text-emerald-400 font-mono">{merchant.cdiRate.toFixed(2)}%/mês</span>} />
+            <InfoRow label="Taxa Antecipação" value={
+              <span className="flex items-center gap-2">
+                <span className="text-blue-400 font-mono">{(merchant as any).anticipationFeePercent?.toFixed(1) ?? '2.5'}%</span>
+                <a href={`/admin/clientes/${merchant.id}/editar`} className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors">Alterar</a>
+              </span>
+            } />
             {merchant.tradeName && <InfoRow label="Nome Fantasia" value={merchant.tradeName} />}
             {merchant.commercialPhone && <InfoRow label="Telefone Comercial" value={merchant.commercialPhone} />}
             {merchant.website && <InfoRow label="Site" value={<a href={merchant.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{merchant.website}</a>} />}

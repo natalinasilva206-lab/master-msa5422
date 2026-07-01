@@ -12,7 +12,7 @@ async function requireAdmin() {
   return session
 }
 
-export async function approveAntecipacao(id: string, adminNotes?: string) {
+export async function approveAntecipacao(id: string, adminNotes?: string, customFeePercent?: number) {
   const session = await requireAdmin()
   const admin = session.user as any
 
@@ -26,11 +26,21 @@ export async function approveAntecipacao(id: string, adminNotes?: string) {
     return { error: 'Recebíveis insuficientes para cobrir o valor solicitado.' }
   }
 
+  // Admin can override the fee at approval time
+  const finalFeePercent = customFeePercent !== undefined
+    ? Math.max(0, Math.min(20, customFeePercent))
+    : ant.feePercent
+  const finalFeeAmount = Math.round(ant.requestedAmount * (finalFeePercent / 100) * 100) / 100
+  const finalNetAmount = Math.round((ant.requestedAmount - finalFeeAmount) * 100) / 100
+
   await prisma.$transaction([
     prisma.anticipation.update({
       where: { id },
       data: {
         status: 'APROVADA',
+        feePercent: finalFeePercent,
+        feeAmount: finalFeeAmount,
+        netAmount: finalNetAmount,
         adminNotes: adminNotes || null,
         resolvedBy: admin.id,
         resolvedAt: new Date(),
@@ -40,7 +50,7 @@ export async function approveAntecipacao(id: string, adminNotes?: string) {
       where: { id: ant.merchantId },
       data: {
         futureBalance: { decrement: ant.requestedAmount },
-        pendingBalance: { increment: ant.netAmount },
+        pendingBalance: { increment: finalNetAmount },
       },
     }),
     prisma.auditLog.create({
@@ -52,9 +62,9 @@ export async function approveAntecipacao(id: string, adminNotes?: string) {
         metadata: JSON.stringify({
           merchantId: ant.merchantId,
           requestedAmount: ant.requestedAmount,
-          feePercent: ant.feePercent,
-          feeAmount: ant.feeAmount,
-          netAmount: ant.netAmount,
+          feePercent: finalFeePercent,
+          feeAmount: finalFeeAmount,
+          netAmount: finalNetAmount,
           adminNotes: adminNotes ?? null,
         }),
       },

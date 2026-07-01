@@ -78,6 +78,8 @@ export async function updateMerchant(id: string, formData: FormData) {
   const plan = formData.get('plan')?.toString() ?? ''
   const cdiRateRaw = formData.get('cdiRate')?.toString().trim() ?? ''
   const cdiRate = cdiRateRaw ? Math.max(0, Math.min(10, parseFloat(cdiRateRaw) || 1.0)) : undefined
+  const antFeeRaw = formData.get('anticipationFeePercent')?.toString().trim() ?? ''
+  const anticipationFeePercent = antFeeRaw ? Math.max(0, Math.min(20, parseFloat(antFeeRaw) || 2.5)) : undefined
 
   // Complementary fields (all optional)
   const tradeName = formData.get('tradeName')?.toString().trim() || null
@@ -106,6 +108,7 @@ export async function updateMerchant(id: string, formData: FormData) {
     data: {
       name, email, document, type, status, plan,
       ...(cdiRate !== undefined ? { cdiRate } : {}),
+      ...(anticipationFeePercent !== undefined ? { anticipationFeePercent } : {}),
       tradeName, commercialPhone, website, segment, address, legalRepresentative,
     },
   })

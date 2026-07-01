@@ -45,6 +45,7 @@ export interface MerchantSnapshot {
   status: string
   plan: string
   cdiRate: number
+  anticipationFeePercent: number
   tradeName: string | null
   commercialPhone: string | null
   website: string | null
@@ -163,18 +164,32 @@ export function EditForm({ merchant, errorKey }: EditFormProps) {
         </Field>
       </div>
 
-      <Field label="Taxa CDI (% ao mês)">
-        <input
-          name="cdiRate"
-          type="number"
-          step="0.01"
-          min="0"
-          max="10"
-          defaultValue={merchant.cdiRate.toFixed(2)}
-          placeholder="1.00"
-          className={ok}
-        />
-      </Field>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <Field label="Taxa CDI (% ao mês)">
+          <input
+            name="cdiRate"
+            type="number"
+            step="0.01"
+            min="0"
+            max="10"
+            defaultValue={merchant.cdiRate.toFixed(2)}
+            placeholder="1.00"
+            className={ok}
+          />
+        </Field>
+        <Field label="Taxa Antecipação (% sobre bruto)">
+          <input
+            name="anticipationFeePercent"
+            type="number"
+            step="0.1"
+            min="0"
+            max="20"
+            defaultValue={merchant.anticipationFeePercent.toFixed(1)}
+            placeholder="2.5"
+            className={ok}
+          />
+        </Field>
+      </div>
 
       <Field label="Plano" error={errors.plan}>
         <select
