@@ -37,6 +37,13 @@ export async function GET(req: NextRequest) {
     byMerchant.set(r.merchantId, list)
   }
 
+  // Find any ADMIN user to attribute automatic audit entries
+  const systemUser = await prisma.user.findFirst({
+    where: { role: 'ADMIN' },
+    select: { id: true },
+  })
+  const systemUserId = systemUser?.id ?? ''
+
   let processed = 0
   const errors: string[] = []
 
@@ -44,6 +51,40 @@ export async function GET(req: NextRequest) {
     try {
       const totalToRelease = items.reduce((s, i) => s + i.amount, 0)
       const ids = items.map((i) => i.id)
+
+      const merchant = await prisma.merchant.findUnique({
+        where: { id: merchantId },
+        select: { pendingBalance: true, reservedBalance: true, name: true },
+      })
+
+      const auditOps = systemUserId
+        ? items.map((item) =>
+            prisma.auditLog.create({
+              data: {
+                userId:   systemUserId,
+                action:   'RISK_RELEASE',
+                entity:   'Merchant',
+                entityId: merchantId,
+                metadata: JSON.stringify({
+                  amount:      item.amount,
+                  from:        'reservedBalance',
+                  to:          'pendingBalance',
+                  reserveId:   item.id,
+                  triggeredBy: 'cron/release-reserves',
+                  merchantName: merchant?.name ?? '',
+                  before: {
+                    pendingBalance:  merchant?.pendingBalance  ?? 0,
+                    reservedBalance: merchant?.reservedBalance ?? 0,
+                  },
+                  after: {
+                    pendingBalance:  (merchant?.pendingBalance  ?? 0) + totalToRelease,
+                    reservedBalance: (merchant?.reservedBalance ?? 0) - totalToRelease,
+                  },
+                }),
+              },
+            })
+          )
+        : []
 
       await prisma.$transaction([
         prisma.merchant.update({
@@ -57,8 +98,8 @@ export async function GET(req: NextRequest) {
           where: { id: { in: ids } },
           data: { status: 'LIBERADO', releasedAt: now },
         }),
+        ...auditOps,
       ])
-
       processed += items.length
     } catch (e: any) {
       errors.push(`${merchantId}: ${e.message}`)

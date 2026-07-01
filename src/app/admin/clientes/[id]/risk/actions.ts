@@ -301,6 +301,12 @@ export async function updateReserveStatus(
         pendingBalance:  { decrement: reserve.amount },
         reservedBalance: { increment: reserve.amount },
       }
+    } else if (newStatus === 'CANCELADO' && reserve.status === 'RESERVADO') {
+      // Devolve o valor ao saldo disponível ao cancelar uma reserva ativa
+      merchantUpdate = {
+        pendingBalance:  { increment: reserve.amount },
+        reservedBalance: { decrement: reserve.amount },
+      }
     }
 
     const reserveUpdateOp = prisma.reserveRelease.update({

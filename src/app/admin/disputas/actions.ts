@@ -307,6 +307,21 @@ export async function useReserveForDispute(
       blockedBalance:  dispute.merchant.blockedBalance,
     }
 
+    // Marca as ReserveRelease mais antigas como DISPUTA para impedir que o cron
+    // libere automaticamente saldo que já foi movido para blockedBalance.
+    const reservesToMark = await prisma.reserveRelease.findMany({
+      where: { merchantId: dispute.merchantId, status: 'RESERVADO' },
+      orderBy: { saleDate: 'asc' },
+      select: { id: true, amount: true },
+    })
+    let remaining = amount
+    const reserveIdsToMark: string[] = []
+    for (const r of reservesToMark) {
+      if (remaining <= 0) break
+      reserveIdsToMark.push(r.id)
+      remaining -= r.amount
+    }
+
     await prisma.$transaction([
       prisma.merchant.update({
         where: { id: dispute.merchantId },
@@ -319,6 +334,12 @@ export async function useReserveForDispute(
         where: { id: disputeId },
         data: { blockedAmount: { increment: amount } },
       }),
+      ...(reserveIdsToMark.length > 0
+        ? [prisma.reserveRelease.updateMany({
+            where: { id: { in: reserveIdsToMark } },
+            data: { status: 'DISPUTA' },
+          })]
+        : []),
       prisma.auditLog.create({
         data: {
           userId:   admin.id,
@@ -326,11 +347,12 @@ export async function useReserveForDispute(
           entity:   'Dispute',
           entityId: disputeId,
           metadata: buildMeta({
-            merchantId:   dispute.merchantId,
-            merchantName: dispute.merchant.name,
+            merchantId:     dispute.merchantId,
+            merchantName:   dispute.merchant.name,
             amount,
-            from: 'reservedBalance',
-            to:   'blockedBalance',
+            from:           'reservedBalance',
+            to:             'blockedBalance',
+            markedReserves: reserveIdsToMark,
             before,
             after: {
               reservedBalance: before.reservedBalance - amount,

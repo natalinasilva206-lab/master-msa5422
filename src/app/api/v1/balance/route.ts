@@ -44,11 +44,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       merchantId: merchant.id,
       balance: {
-        available: merchant.balance,
-        pending: merchant.pendingBalance,
-        reserved: merchant.reservedBalance,
-        blocked: merchant.blockedBalance,
-        future: merchant.futureBalance,
+        available:  merchant.pendingBalance,   // saldo livre para saque/operações
+        reserved:   merchant.reservedBalance,  // retido pela reserva de risco
+        blocked:    merchant.blockedBalance,   // bloqueado por disputa/chargeback
+        future:     merchant.futureBalance,    // com data prevista de liberação
+        cdi:        merchant.balance,          // investido em CDI
       },
     })
   } catch (e: any) {
