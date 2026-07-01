@@ -7,6 +7,7 @@ import { Topbar } from '@/components/layout/Topbar'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { PeriodFilter } from './PeriodFilter'
+import { MeuMasterScoreCard } from './MeuMasterScoreCard'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -190,27 +191,8 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
             </div>
           </div>
         )}
-        {/* Master Score badge */}
-        {masterScore && (
-          <div className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${levelColor[masterScore.nivelScore]?.bg ?? 'bg-slate-900/60'} ${levelColor[masterScore.nivelScore]?.border ?? 'border-slate-800/70'}`}>
-            <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${levelColor[masterScore.nivelScore]?.bg ?? ''}`}>
-              <svg className={`w-4.5 h-4.5 ${levelColor[masterScore.nivelScore]?.text ?? 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className={`text-[13px] font-bold ${levelColor[masterScore.nivelScore]?.text ?? 'text-white'}`}>
-                  Nível {masterScore.nivelScore}
-                </p>
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${levelColor[masterScore.nivelScore]?.bg ?? ''} ${levelColor[masterScore.nivelScore]?.border ?? ''} ${levelColor[masterScore.nivelScore]?.text ?? ''}`}>
-                  {masterScore.statusRisco}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Master Score: <span className="font-semibold text-slate-300">{Math.round(masterScore.scoreTotal)}/100</span> · Atualizado automaticamente com base no seu histórico</p>
-            </div>
-          </div>
-        )}
+        {/* Master Score card */}
+        {masterScore && <MeuMasterScoreCard masterScore={masterScore} />}
 
         {merchantStatus === 'BLOCKED' && (
           <div className="bg-red-500/8 border border-red-500/25 rounded-xl px-4 py-3 flex items-center gap-3">
