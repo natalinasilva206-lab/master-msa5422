@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { notifyAdminTicketOpened, notifyAdminTicketReopened } from '@/lib/notifySupport'
 
 export async function sendSupportTicket(
   subject: string,
@@ -49,6 +50,16 @@ export async function sendSupportTicket(
 
   revalidatePath('/cliente/suporte')
   revalidatePath('/admin/suporte')
+
+  // Fire-and-forget — never blocks ticket creation
+  notifyAdminTicketOpened({
+    merchantId:    user.merchant.id,
+    merchantName:  user.merchant.name,
+    ticketId:      ticket.id,
+    ticketSubject: subject.trim(),
+    message:       message.trim(),
+  }).catch(() => undefined)
+
   return { ok: true, ticketId: ticket.id }
 }
 
@@ -92,5 +103,21 @@ export async function replyToTicket(
 
   revalidatePath('/cliente/suporte')
   revalidatePath('/admin/suporte')
+
+  // Notify admin of seller reply — fire-and-forget
+  const fullTicket = await prisma.ticket.findUnique({
+    where:   { id: ticketId },
+    include: { merchant: { select: { name: true } } },
+  })
+  if (fullTicket) {
+    notifyAdminTicketReopened({
+      merchantId:    fullTicket.merchantId,
+      merchantName:  fullTicket.merchant.name,
+      ticketId,
+      ticketSubject: fullTicket.subject,
+      message:       message.trim(),
+    }).catch(() => undefined)
+  }
+
   return { ok: true }
 }

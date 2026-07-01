@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { notifySellerTicketReplied } from '@/lib/notifySupport'
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions)
@@ -56,6 +57,15 @@ export async function replyTicket(
 
   revalidatePath('/admin/suporte')
   revalidatePath('/cliente/suporte')
+
+  // Notify seller — fire-and-forget
+  notifySellerTicketReplied({
+    merchantId:    ticket.merchantId,
+    ticketId,
+    ticketSubject: ticket.subject,
+    reply:         reply.trim(),
+  }).catch(() => undefined)
+
   return { ok: true }
 }
 
