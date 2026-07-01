@@ -208,15 +208,26 @@ export async function addInternalNote(
   const admin = await requireAdmin()
   if (!note?.trim()) return { error: 'Nota não pode estar vazia.' }
 
-  await prisma.ticketMessage.create({
-    data: {
-      ticketId,
-      senderId:       admin.id,
-      senderRole:     'ADMIN',
-      message:        note.trim(),
-      isInternalNote: true,
-    },
-  })
+  await prisma.$transaction([
+    prisma.ticketMessage.create({
+      data: {
+        ticketId,
+        senderId:       admin.id,
+        senderRole:     'ADMIN',
+        message:        note.trim(),
+        isInternalNote: true,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'TICKET_INTERNAL_NOTE',
+        entity:   'Ticket',
+        entityId: ticketId,
+        metadata: JSON.stringify({ adminName: admin.name, notePreview: note.trim().slice(0, 80) }),
+      },
+    }),
+  ])
 
   revalidatePath('/admin/suporte')
   return { ok: true }
