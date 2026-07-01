@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { dispatchWebhook } from '@/lib/dispatchWebhook'
 
 /* ─── auth helpers ──────────────────────────────────────────── */
 async function getAdminSession() {
@@ -131,6 +132,8 @@ export async function createDispute(
       return d
     })
 
+    dispatchWebhook(input.merchantId, 'dispute.opened', { disputeId: dispute.id, type: input.type, contestedAmount: input.contestedAmount }).catch(() => {})
+
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/clientes/${input.merchantId}`)
     revalidatePath(`/admin/clientes/${input.merchantId}/historico`)
@@ -194,6 +197,8 @@ export async function updateDisputeStatus(
         },
       })
     })
+
+    dispatchWebhook(dispute.merchantId, 'dispute.updated', { disputeId, newStatus }).catch(() => {})
 
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)

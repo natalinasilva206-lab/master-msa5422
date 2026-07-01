@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { processSalePayment } from '@/lib/processSalePayment'
+import { verifyApiKey } from '@/lib/apiKey'
+import { dispatchWebhook } from '@/lib/dispatchWebhook'
 
 // POST /api/v1/sales
 // Body: { merchantId, saleAmount, description?, externalId?, apiKey }
-// apiKey is validated against a simple hash: sha256(merchantId + secret)
-// For real gateway integration, replace apiKey validation with gateway signature verification.
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -17,22 +17,25 @@ export async function POST(req: NextRequest) {
     if (!saleAmount || typeof saleAmount !== 'number' || saleAmount <= 0) {
       return NextResponse.json({ error: 'saleAmount inválido.' }, { status: 400 })
     }
-
-    // Simple API key check: base64(merchantId) — replace with real HMAC in production
-    const expectedKey = Buffer.from(merchantId).toString('base64')
-    if (!apiKey || apiKey !== expectedKey) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
+    if (!apiKey || typeof apiKey !== 'string') {
+      return NextResponse.json({ error: 'apiKey obrigatória.' }, { status: 401 })
     }
 
     const merchant = await prisma.merchant.findUnique({
       where: { id: merchantId },
-      select: { id: true, users: { select: { id: true }, take: 1 } },
+      select: { id: true, apiKey: true, status: true, users: { select: { id: true }, take: 1 } },
     })
+
     if (!merchant) {
       return NextResponse.json({ error: 'Merchant não encontrado.' }, { status: 404 })
     }
+    if (merchant.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Merchant inativo ou bloqueado.' }, { status: 403 })
+    }
+    if (!merchant.apiKey || !verifyApiKey(apiKey, merchant.apiKey)) {
+      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
+    }
 
-    // Use merchant's first user as triggeredBy, or fall back to merchantId itself
     const triggeredBy = merchant.users[0]?.id ?? merchantId
 
     const result = await processSalePayment({
@@ -42,6 +45,14 @@ export async function POST(req: NextRequest) {
       externalId,
       triggeredBy,
     })
+
+    // Dispara webhook assincronamente (sem bloquear a resposta)
+    dispatchWebhook(merchantId, 'sale.created', {
+      saleLogId: result.saleLogId,
+      amount: saleAmount,
+      description,
+      externalId,
+    }).catch(() => {})
 
     return NextResponse.json({ ok: true, ...result })
   } catch (e: any) {

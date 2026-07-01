@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { prisma } from '@/lib/prisma'
+import { ExportCsvButton } from './ExportCsvButton'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -275,9 +276,21 @@ export default async function AdminTransacoesPage({ searchParams }: PageProps) {
               <p className="text-[13px] font-semibold text-white">Todas as Transações</p>
               <span className="text-[10.5px] text-slate-600 ml-1">· {saleLogs.length} resultado{saleLogs.length !== 1 ? 's' : ''}</span>
             </div>
-            <span className="text-[10px] font-medium text-slate-600 bg-slate-800/60 border border-slate-700/40 px-2.5 py-1 rounded-full">
-              máx. 200 por página
-            </span>
+            <div className="flex items-center gap-2">
+              <ExportCsvButton rows={saleLogs.map((s) => ({
+                id: s.id,
+                merchantName: s.merchant?.name ?? '—',
+                type: s.type,
+                status: s.status,
+                amount: s.amount,
+                description: s.description,
+                externalId: s.externalId,
+                createdAt: formatDateTime(s.createdAt),
+              }))} />
+              <span className="text-[10px] font-medium text-slate-600 bg-slate-800/60 border border-slate-700/40 px-2.5 py-1 rounded-full">
+                máx. 200 por página
+              </span>
+            </div>
           </div>
 
           {saleLogs.length === 0 ? (

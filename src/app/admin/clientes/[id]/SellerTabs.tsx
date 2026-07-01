@@ -15,6 +15,8 @@ export default function SellerTabs({ merchantId }: Props) {
     { label: 'Visão Geral',        href: base },
     { label: 'Histórico de Risco', href: `${base}/historico` },
     { label: 'Histórico do Score', href: `${base}/score-historico` },
+    { label: 'Master Score',       href: `/admin/master-score/${merchantId}` },
+    { label: 'Webhooks',           href: `${base}/webhooks` },
   ]
 
   return (

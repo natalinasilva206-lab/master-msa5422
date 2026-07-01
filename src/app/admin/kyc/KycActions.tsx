@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import { approveMerchant, rejectMerchant, requestCall, requestAdjustment } from './actions'
+import { approveMerchant, rejectMerchant, requestCall, requestAdjustment, addKycDocument, removeKycDocument } from './actions'
 
 type AuditEntry = {
   id: string
@@ -27,6 +27,7 @@ type MerchantData = {
   userName: string | null
   userEmail: string | null
   auditHistory: AuditEntry[]
+  kycDocumentUrls: string[]
 }
 
 const typeLabel: Record<string, string> = {
@@ -67,7 +68,11 @@ const subStatusStyle: Record<string, string> = {
 export function KycActions({ merchant }: { merchant: MerchantData }) {
   const [showMenu, setShowMenu] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [activeTab, setActiveTab] = useState<'pessoal' | 'empresa' | 'bancario' | 'historico'>('pessoal')
+  const [activeTab, setActiveTab] = useState<'pessoal' | 'empresa' | 'documentos' | 'historico'>('pessoal')
+  const [docUrl, setDocUrl] = useState('')
+  const [docError, setDocError] = useState('')
+  const [addingDoc, startAddDoc] = useTransition()
+  const [removingDoc, startRemoveDoc] = useTransition()
   const [note, setNote] = useState('')
   const [showNoteInput, setShowNoteInput] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -76,7 +81,7 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
   const [rejecting, startReject] = useTransition()
   const [calling, startCall] = useTransition()
   const [adjusting, startAdjust] = useTransition()
-  const pending = approving || rejecting || calling || adjusting
+  const pending = approving || rejecting || calling || adjusting || addingDoc || removingDoc
 
   const canAction = ['EM_ANALISE', 'AGUARDANDO_CALL', 'AJUSTE_SOLICITADO'].includes(merchant.kycSubStatus)
 
@@ -220,7 +225,7 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
 
             {/* Tabs */}
             <div className="flex border-b border-slate-800/60 px-6 gap-1">
-              {(['pessoal', 'empresa', 'bancario', 'historico'] as const).map((tab) => (
+              {(['pessoal', 'empresa', 'documentos', 'historico'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -228,7 +233,7 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
                     activeTab === tab ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-600 hover:text-slate-400'
                   }`}
                 >
-                  {tab === 'pessoal' ? 'Pessoal' : tab === 'empresa' ? 'Empresa' : tab === 'bancario' ? 'Bancário' : 'Histórico'}
+                  {tab === 'pessoal' ? 'Pessoal' : tab === 'empresa' ? 'Empresa' : tab === 'documentos' ? `Documentos (${merchant.kycDocumentUrls.length})` : 'Histórico'}
                 </button>
               ))}
             </div>
@@ -298,13 +303,46 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
                 </div>
               )}
 
-              {activeTab === 'bancario' && (
-                <div className="flex flex-col items-center justify-center py-14 text-slate-700">
-                  <svg className="w-10 h-10 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  <p className="text-[13px] font-medium">Dados bancários não cadastrados</p>
-                  <p className="text-[11px] text-slate-800 mt-1">O seller ainda não vinculou uma conta bancária.</p>
+              {activeTab === 'documentos' && (
+                <div className="space-y-3">
+                  <p className="text-[11px] text-slate-600">Links de documentos enviados pelo cliente (CNH, CNPJ, selfie, etc.)</p>
+                  {merchant.kycDocumentUrls.length === 0 && (
+                    <p className="text-[12px] text-slate-700 py-6 text-center">Nenhum documento adicionado ainda.</p>
+                  )}
+                  <div className="space-y-2">
+                    {merchant.kycDocumentUrls.map((url) => (
+                      <div key={url} className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 text-[11.5px] text-blue-400 hover:text-blue-300 truncate font-mono">{url}</a>
+                        <button
+                          onClick={() => startRemoveDoc(() => removeKycDocument(merchant.id, url))}
+                          disabled={removingDoc}
+                          className="shrink-0 text-[10px] text-red-400 hover:text-red-300 disabled:opacity-40"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <input
+                      type="url"
+                      value={docUrl}
+                      onChange={(e) => { setDocUrl(e.target.value); setDocError('') }}
+                      placeholder="https://drive.google.com/... ou URL do documento"
+                      className="flex-1 text-[11.5px] font-mono bg-slate-800/60 border border-slate-700/60 text-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder-slate-600"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!docUrl.trim()) { setDocError('URL obrigatória.'); return }
+                        startAddDoc(async () => { await addKycDocument(merchant.id, docUrl.trim()); setDocUrl('') })
+                      }}
+                      disabled={addingDoc}
+                      className="shrink-0 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 px-3 py-2 rounded-lg transition-colors"
+                    >
+                      {addingDoc ? '…' : 'Adicionar'}
+                    </button>
+                  </div>
+                  {docError && <p className="text-[11px] text-red-400">{docError}</p>}
                 </div>
               )}
 

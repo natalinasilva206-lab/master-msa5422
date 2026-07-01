@@ -16,9 +16,10 @@ function getIp() {
   try { return headers().get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown' } catch { return 'unknown' }
 }
 
-export async function markTicketReplied(ticketId: string, sellerName: string) {
+export async function markTicketReplied(ticketId: string, sellerName: string, reply: string) {
   const admin = await getAdminSession()
   const ip = getIp()
+  if (!reply?.trim()) throw new Error('A resposta não pode estar vazia.')
   await prisma.auditLog.create({
     data: {
       userId: admin.id,
@@ -30,6 +31,7 @@ export async function markTicketReplied(ticketId: string, sellerName: string) {
         sellerName,
         adminName: admin.name,
         adminEmail: admin.email,
+        reply: reply.trim(),
         ip,
         repliedAt: new Date().toISOString(),
       }),

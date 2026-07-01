@@ -97,20 +97,25 @@ export default async function KycPage({ searchParams }: PageProps) {
     return 'EM_ANALISE'
   }
 
-  const enriched = merchants.map((m) => ({
-    ...m,
-    kycSubStatus: deriveSubStatus(m.id, m.status),
-    userName: m.users[0]?.name ?? null,
-    userEmail: m.users[0]?.email ?? null,
-    auditHistory: (historyByMerchant.get(m.id) ?? []).map((l) => ({
-      id: l.id,
-      action: l.action,
-      createdAt: l.createdAt.toISOString(),
-      metadata: l.metadata,
-      userName: l.user?.name ?? null,
-    })),
-    createdAt: m.createdAt.toISOString(),
-  }))
+  const enriched = merchants.map((m) => {
+    let kycDocumentUrls: string[] = []
+    try { kycDocumentUrls = JSON.parse((m as any).kycDocumentUrls ?? '[]') } catch {}
+    return {
+      ...m,
+      kycSubStatus: deriveSubStatus(m.id, m.status),
+      userName: m.users[0]?.name ?? null,
+      userEmail: m.users[0]?.email ?? null,
+      kycDocumentUrls,
+      auditHistory: (historyByMerchant.get(m.id) ?? []).map((l) => ({
+        id: l.id,
+        action: l.action,
+        createdAt: l.createdAt.toISOString(),
+        metadata: l.metadata,
+        userName: l.user?.name ?? null,
+      })),
+      createdAt: m.createdAt.toISOString(),
+    }
+  })
 
   // KPI counts
   const counts = {

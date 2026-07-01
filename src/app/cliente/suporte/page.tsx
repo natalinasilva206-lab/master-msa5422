@@ -41,6 +41,10 @@ const faqs = [
   },
 ]
 
+function formatDate(d: Date | string) {
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
+}
+
 export default async function SuportePage() {
   const session = await getServerSession(authOptions)
   const userId = (session?.user as any)?.id as string | undefined
@@ -49,6 +53,33 @@ export default async function SuportePage() {
     : null
 
   const plano = user?.merchant?.plan ?? 'Start'
+
+  // Tickets enviados por este usuário
+  const myTickets = userId
+    ? await prisma.auditLog.findMany({
+        where: { userId, action: 'SUPPORT_TICKET' },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }).catch(() => [])
+    : []
+
+  // Respostas do admin para os tickets deste usuário
+  const ticketIds = myTickets.map((t) => t.id)
+  const replies = ticketIds.length > 0
+    ? await prisma.auditLog.findMany({
+        where: { action: 'SUPPORT_TICKET_REPLIED', entityId: { in: ticketIds } },
+        select: { entityId: true, metadata: true, createdAt: true },
+      }).catch(() => [])
+    : []
+
+  const replyByTicket = new Map<string, { reply: string; adminName: string; repliedAt: string }>()
+  for (const r of replies) {
+    if (!r.entityId) continue
+    try {
+      const m = JSON.parse(r.metadata ?? '{}')
+      replyByTicket.set(r.entityId, { reply: m.reply ?? '', adminName: m.adminName ?? 'Suporte', repliedAt: m.repliedAt ?? r.createdAt.toISOString() })
+    } catch {}
+  }
 
   const canais = [
     {
@@ -124,6 +155,47 @@ export default async function SuportePage() {
           </div>
 
         </div>
+
+        {/* Histórico de tickets e respostas */}
+        {myTickets.length > 0 && (
+          <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-800/60">
+              <p className="text-[13px] font-semibold text-white">Meus Tickets</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Histórico de mensagens enviadas e respostas recebidas</p>
+            </div>
+            <div className="divide-y divide-slate-800/40 max-h-[480px] overflow-y-auto">
+              {myTickets.map((ticket) => {
+                let subject = '', message = ''
+                try { const m = JSON.parse(ticket.metadata ?? '{}'); subject = m.subject ?? ''; message = m.message ?? '' } catch {}
+                const rep = replyByTicket.get(ticket.id)
+                return (
+                  <div key={ticket.id} className="px-5 py-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[11px] font-semibold text-blue-400">{subject || 'Outro'}</span>
+                          <span className="text-[10px] text-slate-700">{formatDate(ticket.createdAt)}</span>
+                        </div>
+                        <p className="text-[12px] text-slate-400 leading-relaxed">{message}</p>
+                      </div>
+                      {rep ? (
+                        <span className="shrink-0 text-[9.5px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Respondido</span>
+                      ) : (
+                        <span className="shrink-0 text-[9.5px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Pendente</span>
+                      )}
+                    </div>
+                    {rep && (
+                      <div className="ml-3 pl-3 border-l-2 border-emerald-500/30 space-y-0.5">
+                        <p className="text-[10px] font-semibold text-emerald-400">{rep.adminName} · {formatDate(rep.repliedAt)}</p>
+                        <p className="text-[12px] text-slate-300 leading-relaxed">{rep.reply}</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4">
           <p className="text-[13px] font-semibold text-white mb-2">Horário de Atendimento</p>

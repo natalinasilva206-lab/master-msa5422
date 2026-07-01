@@ -52,20 +52,28 @@ export default async function ExtratoPage() {
   const pendente  = merchant?.pendingBalance ?? 0
   const cdiSaldo  = merchant?.balance        ?? 0
 
-  const allLogs = merchant
-    ? await prisma.auditLog.findMany({
-        where: {
-          entityId: merchant.id,
-          entity:   'Merchant',
-          action:   { in: [...SAQUE_ACTIONS, ...CDI_ACTIONS] },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      })
-    : []
+  const [allLogs, vendaLogs] = merchant
+    ? await Promise.all([
+        prisma.auditLog.findMany({
+          where: {
+            entityId: merchant.id,
+            entity:   'Merchant',
+            action:   { in: [...SAQUE_ACTIONS, ...CDI_ACTIONS] },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }),
+        prisma.saleLog.findMany({
+          where: { merchantId: merchant.id },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }),
+      ])
+    : [[], []]
 
   const saqueLogs = allLogs.filter((l) => SAQUE_ACTIONS.includes(l.action))
   const cdiLogs   = allLogs.filter((l) => CDI_ACTIONS.includes(l.action))
+  const totalVendas = vendaLogs.filter((v) => v.type === 'VENDA').reduce((s, v) => s + v.amount, 0)
 
   const totalSacado    = saqueLogs
     .filter((l) => l.action === 'WITHDRAW_APPROVED')
@@ -94,11 +102,12 @@ export default async function ExtratoPage() {
       <div className="p-4 xl:p-6 space-y-4">
 
         {/* KPIs */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: 'Saldo Disponível',  value: `R$ ${formatBRL(pendente)}`,          color: 'text-emerald-400', border: 'border-emerald-500/20', sub: 'livre para saque' },
             { label: 'Saldo em CDI',      value: `R$ ${formatBRL(cdiSaldo)}`,          color: 'text-amber-400',   border: 'border-amber-500/20',   sub: 'rendendo agora' },
-            { label: 'Rendimento CDI',    value: `R$ ${formatBRL(totalCdiRendido)}`,   color: 'text-blue-400',    border: 'border-blue-500/15',    sub: 'total acumulado' },
+            { label: 'Total em Vendas',   value: `R$ ${formatBRL(totalVendas)}`,       color: 'text-blue-400',    border: 'border-blue-500/15',    sub: `${vendaLogs.filter(v => v.type === 'VENDA').length} transações` },
+            { label: 'Rendimento CDI',    value: `R$ ${formatBRL(totalCdiRendido)}`,   color: 'text-violet-400',  border: 'border-slate-800/70',   sub: 'total acumulado' },
             { label: 'Total Sacado',      value: `R$ ${formatBRL(totalSacado)}`,       color: 'text-slate-300',   border: 'border-slate-800/70',   sub: 'saques aprovados' },
             { label: 'Total Antecipado',  value: `R$ ${formatBRL(totalAntecipado)}`,   color: 'text-purple-400',  border: 'border-slate-800/70',   sub: 'antecipações cartão' },
           ].map((c) => (
@@ -219,6 +228,61 @@ export default async function ExtratoPage() {
           </div>
 
         </div>
+
+        {/* Histórico de Vendas (SaleLog) */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Histórico de Transações</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Vendas, estornos e devoluções processados pela API</p>
+            </div>
+            <span className="text-[10px] text-slate-600">{vendaLogs.length} registros</span>
+          </div>
+          {vendaLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-slate-700">
+              <svg className="w-9 h-9 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
+              </svg>
+              <p className="text-[12.5px] font-medium">Nenhuma transação ainda</p>
+              <p className="text-[11px] text-slate-800 mt-1">Vendas processadas via API aparecerão aqui.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-800/40 max-h-[480px] overflow-y-auto">
+              {vendaLogs.map((venda) => {
+                const typeColor: Record<string, string> = {
+                  VENDA:         'text-emerald-400 bg-emerald-500/10',
+                  ESTORNO:       'text-red-400 bg-red-500/10',
+                  MED_PIX:       'text-orange-400 bg-orange-500/10',
+                  REEMBOLSO:     'text-amber-400 bg-amber-500/10',
+                  PIX_DEVOLVIDO: 'text-slate-400 bg-slate-700/40',
+                }
+                const typeLabel: Record<string, string> = {
+                  VENDA: 'Venda', ESTORNO: 'Estorno', MED_PIX: 'MED Pix', REEMBOLSO: 'Reembolso', PIX_DEVOLVIDO: 'Pix Devolvido',
+                }
+                const statusColor: Record<string, string> = {
+                  APROVADO: 'text-emerald-400', CANCELADO: 'text-red-400', PENDENTE: 'text-amber-400',
+                }
+                const cl = typeColor[venda.type] ?? 'text-slate-400 bg-slate-700/40'
+                return (
+                  <div key={venda.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-slate-800/20 transition-colors">
+                    <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-md ${cl}`}>{typeLabel[venda.type] ?? venda.type}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] text-slate-400 truncate">{venda.description ?? venda.externalId ?? '—'}</p>
+                      <p className="text-[10.5px] text-slate-700 mt-0.5">{formatDate(venda.createdAt)}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-[13px] font-bold tabular-nums ${venda.type === 'VENDA' ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {venda.type === 'VENDA' ? '+' : '−'}R$ {formatBRL(venda.amount)}
+                      </p>
+                      <p className={`text-[10px] font-semibold ${statusColor[venda.status] ?? 'text-slate-500'}`}>{venda.status}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
       </div>
     </div>
   )

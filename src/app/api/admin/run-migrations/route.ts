@@ -11,6 +11,30 @@ import { prisma } from '@/lib/prisma'
 
 const MIGRATIONS: { name: string; sql: string[] }[] = [
   {
+    name: '20260702000000_add_api_key_webhooks_kyc_docs',
+    sql: [
+      `ALTER TABLE "Merchant"
+        ADD COLUMN IF NOT EXISTS "apiKey" TEXT,
+        ADD COLUMN IF NOT EXISTS "kycDocumentUrls" TEXT`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "Merchant_apiKey_key" ON "Merchant"("apiKey")`,
+      `CREATE TABLE IF NOT EXISTS "WebhookEndpoint" (
+        "id"         TEXT NOT NULL,
+        "merchantId" TEXT NOT NULL,
+        "url"        TEXT NOT NULL,
+        "events"     TEXT NOT NULL DEFAULT '[]',
+        "secret"     TEXT NOT NULL,
+        "active"     BOOLEAN NOT NULL DEFAULT true,
+        "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "WebhookEndpoint_pkey" PRIMARY KEY ("id"),
+        CONSTRAINT "WebhookEndpoint_merchantId_fkey"
+          FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id")
+          ON DELETE RESTRICT ON UPDATE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS "WebhookEndpoint_merchantId_idx" ON "WebhookEndpoint"("merchantId")`,
+    ],
+  },
+  {
     name: '20260701120000_add_master_score_controls',
     sql: [
       `ALTER TABLE "MasterScore"

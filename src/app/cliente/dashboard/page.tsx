@@ -97,7 +97,7 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
   const userId = (session?.user as any)?.id as string | undefined
 
   const user = userId
-    ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
+    ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: { include: { masterScore: true } } } })
     : null
 
   const merchant    = user?.merchant
@@ -112,6 +112,14 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
   const blockedBalance   = merchant?.blockedBalance  ?? 0
   const futureBalance    = merchant?.futureBalance   ?? 0
   const totalProtected   = reservedBalance + blockedBalance + futureBalance
+  const masterScore      = (merchant as any)?.masterScore ?? null
+
+  const levelColor: Record<string, { text: string; bg: string; border: string }> = {
+    Diamante: { text: 'text-cyan-300',   bg: 'bg-cyan-500/10',   border: 'border-cyan-500/25' },
+    Ouro:     { text: 'text-amber-300',  bg: 'bg-amber-500/10',  border: 'border-amber-500/25' },
+    Prata:    { text: 'text-slate-300',  bg: 'bg-slate-700/40',  border: 'border-slate-600/40' },
+    Bronze:   { text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/25' },
+  }
 
   const periodo     = searchParams?.periodo ?? '30d'
   const periodoStart = getPeriodStart(periodo)
@@ -182,6 +190,28 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
             </div>
           </div>
         )}
+        {/* Master Score badge */}
+        {masterScore && (
+          <div className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${levelColor[masterScore.nivelScore]?.bg ?? 'bg-slate-900/60'} ${levelColor[masterScore.nivelScore]?.border ?? 'border-slate-800/70'}`}>
+            <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${levelColor[masterScore.nivelScore]?.bg ?? ''}`}>
+              <svg className={`w-4.5 h-4.5 ${levelColor[masterScore.nivelScore]?.text ?? 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className={`text-[13px] font-bold ${levelColor[masterScore.nivelScore]?.text ?? 'text-white'}`}>
+                  Nível {masterScore.nivelScore}
+                </p>
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${levelColor[masterScore.nivelScore]?.bg ?? ''} ${levelColor[masterScore.nivelScore]?.border ?? ''} ${levelColor[masterScore.nivelScore]?.text ?? ''}`}>
+                  {masterScore.statusRisco}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">Master Score: <span className="font-semibold text-slate-300">{Math.round(masterScore.scoreTotal)}/100</span> · Atualizado automaticamente com base no seu histórico</p>
+            </div>
+          </div>
+        )}
+
         {merchantStatus === 'BLOCKED' && (
           <div className="bg-red-500/8 border border-red-500/25 rounded-xl px-4 py-3 flex items-center gap-3">
             <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

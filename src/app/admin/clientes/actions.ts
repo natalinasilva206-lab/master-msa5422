@@ -6,6 +6,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { generateApiKey } from '@/lib/apiKey'
+import { dispatchWebhook } from '@/lib/dispatchWebhook'
 
 export async function createMerchant(formData: FormData) {
   const session = await getServerSession(authOptions)
@@ -31,7 +33,7 @@ export async function createMerchant(formData: FormData) {
   }
 
   const merchant = await prisma.merchant.create({
-    data: { name, email, document, type, status, plan },
+    data: { name, email, document, type, status, plan, apiKey: generateApiKey() },
   })
 
   const userPassword = formData.get('user_password')?.toString().trim()
@@ -177,6 +179,8 @@ export async function toggleMerchantStatus(id: string) {
       metadata: JSON.stringify({ previousStatus, newStatus }),
     },
   })
+
+  dispatchWebhook(id, newStatus === 'BLOCKED' ? 'merchant.blocked' : 'merchant.activated', { merchantId: id, newStatus }).catch(() => {})
 
   revalidatePath(`/admin/clientes/${id}`)
   revalidatePath('/admin/clientes')

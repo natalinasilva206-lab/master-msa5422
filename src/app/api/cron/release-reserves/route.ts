@@ -9,11 +9,9 @@ import { prisma } from '@/lib/prisma'
 // Authorization: CRON_SECRET env var (set in Vercel dashboard).
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
-  if (secret) {
-    const auth = req.headers.get('authorization')
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
-    }
+  const auth = req.headers.get('authorization')
+  if (!secret || auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 })
   }
 
   const now = new Date()

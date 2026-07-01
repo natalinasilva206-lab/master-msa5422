@@ -55,10 +55,13 @@ model Merchant {
   segment              String?
   address              String?
   legalRepresentative  String?
+  apiKey             String?  @unique
+  kycDocumentUrls    String?  // JSON: string[]
   users              User[]
   reserveReleases    ReserveRelease[]
   disputes           Dispute[]
   saleLogs           SaleLog[]
+  webhookEndpoints   WebhookEndpoint[]
   masterScore        MasterScore?
   masterScoreAudits  MasterScoreAudit[]
   createdAt          DateTime @default(now())
@@ -208,6 +211,20 @@ model MasterScoreHistory {
   observacao      String?
 
   createdAt       DateTime @default(now())
+}
+
+model WebhookEndpoint {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  url        String
+  events     String   // JSON: string[]
+  secret     String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([merchantId])
 }
 
 model MasterScoreAudit {

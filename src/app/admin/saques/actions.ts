@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { dispatchWebhook } from '@/lib/dispatchWebhook'
 
 export async function resolveWithdrawal(
   requestLogId: string,
@@ -53,6 +54,8 @@ export async function resolveWithdrawal(
       },
     })
   }
+
+  dispatchWebhook(merchantId, approve ? 'withdrawal.approved' : 'withdrawal.denied', { merchantId, amount, requestLogId }).catch(() => {})
 
   revalidatePath('/admin/saques')
   revalidatePath('/cliente/saques')

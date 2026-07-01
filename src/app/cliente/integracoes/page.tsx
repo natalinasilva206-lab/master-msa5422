@@ -16,14 +16,8 @@ export default async function IntegracoesPage() {
 
   const merchant = user?.merchant
   const merchantId = merchant?.id ?? '—'
-
-  // Derive a deterministic-looking API key from merchant ID (not a real key)
-  const apiKey = merchant
-    ? `mpk_live_${merchant.id.replace(/-/g, '').slice(0, 32)}`
-    : '—'
-  const webhookSecret = merchant
-    ? `whsec_${merchant.id.replace(/-/g, '').slice(0, 24)}`
-    : '—'
+  const apiKey = (merchant as any)?.apiKey ?? '—'
+  const webhookSecret = '—'
 
   const endpoints = [
     { method: 'POST', path: '/v1/transactions', desc: 'Criar nova transação' },
