@@ -543,12 +543,38 @@ export async function addDisputeDocument(
 export async function assignDispute(disputeId: string): Promise<{ error?: string; name?: string }> {
   try {
     const admin = await getAdminSession()
-    await prisma.dispute.update({ where: { id: disputeId }, data: { assignedTo: admin.name } })
+    const ip    = getIp()
+
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: disputeId },
+      include: { merchant: { select: { id: true, name: true } } },
+    })
+    if (!dispute) return { error: 'Caso não encontrado.' }
+
+    await prisma.$transaction([
+      prisma.dispute.update({ where: { id: disputeId }, data: { assignedTo: admin.name } }),
+      prisma.auditLog.create({
+        data: {
+          userId:   admin.id,
+          action:   'DISPUTE_FIELDS_UPDATE',
+          entity:   'Dispute',
+          entityId: disputeId,
+          metadata: buildMeta({
+            merchantId:   dispute.merchantId,
+            merchantName: dispute.merchant.name,
+            before: { assignedTo: dispute.assignedTo },
+            after:  { assignedTo: admin.name },
+          }, admin, ip),
+        },
+      }),
+    ])
+
     revalidatePath('/admin/disputas')
     revalidatePath(`/admin/disputas/${disputeId}`)
     return { name: admin.name }
   } catch (e: any) {
     if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
+    console.error('[assignDispute]', e)
     return { error: 'Erro interno.' }
   }
 }

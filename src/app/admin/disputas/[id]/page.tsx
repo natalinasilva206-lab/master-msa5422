@@ -55,6 +55,7 @@ export default async function DisputeDetailPage({ params }: PageProps) {
     DISPUTE_RELEASE:       'Saldo liberado',
     DISPUTE_NOTE:          'Observação adicionada',
     DISPUTE_DOCUMENT:      'Documento registrado',
+    DISPUTE_FIELDS_UPDATE: 'Dados do caso atualizados',
   }
 
   return (
