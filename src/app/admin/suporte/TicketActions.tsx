@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { replyTicket, updateTicketStatus, updateTicketPriority, addInternalNote, assumeTicket, assignTicket } from './actions'
+import { formatSlaRemaining } from '@/lib/sla'
 
 const STATUS_LABELS: Record<string, string> = {
   ABERTO:             'Aberto',
@@ -124,33 +125,18 @@ export function TicketActions({
   }
 
   return (
-    <div className="shrink-0 flex flex-col items-end gap-2 min-w-[130px]">
-      {/* Badges row */}
-      <div className="flex items-center gap-1.5 flex-wrap justify-end">
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${PRIORITY_COLORS[curPriority] ?? PRIORITY_COLORS['MEDIA']}`}>
-          {curPriority}
-        </span>
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${STATUS_COLORS[curStatus] ?? STATUS_COLORS['ABERTO']}`}>
-          {STATUS_LABELS[curStatus] ?? curStatus}
-        </span>
-      </div>
-
-      {/* Assignee chip */}
-      {curAssigned && assignedAdmin && (
-        <p className="text-[9px] text-slate-600 truncate max-w-[130px]">
-          → {assignedAdmin.name}
-        </p>
-      )}
-
+    <div className="flex flex-col items-end gap-1">
       <button
         onClick={() => setOpen(!open)}
-        className="text-[11px] font-semibold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors whitespace-nowrap"
+        className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${
+          open ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'
+        }`}
       >
-        {open ? 'Fechar ↑' : 'Gerenciar →'}
+        {open ? '✕ Fechar' : 'Gerenciar'}
       </button>
 
       {open && (
-        <div className="w-[340px] bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden">
+        <div className="w-[360px] bg-slate-950 border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden" style={{ marginRight: 0 }}>
           {/* Tabs */}
           <div className="flex border-b border-slate-800/60">
             {([
@@ -342,33 +328,22 @@ function SlaBlock({ slaDueAt }: { slaDueAt: string }) {
   const overdue = diffMs < 0
   const warning = !overdue && diffMs < 2 * 3_600_000
 
-  let label = ''
-  let color = ''
-  if (overdue) {
-    const h = Math.floor(-diffMs / 3_600_000)
-    const m = Math.floor((-diffMs % 3_600_000) / 60_000)
-    label = `Vencido há ${h > 0 ? `${h}h ` : ''}${m}min`
-    color = 'text-red-400 bg-red-500/10 border-red-500/20'
-  } else if (warning) {
-    const h = Math.floor(diffMs / 3_600_000)
-    const m = Math.floor((diffMs % 3_600_000) / 60_000)
-    label = `Vence em ${h}h ${m}min`
-    color = 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-  } else {
-    const h = Math.floor(diffMs / 3_600_000)
-    const m = Math.floor((diffMs % 3_600_000) / 60_000)
-    const d = Math.floor(h / 24)
-    label = d >= 1 ? `Vence em ${d}d ${h % 24}h` : `Vence em ${h}h ${m}min`
-    color = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-  }
+  const label = formatSlaRemaining(slaDueAt)
+  const color = overdue
+    ? 'text-red-400 bg-red-500/10 border-red-500/20'
+    : warning
+    ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+    : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
 
   return (
-    <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-semibold ${color}`}>
-      <span className="shrink-0">⏱</span>
-      <span>{label}</span>
-      <span className="ml-auto text-[9px] font-normal opacity-60">
-        {due.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-      </span>
+    <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border ${color}`}>
+      <span className="text-[12px] shrink-0">⏱</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-bold">{label}</p>
+        <p className="text-[9px] opacity-60">
+          Vence: {due.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
     </div>
   )
 }
