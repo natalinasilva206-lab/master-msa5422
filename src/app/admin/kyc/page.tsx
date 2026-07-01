@@ -97,15 +97,29 @@ export default async function KycPage({ searchParams }: PageProps) {
     return 'EM_ANALISE'
   }
 
+  type KycDoc = { type: string; label: string; url: string }
+  function parseDocs(raw: string | null): KycDoc[] {
+    try {
+      const parsed = JSON.parse(raw ?? '[]')
+      return parsed.map((item: unknown) => {
+        if (typeof item === 'string') return { type: 'OTHER', label: 'Documento', url: item }
+        return item as KycDoc
+      })
+    } catch { return [] }
+  }
+
   const enriched = merchants.map((m) => {
-    let kycDocumentUrls: string[] = []
-    try { kycDocumentUrls = JSON.parse((m as any).kycDocumentUrls ?? '[]') } catch {}
+    const kycDocumentUrls = parseDocs((m as any).kycDocumentUrls ?? null)
     return {
       ...m,
       kycSubStatus: deriveSubStatus(m.id, m.status),
       userName: m.users[0]?.name ?? null,
       userEmail: m.users[0]?.email ?? null,
       kycDocumentUrls,
+      kycNotes: (m as any).kycNotes ?? '',
+      pixKey: (m as any).pixKey ?? null,
+      pixKeyType: (m as any).pixKeyType ?? null,
+      bankName: (m as any).bankName ?? null,
       auditHistory: (historyByMerchant.get(m.id) ?? []).map((l) => ({
         id: l.id,
         action: l.action,
@@ -284,6 +298,10 @@ export default async function KycPage({ searchParams }: PageProps) {
                       userEmail: m.userEmail,
                       auditHistory: m.auditHistory,
                       kycDocumentUrls: m.kycDocumentUrls,
+                      kycNotes: m.kycNotes,
+                      pixKey: m.pixKey,
+                      pixKeyType: m.pixKeyType,
+                      bankName: m.bankName,
                     }
 
                     return (

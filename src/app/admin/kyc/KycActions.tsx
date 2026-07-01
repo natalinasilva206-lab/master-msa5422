@@ -11,6 +11,8 @@ type AuditEntry = {
   userName: string | null
 }
 
+type KycDoc = { type: string; label: string; url: string }
+
 type MerchantData = {
   id: string
   name: string
@@ -27,7 +29,24 @@ type MerchantData = {
   userName: string | null
   userEmail: string | null
   auditHistory: AuditEntry[]
-  kycDocumentUrls: string[]
+  kycDocumentUrls: KycDoc[]
+  kycNotes: string
+  pixKey: string | null
+  pixKeyType: string | null
+  bankName: string | null
+}
+
+const DOC_TYPE_META: Record<string, { label: string; color: string }> = {
+  IDENTITY: { label: 'Identidade',     color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  COMPANY:  { label: 'Empresa',        color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  ADDRESS:  { label: 'Endereço',       color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
+  SELFIE:   { label: 'Selfie',         color: 'bg-pink-500/10 text-pink-400 border-pink-500/20' },
+  BANK:     { label: 'Comp. Bancário', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
+  OTHER:    { label: 'Outro',          color: 'bg-slate-700/40 text-slate-400 border-slate-600/40' },
+}
+
+const PIX_TYPE_LABELS: Record<string, string> = {
+  CPF: 'CPF', CNPJ: 'CNPJ', EMAIL: 'E-mail', PHONE: 'Telefone', RANDOM: 'Chave aleatória',
 }
 
 const typeLabel: Record<string, string> = {
@@ -233,7 +252,7 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
                     activeTab === tab ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-600 hover:text-slate-400'
                   }`}
                 >
-                  {tab === 'pessoal' ? 'Pessoal' : tab === 'empresa' ? 'Empresa' : tab === 'documentos' ? `Documentos (${merchant.kycDocumentUrls.length})` : 'Histórico'}
+                  {tab === 'pessoal' ? 'Pessoal' : tab === 'empresa' ? 'Empresa / Banco' : tab === 'documentos' ? `Documentos (${merchant.kycDocumentUrls.length})` : 'Histórico'}
                 </button>
               ))}
             </div>
@@ -285,62 +304,119 @@ export function KycActions({ merchant }: { merchant: MerchantData }) {
               )}
 
               {activeTab === 'empresa' && (
-                <div className="divide-y divide-slate-800/40">
-                  {[
-                    { label: 'Razão Social', value: merchant.name },
-                    { label: 'CNPJ / CPF', value: merchant.document },
-                    { label: 'Tipo de negócio', value: typeLabel[merchant.type] ?? merchant.type },
-                    { label: 'Plano', value: merchant.plan },
-                    { label: 'Saldo CDI', value: `R$ ${formatBRL(merchant.balance)}` },
-                    { label: 'Saldo Disponível', value: `R$ ${formatBRL(merchant.pendingBalance)}` },
-                    { label: 'Taxa CDI/mês', value: `${merchant.cdiRate.toFixed(2)}%` },
-                  ].map((row) => (
-                    <div key={row.label} className="flex items-center justify-between py-3">
-                      <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide">{row.label}</p>
-                      <p className="text-[12.5px] text-slate-300 text-right">{row.value}</p>
+                <div className="space-y-4">
+                  <div className="divide-y divide-slate-800/40">
+                    {[
+                      { label: 'Razão Social', value: merchant.name },
+                      { label: 'CNPJ / CPF', value: merchant.document },
+                      { label: 'Tipo de negócio', value: typeLabel[merchant.type] ?? merchant.type },
+                      { label: 'Plano', value: merchant.plan },
+                      { label: 'Saldo CDI', value: `R$ ${formatBRL(merchant.balance)}` },
+                      { label: 'Saldo Disponível', value: `R$ ${formatBRL(merchant.pendingBalance)}` },
+                      { label: 'Taxa CDI/mês', value: `${merchant.cdiRate.toFixed(2)}%` },
+                    ].map((row) => (
+                      <div key={row.label} className="flex items-center justify-between py-3">
+                        <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide">{row.label}</p>
+                        <p className="text-[12.5px] text-slate-300 text-right">{row.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Bank / PIX info */}
+                  <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Dados Bancários / PIX</p>
+                    {merchant.pixKey ? (
+                      <div className="divide-y divide-slate-700/30">
+                        {[
+                          { label: 'Tipo de chave', value: PIX_TYPE_LABELS[merchant.pixKeyType ?? ''] ?? merchant.pixKeyType ?? '—' },
+                          { label: 'Chave PIX', value: merchant.pixKey },
+                          { label: 'Banco', value: merchant.bankName ?? '—' },
+                        ].map((r) => (
+                          <div key={r.label} className="flex items-center justify-between py-2">
+                            <p className="text-[10.5px] text-slate-600">{r.label}</p>
+                            <p className="text-[12px] text-slate-300 font-mono">{r.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11.5px] text-slate-700 py-2">Seller ainda não cadastrou dados bancários.</p>
+                    )}
+                  </div>
+                  {/* KYC notes */}
+                  {merchant.kycNotes && (
+                    <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl px-4 py-3">
+                      <p className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mb-1">Última nota de ajuste enviada</p>
+                      <p className="text-[11.5px] text-slate-300 italic">"{merchant.kycNotes}"</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
               {activeTab === 'documentos' && (
                 <div className="space-y-3">
-                  <p className="text-[11px] text-slate-600">Links de documentos enviados pelo cliente (CNH, CNPJ, selfie, etc.)</p>
+                  <p className="text-[11px] text-slate-600">Documentos KYC enviados pelo seller. Clique no link para visualizar.</p>
                   {merchant.kycDocumentUrls.length === 0 && (
-                    <p className="text-[12px] text-slate-700 py-6 text-center">Nenhum documento adicionado ainda.</p>
+                    <p className="text-[12px] text-slate-700 py-6 text-center">Nenhum documento enviado ainda.</p>
                   )}
                   <div className="space-y-2">
-                    {merchant.kycDocumentUrls.map((url) => (
-                      <div key={url} className="flex items-center gap-2 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="flex-1 text-[11.5px] text-blue-400 hover:text-blue-300 truncate font-mono">{url}</a>
-                        <button
-                          onClick={() => startRemoveDoc(() => removeKycDocument(merchant.id, url))}
-                          disabled={removingDoc}
-                          className="shrink-0 text-[10px] text-red-400 hover:text-red-300 disabled:opacity-40"
-                        >
-                          Remover
-                        </button>
-                      </div>
-                    ))}
+                    {merchant.kycDocumentUrls.map((doc) => {
+                      const meta = DOC_TYPE_META[doc.type] ?? DOC_TYPE_META['OTHER']
+                      return (
+                        <div key={doc.url} className="flex items-center gap-2.5 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2.5">
+                          <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border ${meta.color}`}>{meta.label}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-medium text-slate-400">{doc.label}</p>
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-[10.5px] text-blue-400 hover:text-blue-300 truncate block font-mono max-w-[320px]">{doc.url}</a>
+                          </div>
+                          <button
+                            onClick={() => startRemoveDoc(() => removeKycDocument(merchant.id, doc.url))}
+                            disabled={removingDoc}
+                            className="shrink-0 text-[10px] text-red-400 hover:text-red-300 disabled:opacity-40 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex gap-2 pt-2">
-                    <input
-                      type="url"
-                      value={docUrl}
-                      onChange={(e) => { setDocUrl(e.target.value); setDocError('') }}
-                      placeholder="https://drive.google.com/... ou URL do documento"
-                      className="flex-1 text-[11.5px] font-mono bg-slate-800/60 border border-slate-700/60 text-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder-slate-600"
-                    />
-                    <button
-                      onClick={() => {
-                        if (!docUrl.trim()) { setDocError('URL obrigatória.'); return }
-                        startAddDoc(async () => { await addKycDocument(merchant.id, docUrl.trim()); setDocUrl('') })
-                      }}
-                      disabled={addingDoc}
-                      className="shrink-0 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 px-3 py-2 rounded-lg transition-colors"
-                    >
-                      {addingDoc ? '…' : 'Adicionar'}
-                    </button>
+                  {/* Add document (admin can also add) */}
+                  <div className="pt-2 border-t border-slate-800/40 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Adicionar documento manualmente</p>
+                    <div className="flex gap-2">
+                      <select
+                        value={docUrl.startsWith('type:') ? docUrl.split('|')[0].replace('type:', '') : 'OTHER'}
+                        onChange={(e) => setDocUrl(`type:${e.target.value}|`)}
+                        className="bg-slate-800/60 border border-slate-700/60 text-slate-300 text-[11px] rounded-lg px-2 py-2 focus:outline-none shrink-0"
+                      >
+                        {Object.entries(DOC_TYPE_META).map(([k, v]) => (
+                          <option key={k} value={k}>{v.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="url"
+                        value={docUrl.includes('|') ? docUrl.split('|')[1] : docUrl}
+                        onChange={(e) => {
+                          const type = docUrl.startsWith('type:') ? docUrl.split('|')[0].replace('type:', '') : 'OTHER'
+                          setDocUrl(`type:${type}|${e.target.value}`)
+                          setDocError('')
+                        }}
+                        placeholder="https://drive.google.com/..."
+                        className="flex-1 text-[11.5px] font-mono bg-slate-800/60 border border-slate-700/60 text-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40 placeholder-slate-600"
+                      />
+                      <button
+                        onClick={() => {
+                          const parts = docUrl.startsWith('type:') ? docUrl.split('|') : ['type:OTHER', docUrl]
+                          const type = parts[0].replace('type:', '')
+                          const url = parts[1]
+                          if (!url?.trim()) { setDocError('URL obrigatória.'); return }
+                          const label = DOC_TYPE_META[type]?.label ?? 'Documento'
+                          startAddDoc(async () => { await addKycDocument(merchant.id, url.trim(), type, label); setDocUrl('') })
+                        }}
+                        disabled={addingDoc}
+                        className="shrink-0 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 px-3 py-2 rounded-lg transition-colors"
+                      >
+                        {addingDoc ? '…' : 'Add'}
+                      </button>
+                    </div>
                   </div>
                   {docError && <p className="text-[11px] text-red-400">{docError}</p>}
                 </div>

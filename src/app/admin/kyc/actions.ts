@@ -65,13 +65,26 @@ export async function requestCall(merchantId: string) {
   revalidatePath('/admin/kyc')
 }
 
-export async function addKycDocument(merchantId: string, url: string) {
+type KycDoc = { type: string; label: string; url: string }
+
+function parseDocs(raw: string | null): KycDoc[] {
+  try {
+    const parsed = JSON.parse(raw ?? '[]')
+    return parsed.map((item: unknown) => {
+      if (typeof item === 'string') return { type: 'OTHER', label: 'Documento', url: item }
+      return item as KycDoc
+    })
+  } catch { return [] }
+}
+
+export async function addKycDocument(merchantId: string, url: string, type = 'OTHER', label = 'Documento') {
   await requireAdmin()
   const merchant = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { kycDocumentUrls: true } })
   if (!merchant) throw new Error('Merchant não encontrado.')
-  let docs: string[] = []
-  try { docs = JSON.parse((merchant as any).kycDocumentUrls ?? '[]') } catch {}
-  if (!docs.includes(url)) docs.push(url)
+  const docs = parseDocs((merchant as any).kycDocumentUrls)
+  const existingIdx = docs.findIndex((d) => d.type === type)
+  const newDoc: KycDoc = { type, label, url }
+  if (existingIdx >= 0) { docs[existingIdx] = newDoc } else { docs.push(newDoc) }
   await prisma.merchant.update({ where: { id: merchantId }, data: { kycDocumentUrls: JSON.stringify(docs) } as any })
   revalidatePath('/admin/kyc')
 }
@@ -80,22 +93,28 @@ export async function removeKycDocument(merchantId: string, url: string) {
   await requireAdmin()
   const merchant = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { kycDocumentUrls: true } })
   if (!merchant) return
-  let docs: string[] = []
-  try { docs = JSON.parse((merchant as any).kycDocumentUrls ?? '[]') } catch {}
-  await prisma.merchant.update({ where: { id: merchantId }, data: { kycDocumentUrls: JSON.stringify(docs.filter((d) => d !== url)) } as any })
+  const docs = parseDocs((merchant as any).kycDocumentUrls).filter((d) => d.url !== url)
+  await prisma.merchant.update({ where: { id: merchantId }, data: { kycDocumentUrls: JSON.stringify(docs) } as any })
   revalidatePath('/admin/kyc')
 }
 
 export async function requestAdjustment(merchantId: string, note: string) {
   const session = await requireAdmin()
-  await prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: 'KYC_ADJUSTMENT_REQUESTED',
-      entity: 'Merchant',
-      entityId: merchantId,
-      metadata: JSON.stringify({ note, requestedAt: new Date().toISOString() }),
-    },
-  })
+  await Promise.all([
+    prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: 'KYC_ADJUSTMENT_REQUESTED',
+        entity: 'Merchant',
+        entityId: merchantId,
+        metadata: JSON.stringify({ note, requestedAt: new Date().toISOString() }),
+      },
+    }),
+    prisma.merchant.update({
+      where: { id: merchantId },
+      data: { kycNotes: note } as any,
+    }),
+  ])
   revalidatePath('/admin/kyc')
+  revalidatePath('/cliente/kyc')
 }

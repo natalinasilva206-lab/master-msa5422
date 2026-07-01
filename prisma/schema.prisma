@@ -56,7 +56,11 @@ model Merchant {
   address              String?
   legalRepresentative  String?
   apiKey             String?  @unique
-  kycDocumentUrls    String?  // JSON: string[]
+  kycDocumentUrls    String?  // JSON: KycDoc[]
+  kycNotes           String   @default("")
+  pixKey             String?
+  pixKeyType         String?
+  bankName           String?
   users              User[]
   reserveReleases    ReserveRelease[]
   disputes           Dispute[]
