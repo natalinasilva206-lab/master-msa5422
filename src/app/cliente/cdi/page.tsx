@@ -90,7 +90,7 @@ export default async function ClienteCdiPage() {
   const cdiAnual = anualizarTaxa(cdiRate)
   const plano    = merchant?.plan      ?? '—'
 
-  const [lockLogs, earlyRequestLogs, earlyResolvedLogs, allCdiLogs, lastCreditLog, firstDepositLog] = merchant
+  const [lockLogs, earlyRequestLogs, earlyResolvedLogs, allCdiLogs, lastCreditLog, firstDepositLog, rateHistoryLogs] = merchant
     ? await Promise.all([
         prisma.auditLog.findMany({
           where: { entityId: merchant.id, action: 'CDI_LOCK_SET' },
@@ -120,8 +120,15 @@ export default async function ClienteCdiPage() {
           where: { entityId: merchant.id, action: 'ADD_TO_CDI' },
           orderBy: { createdAt: 'asc' },
         }),
+        // CDI rate change history — filtered for seller view (no admin info)
+        prisma.auditLog.findMany({
+          where: { entityId: merchant.id, action: 'CDI_RATE_UPDATED' },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: { id: true, metadata: true, createdAt: true },
+        }),
       ])
-    : [[], [], [], [], null, null]
+    : [[], [], [], [], null, null, []]
 
   const resolvedReqIds = new Set<string>()
   for (const log of earlyResolvedLogs) {
@@ -741,6 +748,106 @@ export default async function ClienteCdiPage() {
             </div>
           )}
         </section>
+
+        {/* Histórico de Taxa CDI */}
+        {rateHistoryLogs.length > 0 && (() => {
+          type RateEntry = { id: string; previousRate: number | null; newRate: number; tipo: string; vigencia: Date }
+          const entries: RateEntry[] = rateHistoryLogs.map((log) => {
+            let previousRate: number | null = null
+            let newRate = 0
+            let tipo = 'Individual'
+            try {
+              const m = JSON.parse(log.metadata ?? '{}')
+              newRate = parseFloat(m.rate ?? 0)
+              if (m.previousRate != null) previousRate = parseFloat(m.previousRate)
+              if (m.bulk) {
+                tipo = (!m.plan || m.plan === 'all') ? 'Global' : `Por plano (${m.plan})`
+              }
+            } catch {}
+            return { id: log.id, previousRate, newRate, tipo, vigencia: log.createdAt }
+          })
+
+          return (
+            <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-800/60 flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-white">Histórico de Taxa CDI</p>
+                  <p className="text-[10.5px] text-slate-500 mt-0.5">Alterações aplicadas à sua taxa de rendimento</p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-slate-800/60">
+                      <th className="px-5 py-3 text-left text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest">Data da alteração</th>
+                      <th className="px-4 py-3 text-right text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest">Taxa anterior</th>
+                      <th className="px-4 py-3 text-right text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest">Nova taxa</th>
+                      <th className="px-4 py-3 text-center text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest">Variação</th>
+                      <th className="px-4 py-3 text-left text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest">Tipo</th>
+                      <th className="px-5 py-3 text-left text-[10.5px] font-semibold text-slate-500 uppercase tracking-widest">Vigência a partir de</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/30">
+                    {entries.map((e, i) => {
+                      const delta = e.previousRate != null ? e.newRate - e.previousRate : null
+                      const isUp   = delta != null && delta > 0
+                      const isDown = delta != null && delta < 0
+                      const tipoColor =
+                        e.tipo === 'Global'      ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
+                        e.tipo === 'Individual'  ? 'text-purple-400 bg-purple-500/10 border-purple-500/20' :
+                                                   'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                      return (
+                        <tr key={e.id} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="px-5 py-3.5 text-slate-400 whitespace-nowrap">
+                            {formatDate(e.vigencia)}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono">
+                            {e.previousRate != null
+                              ? <span className="text-slate-500 tabular-nums">{e.previousRate.toFixed(4)}%/mês</span>
+                              : <span className="text-slate-700">—</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-mono">
+                            <span className="text-white font-semibold tabular-nums">{e.newRate.toFixed(4)}%/mês</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            {delta != null ? (
+                              <span className={`text-[11px] font-bold tabular-nums ${isUp ? 'text-emerald-400' : isDown ? 'text-red-400' : 'text-slate-500'}`}>
+                                {isUp ? '▲' : isDown ? '▼' : '='} {Math.abs(delta).toFixed(4)}pp
+                              </span>
+                            ) : (
+                              <span className="text-slate-700 text-[11px]">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${tipoColor}`}>
+                              {e.tipo}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap text-[11.5px]">
+                            {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(e.vigencia)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {entries.length >= 50 && (
+                <div className="px-5 py-3 border-t border-slate-800/40">
+                  <p className="text-[10.5px] text-slate-600">Exibindo as 50 alterações mais recentes.</p>
+                </div>
+              )}
+            </section>
+          )
+        })()}
 
         {/* Info */}
         <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-5 py-4 flex items-start gap-3">
