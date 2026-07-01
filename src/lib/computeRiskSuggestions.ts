@@ -272,11 +272,39 @@ export async function computeRiskSuggestions(merchant: MerchantSnapshot): Promis
     })
   }
 
-  // ── 8. Seller saudável: reduzir reserva ou prazo ───────────────
+  // ── 8. Disputas em aberto além da janela de 90 dias ────────────
+  // openChargebacks/openMed cobrem casos antigos que não aparecem nos
+  // contadores de 90 dias mas ainda estão sem resolução.
+  if (m.openChargebacks > 0 && !sug.find((s) => s.id === 'cb-rate-high')) {
+    sug.push({
+      id:             'cb-open',
+      type:           'mark_attention',
+      title:          `${m.openChargebacks} chargeback${m.openChargebacks !== 1 ? 's' : ''} em aberto`,
+      reason:         `${m.openChargebacks > 1 ? `${m.openChargebacks} casos` : '1 caso'} de chargeback sem resolução registrado${m.openChargebacks !== 1 ? 's' : ''}. Monitoramento necessário mesmo fora da janela de 90 dias.`,
+      severity:       m.openChargebacks >= 2 ? 'danger' : 'warning',
+      suggestedLevel: merchant.riskLevel === 'LOW' ? 'MEDIUM' : undefined,
+    })
+  }
+  if (m.openMed > 0 && !sug.find((s) => s.id === 'med-rate-high')) {
+    sug.push({
+      id:             'med-open',
+      type:           'mark_attention',
+      title:          `${m.openMed} MED Pix em aberto`,
+      reason:         `${m.openMed > 1 ? `${m.openMed} casos` : '1 caso'} de MED Pix sem resolução. Acompanhe o prazo de resposta junto ao banco.`,
+      severity:       'warning',
+      suggestedLevel: merchant.riskLevel === 'LOW' ? 'MEDIUM' : undefined,
+    })
+  }
+
+  // ── 9. Seller saudável: reduzir reserva ou prazo ───────────────
   const semDisputa60 = m.daysSinceLastDispute !== null && m.daysSinceLastDispute >= 60
   const semDisputa90 = m.daysSinceLastDispute !== null && m.daysSinceLastDispute >= 90
   const semChargebackOuMed = m.chargebackCount90d === 0 && m.medCount90d === 0
-  const jáTemSugestaoDeAumento = sug.some((s) => s.type === 'increase_reserve' || s.type === 'mark_high_risk')
+  // Inclui mark_attention para evitar sugestões contraditórias
+  // (ex: "alto volume de reembolsos" + "reduza a reserva" ao mesmo tempo)
+  const jáTemSugestaoDeAumento = sug.some(
+    (s) => s.type === 'increase_reserve' || s.type === 'mark_high_risk' || s.type === 'mark_attention'
+  )
 
   if (!jáTemSugestaoDeAumento && semChargebackOuMed) {
     if (semDisputa90 && pct > 5) {
