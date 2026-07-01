@@ -8,6 +8,7 @@ import { CdiSimulator } from './CdiSimulator'
 import { AddToCdiButton } from './AddToCdiButton'
 import { WithdrawFromCdiButton } from './WithdrawFromCdiButton'
 import { CdiLockButton } from './CdiLockButton'
+import { CdiExportButton } from './CdiExportButton'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -636,25 +637,28 @@ export default async function ClienteCdiPage() {
 
         {/* Extrato CDI Unificado */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between">
-            <div>
+          <div className="px-5 py-4 border-b border-slate-800/60 flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-[13px] font-semibold text-white">Extrato CDI</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">
                 Todas as movimentações da sua conta CDI
               </p>
             </div>
-            {creditMonthEntries.length > 1 && (
-              <div className="flex items-end gap-1.5 h-8 shrink-0">
-                {creditMonthEntries.map(([month, val], i) => (
-                  <div key={i} className="flex flex-col items-center gap-0.5" style={{ width: 18 }} title={`${month}: R$ ${formatBRL(val)}`}>
-                    <div
-                      className="w-full rounded-t-sm bg-gradient-to-t from-emerald-700/60 to-emerald-500/40"
-                      style={{ height: `${Math.max((val / creditMax) * 100, 10)}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-3 shrink-0">
+              {creditMonthEntries.length > 1 && (
+                <div className="flex items-end gap-1.5 h-8 hidden sm:flex">
+                  {creditMonthEntries.map(([month, val], i) => (
+                    <div key={i} className="flex flex-col items-center gap-0.5" style={{ width: 18 }} title={`${month}: R$ ${formatBRL(val)}`}>
+                      <div
+                        className="w-full rounded-t-sm bg-gradient-to-t from-emerald-700/60 to-emerald-500/40"
+                        style={{ height: `${Math.max((val / creditMax) * 100, 10)}%` }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <CdiExportButton />
+            </div>
           </div>
 
           {allCdiLogs.length === 0 ? (

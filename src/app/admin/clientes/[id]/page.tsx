@@ -17,6 +17,7 @@ import { MerchantNotes } from './MerchantNotes'
 import { ResetPasswordButton } from './ResetPasswordButton'
 import { computeRiskSuggestions, computeRiskMetrics } from '@/lib/computeRiskSuggestions'
 import { scoreToReservaSugerida } from '@/lib/masterScore'
+import { CdiExportButton } from '@/app/cliente/cdi/CdiExportButton'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -203,9 +204,14 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
 
         {/* ══ Saldos completos ══ */}
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <h3 className="text-white font-semibold text-[13.5px]">Saldos do Seller</h3>
-            <span className="text-[10px] font-semibold text-slate-500 bg-slate-800 border border-slate-700/50 px-2 py-0.5 rounded-full uppercase tracking-wide">Visão Financeira Completa</span>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-white font-semibold text-[13.5px]">Saldos do Seller</h3>
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-800 border border-slate-700/50 px-2 py-0.5 rounded-full uppercase tracking-wide">Visão Financeira Completa</span>
+            </div>
+            {merchant.balance > 0 && (
+              <CdiExportButton merchantId={merchant.id} />
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
