@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Topbar } from '@/components/layout/Topbar'
 import { prisma } from '@/lib/prisma'
+import { RetryWebhookButton, ResetApiKeyButton, RevokeApiKeyButton } from './AdminApiActions'
 
 export default async function AdminIntegracoesPage() {
   const session = await getServerSession(authOptions)
@@ -308,9 +309,15 @@ export default async function AdminIntegracoesPage() {
                       {/* API Key */}
                       <td className="px-3 py-3 text-center">
                         {temKey ? (
-                          <span className={`text-[10px] font-semibold ${semUso ? 'text-amber-400' : 'text-emerald-400'}`}>
-                            {semUso ? '⚠ Criada' : '✓ Criada'}
-                          </span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span className={`text-[10px] font-semibold ${semUso ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {semUso ? '⚠ Criada' : '✓ Criada'}
+                            </span>
+                            <div className="flex gap-1 flex-wrap justify-center">
+                              <ResetApiKeyButton merchantId={m.id} merchantName={m.name} />
+                              <RevokeApiKeyButton merchantId={m.id} merchantName={m.name} />
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-[10px] text-slate-600">—</span>
                         )}
@@ -424,6 +431,7 @@ export default async function AdminIntegracoesPage() {
                     <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">HTTP</th>
                     <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Tentativas</th>
                     <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Quando</th>
+                    <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
@@ -455,6 +463,9 @@ export default async function AdminIntegracoesPage() {
                       <td className="px-3 py-2.5 text-center tabular-nums text-slate-500">{f.attempt}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-[10.5px] text-slate-600">
                         {f.createdAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <RetryWebhookButton deliveryId={f.id} />
                       </td>
                     </tr>
                   ))}

@@ -12,6 +12,13 @@ async function requireAdmin() {
   return session!.user as any
 }
 
+/** Ensures the endpoint belongs to the declared merchant (IDOR guard). */
+async function requireEndpointOwnership(id: string, merchantId: string) {
+  const ep = await prisma.webhookEndpoint.findUnique({ where: { id }, select: { merchantId: true } })
+  if (!ep || ep.merchantId !== merchantId) throw new Error('Endpoint não encontrado.')
+  return ep
+}
+
 const VALID_EVENTS = [
   'payment.approved',
   'payment.refused',
@@ -30,10 +37,10 @@ const VALID_EVENTS = [
 ]
 
 export async function createWebhook(merchantId: string, url: string, events: string[]) {
-  await requireAdmin()
+  const admin = await requireAdmin()
   if (!url.startsWith('https://')) throw new Error('URL deve usar HTTPS.')
   const filtered = events.filter((e) => VALID_EVENTS.includes(e))
-  await prisma.webhookEndpoint.create({
+  const ep = await prisma.webhookEndpoint.create({
     data: {
       merchantId,
       url,
@@ -41,23 +48,62 @@ export async function createWebhook(merchantId: string, url: string, events: str
       secret: generateWebhookSecret(),
     },
   })
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      action: 'WEBHOOK_CREATED',
+      entity: 'WebhookEndpoint',
+      entityId: ep.id,
+      metadata: JSON.stringify({ merchantId, url, events: filtered }),
+    },
+  })
   revalidatePath(`/admin/clientes/${merchantId}/webhooks`)
 }
 
 export async function toggleWebhook(id: string, merchantId: string, active: boolean) {
-  await requireAdmin()
+  const admin = await requireAdmin()
+  await requireEndpointOwnership(id, merchantId)
   await prisma.webhookEndpoint.update({ where: { id }, data: { active } })
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      action: active ? 'WEBHOOK_ACTIVATED' : 'WEBHOOK_DEACTIVATED',
+      entity: 'WebhookEndpoint',
+      entityId: id,
+      metadata: JSON.stringify({ merchantId }),
+    },
+  })
   revalidatePath(`/admin/clientes/${merchantId}/webhooks`)
 }
 
 export async function deleteWebhook(id: string, merchantId: string) {
-  await requireAdmin()
+  const admin = await requireAdmin()
+  await requireEndpointOwnership(id, merchantId)
   await prisma.webhookEndpoint.delete({ where: { id } })
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      action: 'WEBHOOK_DELETED',
+      entity: 'WebhookEndpoint',
+      entityId: id,
+      metadata: JSON.stringify({ merchantId }),
+    },
+  })
   revalidatePath(`/admin/clientes/${merchantId}/webhooks`)
 }
 
 export async function rotateWebhookSecret(id: string, merchantId: string) {
-  await requireAdmin()
+  const admin = await requireAdmin()
+  await requireEndpointOwnership(id, merchantId)
   await prisma.webhookEndpoint.update({ where: { id }, data: { secret: generateWebhookSecret() } })
+  await prisma.auditLog.create({
+    data: {
+      userId: admin.id,
+      action: 'WEBHOOK_SECRET_ROTATED',
+      entity: 'WebhookEndpoint',
+      entityId: id,
+      metadata: JSON.stringify({ merchantId }),
+    },
+  })
   revalidatePath(`/admin/clientes/${merchantId}/webhooks`)
 }
