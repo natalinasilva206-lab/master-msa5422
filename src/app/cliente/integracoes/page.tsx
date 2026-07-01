@@ -11,20 +11,30 @@ export default async function IntegracoesPage() {
   const userId = (session?.user as any)?.id as string | undefined
 
   const user = userId
-    ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          merchant: {
+            include: {
+              webhookEndpoints: { where: { active: true }, orderBy: { createdAt: 'asc' }, take: 1 },
+            },
+          },
+        },
+      })
     : null
 
   const merchant = user?.merchant
   const merchantId = merchant?.id ?? '—'
   const apiKey = (merchant as any)?.apiKey ?? '—'
-  const webhookSecret = '—'
+  const firstWebhook = merchant?.webhookEndpoints?.[0]
+  const webhookSecret = firstWebhook?.secret ?? null
 
   const endpoints = [
-    { method: 'POST', path: '/v1/transactions', desc: 'Criar nova transação' },
-    { method: 'GET',  path: '/v1/transactions/:id', desc: 'Consultar transação' },
-    { method: 'GET',  path: '/v1/balance', desc: 'Consultar saldo' },
-    { method: 'POST', path: '/v1/withdrawals', desc: 'Solicitar saque' },
-    { method: 'GET',  path: '/v1/withdrawals', desc: 'Listar saques' },
+    { method: 'POST', path: '/api/v1/sales',               desc: 'Registrar nova venda' },
+    { method: 'GET',  path: '/api/v1/transactions/:id',    desc: 'Consultar transação por ID' },
+    { method: 'GET',  path: '/api/v1/balance',             desc: 'Consultar saldos (disponível, reservado, bloqueado)' },
+    { method: 'POST', path: '/api/v1/withdrawals',         desc: 'Solicitar saque via PIX' },
+    { method: 'GET',  path: '/api/v1/withdrawals',         desc: 'Listar histórico de saques' },
   ]
 
   const methodColor: Record<string, string> = {
@@ -54,7 +64,7 @@ export default async function IntegracoesPage() {
             {[
               { label: 'Merchant ID',     value: merchantId,    hint: 'Identificador único da sua empresa' },
               { label: 'API Key (Live)',   value: apiKey,        hint: 'Chave para produção — mantenha em segredo' },
-              { label: 'Webhook Secret',  value: webhookSecret, hint: 'Para validar eventos recebidos via webhook' },
+              { label: 'Webhook Secret',  value: webhookSecret ?? '—', hint: webhookSecret ? 'Secret do seu primeiro endpoint ativo — valide a assinatura HMAC-SHA256' : 'Configure um endpoint de webhook no painel para obter o secret' },
             ].map((row) => (
               <div key={row.label} className="px-5 py-3.5 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
@@ -87,7 +97,7 @@ export default async function IntegracoesPage() {
           </div>
           <div className="px-5 py-4">
             <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 overflow-x-auto border border-slate-800/40">
-{`curl -X GET https://api.masterpagamentos.com.br/v1/balance \\
+{`curl -X GET https://api.masterpagamentos.com.br/api/v1/balance?merchantId=${merchantId} \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json"`}
             </pre>
