@@ -36,43 +36,41 @@ async function buildInput(merchantId: string, merchant: {
   const since30d = new Date(now.getTime() - ms30)
   const since60d = new Date(now.getTime() - ms30 * 2)
 
-  const [vendas30d, vendas30_60d, todasVendas, disputas30d, reembolsos, feePlan] =
+  const [vendas30d, vendas30_60d, vendas30dCount, disputas30d, reembolsos, feePlan] =
     await Promise.all([
-      prisma.auditLog.findMany({
-        where: { entityId: merchantId, action: 'BALANCE_ADJUST', createdAt: { gte: since30d } },
-        select: { metadata: true },
+      // Volume mensal: SaleLog VENDA APROVADO (fonte canônica)
+      prisma.saleLog.findMany({
+        where: { merchantId, type: 'VENDA', status: 'APROVADO', createdAt: { gte: since30d } },
+        select: { amount: true },
       }),
-      prisma.auditLog.findMany({
-        where: { entityId: merchantId, action: 'BALANCE_ADJUST', createdAt: { gte: since60d, lt: since30d } },
-        select: { metadata: true },
+      // Volume mês anterior: SaleLog VENDA APROVADO (janela 30–60d)
+      prisma.saleLog.findMany({
+        where: { merchantId, type: 'VENDA', status: 'APROVADO', createdAt: { gte: since60d, lt: since30d } },
+        select: { amount: true },
       }),
-      prisma.auditLog.count({ where: { entityId: merchantId, action: 'BALANCE_ADJUST' } }),
-      // Source of truth for disputes: the Dispute table, not AuditLog
+      // Total vendas aprovadas nos últimos 30d — denominador das taxas de CB/reembolso
+      prisma.saleLog.count({
+        where: { merchantId, type: 'VENDA', status: 'APROVADO', createdAt: { gte: since30d } },
+      }),
+      // Disputas abertas nos últimos 30d: contamos tudo (inclusive resolvidas contra o seller)
       prisma.dispute.findMany({
-        where: {
-          merchantId,
-          status:    { notIn: ['RESOLVIDO', 'RESOLVED', 'FECHADO', 'CLOSED'] },
-          createdAt: { gte: since30d },
-        },
+        where: { merchantId, type: { in: ['CHARGEBACK', 'MED_PIX'] }, createdAt: { gte: since30d } },
         select: { type: true },
       }),
+      // Reembolsos: SaleLog REEMBOLSO ou ESTORNO aprovados (fonte canônica)
       prisma.saleLog.count({
-        where: { merchantId, type: 'REFUND', status: 'COMPLETED', createdAt: { gte: since30d } },
+        where: { merchantId, type: { in: ['REEMBOLSO', 'ESTORNO'] }, status: 'APROVADO', createdAt: { gte: since30d } },
       }),
       prisma.feePlan.findFirst({ where: { name: merchant.plan } }),
     ])
 
   const chargebacks = disputas30d.filter(d => d.type === 'CHARGEBACK').length
-  const medPix      = disputas30d.filter(d => ['MED', 'MED_PIX'].includes(d.type)).length
+  const medPix      = disputas30d.filter(d => d.type === 'MED_PIX').length
 
-  const sumAmt = (logs: { metadata: string | null }[]) =>
-    logs.reduce((s, l) => {
-      try { return s + parseFloat(JSON.parse(l.metadata ?? '{}').amount || 0) } catch { return s }
-    }, 0)
+  const volumeMensal      = vendas30d.reduce((s, v) => s + v.amount, 0)
+  const volumeMesAnterior = vendas30_60d.reduce((s, v) => s + v.amount, 0)
 
-  const volumeMensal      = sumAmt(vendas30d)
-  const volumeMesAnterior = sumAmt(vendas30_60d)
-
+  // Margem estimada via FeePlan (única fonte de preços disponível no sistema)
   const chargedPct  = feePlan?.chargedPercent ?? 2.5
   const costPct     = feePlan?.costPercent    ?? 1.2
   const chargedFx   = feePlan?.chargedFixed   ?? 0
@@ -84,7 +82,7 @@ async function buildInput(merchantId: string, merchant: {
   return {
     volumeMensal,
     volumeMesAnterior,
-    totalVendas:     todasVendas,
+    totalVendas:     vendas30dCount,
     chargebacks,
     medPixCount:     medPix,
     reembolsos,

@@ -31,17 +31,17 @@ export const SCORE_MAX = {
 } as const
 
 export interface ScoreInput {
-  /** Soma dos BALANCE_ADJUST nos últimos 30 dias */
+  /** Soma de SaleLog(type=VENDA, status=APROVADO).amount nos últimos 30 dias */
   volumeMensal:      number
-  /** Soma dos BALANCE_ADJUST de 30–60 dias atrás */
+  /** Soma de SaleLog(type=VENDA, status=APROVADO).amount de 30–60 dias atrás */
   volumeMesAnterior: number
-  /** Total histórico de vendas (count) */
+  /** Count de SaleLog(type=VENDA, status=APROVADO) nos últimos 30d — denominador das taxas */
   totalVendas:       number
-  /** Count de disputas CHARGEBACK_OPENED / DISPUTE_OPENED */
+  /** Count de Dispute(type=CHARGEBACK) abertos nos últimos 30d */
   chargebacks:       number
-  /** Count de MED Pix no mês corrente (últimos 30d) */
+  /** Count de Dispute(type=MED_PIX) abertos nos últimos 30d */
   medPixCount:       number
-  /** Count de estornos/reembolsos */
+  /** Count de SaleLog(type IN [REEMBOLSO, ESTORNO], status=APROVADO) nos últimos 30d */
   reembolsos:        number
   /** pendingBalance do merchant */
   saldoDisponivel:   number
@@ -51,9 +51,9 @@ export interface ScoreInput {
   reservaAtual:      number
   /** Dias desde a criação do merchant */
   diasDesdeCriacao:  number
-  /** Volume faturado (base para cálculo de margem) — igual ao volumeMensal quando não há dado separado */
+  /** Igual ao volumeMensal — base para o cálculo de margem percentual */
   volumeFaturado:    number
-  /** Margem estimada gerada para a plataforma (taxa cobrada - custo) */
+  /** Estimativa de margem via FeePlan: (chargedPct - costPct) × volume + (chargedFx - costFx) × numVendas */
   margemEstimada:    number
 }
 
@@ -104,8 +104,13 @@ function calcVolume(volume: number): SubScoreDetail {
 }
 
 function calcChargeback(chargebacks: number, totalVendas: number): SubScoreDetail {
+  // Chargebacks sem vendas no período: penalidade máxima
+  if (chargebacks > 0 && totalVendas === 0) {
+    const v = `${chargebacks} chargeback(s) sem vendas no período`
+    return { pontos: 0, maxPontos: 25, faixa: 'Chargeback sem vendas — crítico', valor: v }
+  }
   const taxa = totalVendas > 0 ? (chargebacks / totalVendas) * 100 : 0
-  const v = totalVendas > 0 ? `${taxa.toFixed(2)}% (${chargebacks}/${totalVendas})` : 'Sem vendas'
+  const v = totalVendas > 0 ? `${taxa.toFixed(2)}% (${chargebacks}/${totalVendas})` : 'Sem vendas no período'
   if (taxa <= 0.5)   return { pontos: 25, maxPontos: 25, faixa: '0% a 0,50%',      valor: v }
   if (taxa <= 1.0)   return { pontos: 18, maxPontos: 25, faixa: '0,51% a 1,00%',   valor: v }
   if (taxa <= 2.0)   return { pontos: 10, maxPontos: 25, faixa: '1,01% a 2,00%',   valor: v }
@@ -121,8 +126,13 @@ function calcMed(medCount: number): SubScoreDetail {
 }
 
 function calcReembolso(reembolsos: number, totalVendas: number): SubScoreDetail {
+  // Reembolsos sem vendas no período: penalidade máxima
+  if (reembolsos > 0 && totalVendas === 0) {
+    const v = `${reembolsos} reembolso(s) sem vendas no período`
+    return { pontos: 0, maxPontos: 10, faixa: 'Reembolsos sem vendas — crítico', valor: v }
+  }
   const taxa = totalVendas > 0 ? (reembolsos / totalVendas) * 100 : 0
-  const v = totalVendas > 0 ? `${taxa.toFixed(2)}% (${reembolsos}/${totalVendas})` : 'Sem vendas'
+  const v = totalVendas > 0 ? `${taxa.toFixed(2)}% (${reembolsos}/${totalVendas})` : 'Sem vendas no período'
   if (taxa <= 2.0)   return { pontos: 10, maxPontos: 10, faixa: 'Até 2%',          valor: v }
   if (taxa <= 5.0)   return { pontos:  6, maxPontos: 10, faixa: '2,01% a 5%',      valor: v }
   if (taxa <= 10.0)  return { pontos:  3, maxPontos: 10, faixa: '5,01% a 10%',     valor: v }
