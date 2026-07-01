@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import { CopyButton } from './CopyButton'
 import { GenerateKeyButton } from './GenerateKeyButton'
+import { Accordion } from './Accordion'
 
 export default async function IntegracoesPage() {
   const session = await getServerSession(authOptions)
@@ -17,10 +18,7 @@ export default async function IntegracoesPage() {
         include: {
           merchant: {
             include: {
-              webhookEndpoints: {
-                where:   { active: true },
-                orderBy: { createdAt: 'asc' },
-              },
+              webhookEndpoints: { where: { active: true }, orderBy: { createdAt: 'asc' } },
             },
           },
         },
@@ -34,7 +32,6 @@ export default async function IntegracoesPage() {
   const firstWebhook  = webhooks[0]
   const webhookSecret = firstWebhook?.secret ?? null
 
-  // Última venda registrada (indica que a integração está ativa)
   const ultimaVenda = merchant
     ? await prisma.saleLog.findFirst({
         where:   { merchantId: merchant.id, type: 'VENDA', status: 'APROVADO' },
@@ -43,7 +40,7 @@ export default async function IntegracoesPage() {
       })
     : null
 
-  const baseUrl = 'https://api.masterpagamentos.com.br/api'
+  const baseUrl        = 'https://api.masterpagamentos.com.br/api'
   const keyPlaceholder = apiKey ?? '<SUA_API_KEY>'
   const idPlaceholder  = merchantId === '—' ? '<SEU_MERCHANT_ID>' : merchantId
 
@@ -52,12 +49,12 @@ export default async function IntegracoesPage() {
       <Topbar showNotifications
         title="Integrações / API"
         breadcrumb="Minha Conta"
-        subtitle="Credenciais e documentação completa da API REST v1"
+        subtitle="Credenciais de acesso e referência da API REST v1"
       />
 
-      <div className="p-4 xl:p-6 space-y-5">
+      <div className="p-4 xl:p-6 space-y-4">
 
-        {/* ── CREDENCIAIS ─────────────────────────────────────────── */}
+        {/* ── CREDENCIAIS ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between gap-3 flex-wrap">
             <div>
@@ -66,14 +63,14 @@ export default async function IntegracoesPage() {
             </div>
             <GenerateKeyButton hasKey={!!apiKey} />
           </div>
-          <div className="divide-y divide-slate-800/40">
 
+          <div className="divide-y divide-slate-800/40">
             {/* Merchant ID */}
             <div className="px-5 py-3.5 flex items-center gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Merchant ID</p>
                 <p className="text-[12px] text-slate-300 font-mono mt-1 truncate">{merchantId}</p>
-                <p className="text-[10px] text-slate-700 mt-0.5">Identificador único da sua empresa — obrigatório em todas as requisições</p>
+                <p className="text-[10px] text-slate-700 mt-0.5">Identificador único — obrigatório em todas as requisições</p>
               </div>
               <CopyButton value={merchantId} />
             </div>
@@ -95,7 +92,7 @@ export default async function IntegracoesPage() {
                     </p>
                   </>
                 ) : (
-                  <p className="text-[12px] text-amber-400 mt-1">Nenhuma chave gerada. Clique em "Gerar API Key" para criar.</p>
+                  <p className="text-[12px] text-amber-400 mt-1">Nenhuma chave gerada. Clique em "Gerar API Key".</p>
                 )}
               </div>
               {apiKey && <CopyButton value={apiKey} />}
@@ -117,23 +114,21 @@ export default async function IntegracoesPage() {
                   </>
                 ) : (
                   <p className="text-[12px] text-slate-600 mt-1">
-                    Configure em{' '}
-                    <a href="/cliente/minha-conta" className="text-blue-500 hover:underline">Minha Conta → Webhooks</a>
+                    Configure em <a href="/cliente/minha-conta" className="text-blue-500 hover:underline">Minha Conta → Webhooks</a>
                   </p>
                 )}
               </div>
               {webhookSecret && <CopyButton value={webhookSecret} />}
             </div>
-
           </div>
 
-          {/* Status da integração */}
-          <div className="px-5 py-3 border-t border-slate-800/60 bg-slate-800/20 flex items-center gap-4 flex-wrap">
+          {/* Status barra inferior */}
+          <div className="px-5 py-2.5 border-t border-slate-800/60 bg-slate-800/20 flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ultimaVenda ? 'bg-emerald-400' : 'bg-slate-600'}`} />
               <span className="text-[11px] text-slate-500">
                 {ultimaVenda
-                  ? <>Última venda via API: <span className="text-slate-300">{ultimaVenda.createdAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>{ultimaVenda.externalId ? <> · ID externo <code className="font-mono text-slate-400">{ultimaVenda.externalId}</code></> : ''}</>
+                  ? <>Última venda: <span className="text-slate-300">{ultimaVenda.createdAt.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span></>
                   : 'Nenhuma venda registrada ainda'
                 }
               </span>
@@ -147,7 +142,7 @@ export default async function IntegracoesPage() {
           </div>
         </section>
 
-        {/* ── BASE URL ────────────────────────────────────────────── */}
+        {/* ── BASE URL ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Base URL</p>
           <div className="flex items-center gap-3">
@@ -157,40 +152,55 @@ export default async function IntegracoesPage() {
             <CopyButton value={baseUrl} />
           </div>
           <p className="text-[10.5px] text-slate-600 mt-2">
-            Todos os endpoints usam o prefixo <code className="font-mono text-slate-400">/v1/</code>.
-            Autenticação via <code className="font-mono text-slate-400">Authorization: Bearer &lt;apiKey&gt;</code> exceto em{' '}
-            <code className="font-mono text-slate-400">POST /v1/sales</code>, que recebe a chave no body.
+            Prefixo <code className="font-mono text-slate-400">/v1/</code> em todos os endpoints.
+            Autenticação via <code className="font-mono text-slate-400">Authorization: Bearer &lt;apiKey&gt;</code>, exceto{' '}
+            <code className="font-mono text-slate-400">POST /v1/sales</code> que recebe a chave no body.
           </p>
         </section>
 
-        {/* ── ENDPOINTS ───────────────────────────────────────────── */}
+        {/* ── ENDPOINTS ── */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <p className="text-[13px] font-semibold text-white">Endpoints</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Clique em um endpoint para expandir a documentação completa</p>
+          </div>
 
-        {/* POST /sales */}
-        <EndpointCard
-          method="POST" path="/v1/sales" auth="body"
-          description="Registra uma nova venda e credita o valor no saldo do merchant, descontando a reserva de risco configurada."
-        >
-          <FieldTable title="Campos do body (JSON)" fields={[
-            { name: 'merchantId',  type: 'string', req: true,  desc: 'Seu Merchant ID' },
-            { name: 'saleAmount',  type: 'number', req: true,  desc: 'Valor da venda em BRL — número positivo (ex: 150.00)' },
-            { name: 'apiKey',      type: 'string', req: true,  desc: 'Sua API Key (Live)' },
-            { name: 'description', type: 'string', req: false, desc: 'Descrição livre — exibida no extrato' },
-            { name: 'externalId',  type: 'string', req: false, desc: 'ID do pedido no seu sistema — para conciliação' },
-          ]} />
+          <div className="divide-y divide-slate-800/40">
 
-          <CodeBlock label="Exemplo de request">{
+            {/* POST /sales */}
+            <Accordion
+              title={
+                <>
+                  <span className="text-[11px] font-semibold font-mono px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20 shrink-0">POST</span>
+                  <code className="text-[12.5px] font-mono text-slate-200">/api/v1/sales</code>
+                  <span className="text-[10px] text-amber-500/80 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0">apiKey no body</span>
+                </>
+              }
+              badge={<span className="text-[11px] text-slate-600 hidden sm:block">Registrar venda</span>}
+            >
+              <p className="text-[11.5px] text-slate-500">Registra uma nova venda e credita o valor no saldo do merchant, descontando a reserva de risco configurada.</p>
+
+              <FieldTable title="Campos do body (JSON)" fields={[
+                { name: 'merchantId',  type: 'string', req: true,  desc: 'Seu Merchant ID' },
+                { name: 'saleAmount',  type: 'number', req: true,  desc: 'Valor da venda em BRL (ex: 150.00)' },
+                { name: 'apiKey',      type: 'string', req: true,  desc: 'Sua API Key (Live)' },
+                { name: 'description', type: 'string', req: false, desc: 'Descrição livre — exibida no extrato' },
+                { name: 'externalId',  type: 'string', req: false, desc: 'ID do pedido no seu sistema' },
+              ]} />
+
+              <CodeBlock label="Exemplo de request">{
 `curl -X POST "${baseUrl}/v1/sales" \\
   -H "Content-Type: application/json" \\
   -d '{
     "merchantId": "${idPlaceholder}",
     "saleAmount": 150.00,
     "apiKey": "${keyPlaceholder}",
-    "description": "Plano Mensal — Acesso Premium",
+    "description": "Plano Mensal",
     "externalId": "ORD-2024-001"
   }'`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <CodeBlock label="Response 200 — sucesso">{
+              <CodeBlock label="Response 200">{
 `{
   "ok": true,
   "saleLogId": "clx1abc...",
@@ -199,35 +209,41 @@ export default async function IntegracoesPage() {
   "valorDisponivel": 127.50,
   "reservePercent": 15,
   "releaseDays": 30,
-  "releaseAt": "2024-08-01",
-  "reserveReleaseId": "clx2def..."
+  "releaseAt": "2024-08-01"
 }`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <ErrorTable errors={[
-            { code: 400, desc: 'merchantId ou saleAmount ausente / inválido' },
-            { code: 401, desc: 'apiKey ausente ou incorreta' },
-            { code: 403, desc: 'Merchant inativo ou bloqueado' },
-            { code: 404, desc: 'Merchant não encontrado' },
-            { code: 500, desc: 'Erro interno — tente novamente' },
-          ]} />
-        </EndpointCard>
+              <ErrorTable errors={[
+                { code: 400, desc: 'merchantId ou saleAmount ausente / inválido' },
+                { code: 401, desc: 'apiKey ausente ou incorreta' },
+                { code: 403, desc: 'Merchant inativo ou bloqueado' },
+                { code: 404, desc: 'Merchant não encontrado' },
+              ]} />
+            </Accordion>
 
-        {/* GET /balance */}
-        <EndpointCard
-          method="GET" path="/v1/balance" auth="header"
-          description="Retorna os cinco tipos de saldo do merchant: disponível para saque, em reserva de risco, bloqueado por disputa, futuro (a liberar) e investido em CDI."
-        >
-          <FieldTable title="Query params" fields={[
-            { name: 'merchantId', type: 'string', req: true, desc: 'Seu Merchant ID' },
-          ]} />
+            {/* GET /balance */}
+            <Accordion
+              title={
+                <>
+                  <span className="text-[11px] font-semibold font-mono px-2 py-0.5 rounded border bg-blue-500/15 text-blue-400 border-blue-500/20 shrink-0">GET</span>
+                  <code className="text-[12.5px] font-mono text-slate-200">/api/v1/balance</code>
+                  <span className="text-[10px] text-slate-500 bg-slate-800/40 border border-slate-700/30 px-1.5 py-0.5 rounded shrink-0">Bearer token</span>
+                </>
+              }
+              badge={<span className="text-[11px] text-slate-600 hidden sm:block">Consultar saldo</span>}
+            >
+              <p className="text-[11.5px] text-slate-500">Retorna os cinco tipos de saldo: disponível, em reserva, bloqueado, futuro e CDI.</p>
 
-          <CodeBlock label="Exemplo de request">{
+              <FieldTable title="Query params" fields={[
+                { name: 'merchantId', type: 'string', req: true, desc: 'Seu Merchant ID' },
+              ]} />
+
+              <CodeBlock label="Exemplo de request">{
 `curl "${baseUrl}/v1/balance?merchantId=${idPlaceholder}" \\
   -H "Authorization: Bearer ${keyPlaceholder}"`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <CodeBlock label="Response 200 — sucesso">{
+              <CodeBlock label="Response 200">{
 `{
   "merchantId": "${idPlaceholder}",
   "balance": {
@@ -238,50 +254,57 @@ export default async function IntegracoesPage() {
     "cdi":        320.80
   }
 }`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <div className="mt-3 space-y-1">
-            {[
-              { campo: 'available', desc: 'Saldo livre para saque imediato (pendingBalance)' },
-              { campo: 'reserved',  desc: 'Retido pela reserva de risco — liberado após o prazo' },
-              { campo: 'blocked',   desc: 'Bloqueado por disputa ou chargeback em aberto' },
-              { campo: 'future',    desc: 'Vendas aprovadas ainda dentro do prazo de reserva' },
-              { campo: 'cdi',       desc: 'Investido em CDI (conta rendimento)' },
-            ].map((f) => (
-              <div key={f.campo} className="flex gap-2 text-[11px]">
-                <code className="text-blue-400 font-mono w-20 shrink-0">{f.campo}</code>
-                <span className="text-slate-500">{f.desc}</span>
+              <div className="space-y-1">
+                {[
+                  { campo: 'available', desc: 'Saldo livre para saque (pendingBalance)' },
+                  { campo: 'reserved',  desc: 'Retido pela reserva de risco' },
+                  { campo: 'blocked',   desc: 'Bloqueado por disputa ou chargeback' },
+                  { campo: 'future',    desc: 'Vendas ainda dentro do prazo de reserva' },
+                  { campo: 'cdi',       desc: 'Investido em CDI' },
+                ].map((f) => (
+                  <div key={f.campo} className="flex gap-2 text-[11px]">
+                    <code className="text-blue-400 font-mono w-20 shrink-0">{f.campo}</code>
+                    <span className="text-slate-500">{f.desc}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <ErrorTable errors={[
-            { code: 400, desc: 'merchantId ausente' },
-            { code: 401, desc: 'API Key ausente ou incorreta' },
-            { code: 403, desc: 'Merchant inativo ou bloqueado' },
-            { code: 404, desc: 'Merchant não encontrado' },
-          ]} />
-        </EndpointCard>
+              <ErrorTable errors={[
+                { code: 400, desc: 'merchantId ausente' },
+                { code: 401, desc: 'API Key ausente ou incorreta' },
+                { code: 403, desc: 'Merchant inativo ou bloqueado' },
+              ]} />
+            </Accordion>
 
-        {/* GET /transactions */}
-        <EndpointCard
-          method="GET" path="/v1/transactions" auth="header"
-          description="Lista transações do merchant com paginação e filtros por tipo e status."
-        >
-          <FieldTable title="Query params" fields={[
-            { name: 'merchantId', type: 'string', req: true,  desc: 'Seu Merchant ID' },
-            { name: 'limit',      type: 'number', req: false, desc: 'Itens por página (padrão: 20, máx: 100)' },
-            { name: 'offset',     type: 'number', req: false, desc: 'Deslocamento para paginação (padrão: 0)' },
-            { name: 'type',       type: 'string', req: false, desc: 'Filtrar por tipo: VENDA | ESTORNO | REEMBOLSO' },
-            { name: 'status',     type: 'string', req: false, desc: 'Filtrar por status: APROVADO | CANCELADO | PENDENTE' },
-          ]} />
+            {/* GET /transactions */}
+            <Accordion
+              title={
+                <>
+                  <span className="text-[11px] font-semibold font-mono px-2 py-0.5 rounded border bg-blue-500/15 text-blue-400 border-blue-500/20 shrink-0">GET</span>
+                  <code className="text-[12.5px] font-mono text-slate-200">/api/v1/transactions</code>
+                  <span className="text-[10px] text-slate-500 bg-slate-800/40 border border-slate-700/30 px-1.5 py-0.5 rounded shrink-0">Bearer token</span>
+                </>
+              }
+              badge={<span className="text-[11px] text-slate-600 hidden sm:block">Listar transações</span>}
+            >
+              <p className="text-[11.5px] text-slate-500">Lista transações com paginação e filtros.</p>
 
-          <CodeBlock label="Exemplo de request">{
+              <FieldTable title="Query params" fields={[
+                { name: 'merchantId', type: 'string', req: true,  desc: 'Seu Merchant ID' },
+                { name: 'limit',      type: 'number', req: false, desc: 'Itens por página (padrão: 20, máx: 100)' },
+                { name: 'offset',     type: 'number', req: false, desc: 'Deslocamento para paginação (padrão: 0)' },
+                { name: 'type',       type: 'string', req: false, desc: 'VENDA | ESTORNO | REEMBOLSO' },
+                { name: 'status',     type: 'string', req: false, desc: 'APROVADO | CANCELADO | PENDENTE' },
+              ]} />
+
+              <CodeBlock label="Exemplo de request">{
 `curl "${baseUrl}/v1/transactions?merchantId=${idPlaceholder}&limit=5&type=VENDA" \\
   -H "Authorization: Bearer ${keyPlaceholder}"`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <CodeBlock label="Response 200 — sucesso">{
+              <CodeBlock label="Response 200">{
 `{
   "data": [
     {
@@ -294,40 +317,42 @@ export default async function IntegracoesPage() {
       "createdAt": "2024-07-01T14:32:00.000Z"
     }
   ],
-  "pagination": {
-    "total": 42,
-    "limit": 5,
-    "offset": 0,
-    "hasMore": true
-  }
+  "pagination": { "total": 42, "limit": 5, "offset": 0, "hasMore": true }
 }`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <ErrorTable errors={[
-            { code: 400, desc: 'merchantId ausente' },
-            { code: 401, desc: 'API Key ausente ou incorreta' },
-            { code: 403, desc: 'Merchant inativo ou bloqueado' },
-          ]} />
-        </EndpointCard>
+              <ErrorTable errors={[
+                { code: 400, desc: 'merchantId ausente' },
+                { code: 401, desc: 'API Key ausente ou incorreta' },
+              ]} />
+            </Accordion>
 
-        {/* GET /transactions/:id */}
-        <EndpointCard
-          method="GET" path="/v1/transactions/:id" auth="header"
-          description="Retorna os detalhes de uma transação específica pelo seu ID interno."
-        >
-          <FieldTable title="Path param" fields={[
-            { name: ':id', type: 'string', req: true, desc: 'ID interno da transação (campo id retornado pela listagem)' },
-          ]} />
-          <FieldTable title="Query params" fields={[
-            { name: 'merchantId', type: 'string', req: true, desc: 'Seu Merchant ID — obrigatório para validar ownership' },
-          ]} />
+            {/* GET /transactions/:id */}
+            <Accordion
+              title={
+                <>
+                  <span className="text-[11px] font-semibold font-mono px-2 py-0.5 rounded border bg-blue-500/15 text-blue-400 border-blue-500/20 shrink-0">GET</span>
+                  <code className="text-[12.5px] font-mono text-slate-200">/api/v1/transactions/:id</code>
+                  <span className="text-[10px] text-slate-500 bg-slate-800/40 border border-slate-700/30 px-1.5 py-0.5 rounded shrink-0">Bearer token</span>
+                </>
+              }
+              badge={<span className="text-[11px] text-slate-600 hidden sm:block">Consultar transação</span>}
+            >
+              <p className="text-[11.5px] text-slate-500">Retorna os detalhes de uma transação específica pelo ID interno.</p>
 
-          <CodeBlock label="Exemplo de request">{
+              <FieldTable title="Path param" fields={[
+                { name: ':id', type: 'string', req: true, desc: 'ID interno da transação' },
+              ]} />
+              <FieldTable title="Query params" fields={[
+                { name: 'merchantId', type: 'string', req: true, desc: 'Seu Merchant ID — valida ownership' },
+              ]} />
+
+              <CodeBlock label="Exemplo de request">{
 `curl "${baseUrl}/v1/transactions/clx1abc...?merchantId=${idPlaceholder}" \\
   -H "Authorization: Bearer ${keyPlaceholder}"`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <CodeBlock label="Response 200 — sucesso">{
+              <CodeBlock label="Response 200">{
 `{
   "id": "clx1abc...",
   "amount": 150.00,
@@ -337,28 +362,35 @@ export default async function IntegracoesPage() {
   "externalId": "ORD-2024-001",
   "createdAt": "2024-07-01T14:32:00.000Z"
 }`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <ErrorTable errors={[
-            { code: 400, desc: 'merchantId ausente' },
-            { code: 401, desc: 'API Key ausente ou incorreta' },
-            { code: 404, desc: 'Transação não encontrada ou pertence a outro merchant' },
-          ]} />
-        </EndpointCard>
+              <ErrorTable errors={[
+                { code: 401, desc: 'API Key ausente ou incorreta' },
+                { code: 404, desc: 'Transação não encontrada ou pertence a outro merchant' },
+              ]} />
+            </Accordion>
 
-        {/* POST /withdrawals */}
-        <EndpointCard
-          method="POST" path="/v1/withdrawals" auth="header"
-          description="Solicita um saque via Pix. O valor é debitado imediatamente do saldo disponível e a solicitação fica pendente de aprovação pela equipe."
-        >
-          <FieldTable title="Campos do body (JSON)" fields={[
-            { name: 'merchantId',  type: 'string', req: true, desc: 'Seu Merchant ID' },
-            { name: 'amount',      type: 'number', req: true, desc: 'Valor a sacar em BRL — deve ser ≤ saldo disponível' },
-            { name: 'pixKey',      type: 'string', req: true, desc: 'Chave Pix de destino' },
-            { name: 'pixKeyType',  type: 'string', req: true, desc: 'Tipo da chave: CPF | CNPJ | EMAIL | TELEFONE | ALEATORIA' },
-          ]} />
+            {/* POST /withdrawals */}
+            <Accordion
+              title={
+                <>
+                  <span className="text-[11px] font-semibold font-mono px-2 py-0.5 rounded border bg-emerald-500/15 text-emerald-400 border-emerald-500/20 shrink-0">POST</span>
+                  <code className="text-[12.5px] font-mono text-slate-200">/api/v1/withdrawals</code>
+                  <span className="text-[10px] text-slate-500 bg-slate-800/40 border border-slate-700/30 px-1.5 py-0.5 rounded shrink-0">Bearer token</span>
+                </>
+              }
+              badge={<span className="text-[11px] text-slate-600 hidden sm:block">Solicitar saque</span>}
+            >
+              <p className="text-[11.5px] text-slate-500">Solicita um saque via Pix. O valor é debitado imediatamente do saldo disponível e a solicitação fica pendente de aprovação.</p>
 
-          <CodeBlock label="Exemplo de request">{
+              <FieldTable title="Campos do body (JSON)" fields={[
+                { name: 'merchantId',  type: 'string', req: true, desc: 'Seu Merchant ID' },
+                { name: 'amount',      type: 'number', req: true, desc: 'Valor a sacar em BRL — deve ser ≤ saldo disponível' },
+                { name: 'pixKey',      type: 'string', req: true, desc: 'Chave Pix de destino' },
+                { name: 'pixKeyType',  type: 'string', req: true, desc: 'CPF | CNPJ | EMAIL | TELEFONE | ALEATORIA' },
+              ]} />
+
+              <CodeBlock label="Exemplo de request">{
 `curl -X POST "${baseUrl}/v1/withdrawals" \\
   -H "Authorization: Bearer ${keyPlaceholder}" \\
   -H "Content-Type: application/json" \\
@@ -368,9 +400,9 @@ export default async function IntegracoesPage() {
     "pixKey": "empresa@email.com",
     "pixKeyType": "EMAIL"
   }'`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <CodeBlock label="Response 201 — solicitação criada">{
+              <CodeBlock label="Response 201">{
 `{
   "ok": true,
   "withdrawalId": "clx9xyz...",
@@ -379,33 +411,40 @@ export default async function IntegracoesPage() {
   "pixKeyType": "EMAIL",
   "status": "PENDENTE"
 }`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <ErrorTable errors={[
-            { code: 400, desc: 'merchantId, amount, pixKey ou pixKeyType ausente / inválido' },
-            { code: 401, desc: 'API Key ausente ou incorreta' },
-            { code: 403, desc: 'Merchant inativo ou bloqueado' },
-            { code: 422, desc: 'Saldo insuficiente — resposta inclui o disponível atual' },
-          ]} />
-        </EndpointCard>
+              <ErrorTable errors={[
+                { code: 401, desc: 'API Key ausente ou incorreta' },
+                { code: 403, desc: 'Merchant inativo ou bloqueado' },
+                { code: 422, desc: 'Saldo insuficiente — resposta inclui o disponível atual' },
+              ]} />
+            </Accordion>
 
-        {/* GET /withdrawals */}
-        <EndpointCard
-          method="GET" path="/v1/withdrawals" auth="header"
-          description="Lista o histórico de solicitações de saque com status de cada uma."
-        >
-          <FieldTable title="Query params" fields={[
-            { name: 'merchantId', type: 'string', req: true,  desc: 'Seu Merchant ID' },
-            { name: 'limit',      type: 'number', req: false, desc: 'Itens por página (padrão: 20, máx: 100)' },
-            { name: 'offset',     type: 'number', req: false, desc: 'Deslocamento para paginação' },
-          ]} />
+            {/* GET /withdrawals */}
+            <Accordion
+              title={
+                <>
+                  <span className="text-[11px] font-semibold font-mono px-2 py-0.5 rounded border bg-blue-500/15 text-blue-400 border-blue-500/20 shrink-0">GET</span>
+                  <code className="text-[12.5px] font-mono text-slate-200">/api/v1/withdrawals</code>
+                  <span className="text-[10px] text-slate-500 bg-slate-800/40 border border-slate-700/30 px-1.5 py-0.5 rounded shrink-0">Bearer token</span>
+                </>
+              }
+              badge={<span className="text-[11px] text-slate-600 hidden sm:block">Listar saques</span>}
+            >
+              <p className="text-[11.5px] text-slate-500">Lista o histórico de solicitações de saque com status de cada uma.</p>
 
-          <CodeBlock label="Exemplo de request">{
+              <FieldTable title="Query params" fields={[
+                { name: 'merchantId', type: 'string', req: true,  desc: 'Seu Merchant ID' },
+                { name: 'limit',      type: 'number', req: false, desc: 'Itens por página (padrão: 20, máx: 100)' },
+                { name: 'offset',     type: 'number', req: false, desc: 'Deslocamento para paginação' },
+              ]} />
+
+              <CodeBlock label="Exemplo de request">{
 `curl "${baseUrl}/v1/withdrawals?merchantId=${idPlaceholder}&limit=10" \\
   -H "Authorization: Bearer ${keyPlaceholder}"`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <CodeBlock label="Response 200 — sucesso">{
+              <CodeBlock label="Response 200">{
 `{
   "data": [
     {
@@ -418,41 +457,37 @@ export default async function IntegracoesPage() {
       "createdAt": "2024-07-01T10:00:00.000Z"
     }
   ],
-  "limit": 10,
-  "offset": 0,
-  "count": 1
+  "limit": 10, "offset": 0, "count": 1
 }`
-          }</CodeBlock>
+              }</CodeBlock>
 
-          <div className="mt-3 space-y-1">
-            {[
-              { val: 'PENDENTE',  desc: 'Aguardando aprovação da equipe' },
-              { val: 'APROVADO',  desc: 'Aprovado e transferido via Pix' },
-              { val: 'NEGADO',    desc: 'Recusado pela equipe (ver motivo no painel)' },
-            ].map((s) => (
-              <div key={s.val} className="flex gap-2 text-[11px]">
-                <code className={`font-mono w-20 shrink-0 ${
-                  s.val === 'APROVADO' ? 'text-emerald-400' :
-                  s.val === 'NEGADO'   ? 'text-red-400'     : 'text-amber-400'
-                }`}>{s.val}</code>
-                <span className="text-slate-500">{s.desc}</span>
+              <div className="space-y-1">
+                {[
+                  { val: 'PENDENTE', desc: 'Aguardando aprovação' },
+                  { val: 'APROVADO', desc: 'Aprovado e transferido via Pix' },
+                  { val: 'NEGADO',   desc: 'Recusado pela equipe' },
+                ].map((s) => (
+                  <div key={s.val} className="flex gap-2 text-[11px]">
+                    <code className={`font-mono w-20 shrink-0 ${s.val === 'APROVADO' ? 'text-emerald-400' : s.val === 'NEGADO' ? 'text-red-400' : 'text-amber-400'}`}>{s.val}</code>
+                    <span className="text-slate-500">{s.desc}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+
+              <ErrorTable errors={[
+                { code: 401, desc: 'API Key ausente ou incorreta' },
+              ]} />
+            </Accordion>
+
           </div>
+        </section>
 
-          <ErrorTable errors={[
-            { code: 400, desc: 'merchantId ausente' },
-            { code: 401, desc: 'API Key ausente ou incorreta' },
-          ]} />
-        </EndpointCard>
-
-        {/* ── ERROS PADRÃO ────────────────────────────────────────── */}
+        {/* ── ERROS PADRÃO (acordeão) ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60">
-            <p className="text-[13px] font-semibold text-white">Erros — formato padrão</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">Todos os erros retornam JSON com um campo <code className="font-mono text-slate-400">error</code></p>
-          </div>
-          <div className="px-5 py-4">
+          <Accordion
+            title={<p className="text-[13px] font-semibold text-white">Erros — formato padrão</p>}
+            badge={<span className="text-[10.5px] text-slate-500">Todos os erros retornam JSON com campo <code className="font-mono">error</code></span>}
+          >
             <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40">
 {`// HTTP 4xx ou 5xx
 { "error": "Descrição do erro em português" }
@@ -462,23 +497,31 @@ export default async function IntegracoesPage() {
 // 422  { "error": "Saldo insuficiente. Disponível: R$ 127,50." }
 // 500  { "error": "Erro interno." }`}
             </pre>
-          </div>
+          </Accordion>
         </section>
 
-        {/* ── WEBHOOKS ────────────────────────────────────────────── */}
+        {/* ── WEBHOOKS ── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-slate-800/60">
-            <p className="text-[13px] font-semibold text-white">Webhooks — eventos e exemplos de payload</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">
-              Notificações entregues via <code className="font-mono text-slate-400">POST</code> no seu endpoint. Gerencie em{' '}
-              <a href="/cliente/minha-conta" className="text-blue-400 hover:underline">Minha Conta → Webhooks</a>.
-            </p>
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Webhooks</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">
+                Notificações via <code className="font-mono text-slate-400">POST</code> no seu endpoint. Gerencie em{' '}
+                <a href="/cliente/minha-conta" className="text-blue-400 hover:underline">Minha Conta → Webhooks</a>.
+              </p>
+            </div>
+            {webhooks.length > 0 && (
+              <span className="text-[11px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full shrink-0">
+                {webhooks.length} endpoint{webhooks.length > 1 ? 's' : ''} ativo{webhooks.length > 1 ? 's' : ''}
+              </span>
+            )}
           </div>
 
-          {/* Envelope + validação */}
-          <div className="px-5 py-4 border-b border-slate-800/40 space-y-3">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Envelope padrão (todos os eventos)</p>
-            <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40 overflow-x-auto">
+          <div className="divide-y divide-slate-800/40">
+
+            {/* Envelope + validação */}
+            <Accordion title={<p className="text-[12px] font-semibold text-slate-300">Formato do envelope e validação HMAC</p>}>
+              <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40 overflow-x-auto">
 {`// Headers recebidos:
 X-MasterPay-Event:     payment.approved
 X-MasterPay-Signature: a3f9c1... (HMAC-SHA256)
@@ -487,262 +530,89 @@ X-MasterPay-Signature: a3f9c1... (HMAC-SHA256)
 {
   "event":     "payment.approved",
   "timestamp": "2024-07-01T14:32:00.000Z",
-  "data":      { /* veja cada evento abaixo */ }
+  "data":      { /* payload do evento */ }
 }`}
-            </pre>
-            <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40 overflow-x-auto">
-{`// Validação da assinatura (Node.js):
+              </pre>
+              <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40 overflow-x-auto">
+{`// Validação HMAC (Node.js):
 const crypto = require('crypto')
 
 function isValid(rawBody, signature, secret) {
   const expected = crypto
     .createHmac('sha256', secret)
-    .update(rawBody)          // string bruta — antes do JSON.parse
+    .update(rawBody)   // string bruta — antes do JSON.parse
     .digest('hex')
   return crypto.timingSafeEqual(
     Buffer.from(expected),
     Buffer.from(signature)
   )
 }`}
-            </pre>
-          </div>
+              </pre>
+            </Accordion>
 
-          {/* Eventos com payload */}
-          <div className="divide-y divide-slate-800/40">
-
-            <WebhookEventDoc
-              event="payment.approved"
-              color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-              when="Venda registrada com sucesso via POST /v1/sales."
-              payload={`{
-  "saleLogId":   "clx1abc...",
-  "amount":      150.00,
-  "description": "Plano Mensal",
-  "externalId":  "ORD-2024-001"
-}`}
-              fields={[
-                { name: 'saleLogId',   desc: 'ID interno da transação' },
-                { name: 'amount',      desc: 'Valor bruto da venda em BRL' },
-                { name: 'description', desc: 'Descrição informada na requisição (pode ser null)' },
-                { name: 'externalId',  desc: 'ID externo do pedido (pode ser null)' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="payment.refused"
-              color="text-red-400 bg-red-500/10 border-red-500/20"
-              when="Tentativa de venda recusada pelo processador de pagamento."
-              payload={`{
-  "amount":  150.00,
-  "reason":  "insufficient_funds",
-  "externalId": "ORD-2024-002"
-}`}
-              fields={[
-                { name: 'amount',     desc: 'Valor tentado em BRL' },
-                { name: 'reason',     desc: 'Código de recusa do processador' },
-                { name: 'externalId', desc: 'ID externo informado na requisição (pode ser null)' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="refund.created"
-              color="text-amber-400 bg-amber-500/10 border-amber-500/20"
-              when="Reembolso ou estorno aprovado pelo time operacional."
-              payload={`{
-  "saleLogId": "clx1abc...",
-  "amount":    150.00,
-  "type":      "REEMBOLSO",
-  "reason":    "Solicitação do cliente"
-}`}
-              fields={[
-                { name: 'saleLogId', desc: 'ID da transação original reembolsada' },
-                { name: 'amount',    desc: 'Valor reembolsado em BRL' },
-                { name: 'type',      desc: 'REEMBOLSO ou ESTORNO' },
-                { name: 'reason',    desc: 'Motivo informado pelo time (pode ser null)' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="chargeback.opened"
-              color="text-orange-400 bg-orange-500/10 border-orange-500/20"
-              when="Chargeback aberto pelo time operacional (disputa bancária)."
-              payload={`{
-  "disputeId":        "cly9abc...",
-  "type":             "CHARGEBACK",
-  "contestedAmount":  150.00
-}`}
-              fields={[
-                { name: 'disputeId',       desc: 'ID interno da disputa' },
-                { name: 'type',            desc: 'Sempre CHARGEBACK' },
-                { name: 'contestedAmount', desc: 'Valor contestado em BRL' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="med.opened"
-              color="text-orange-400 bg-orange-500/10 border-orange-500/20"
-              when="MED Pix aberto pelo time operacional (mecanismo especial de devolução)."
-              payload={`{
-  "disputeId":        "cly9def...",
-  "type":             "MED_PIX",
-  "contestedAmount":  75.00
-}`}
-              fields={[
-                { name: 'disputeId',       desc: 'ID interno da disputa' },
-                { name: 'type',            desc: 'Sempre MED_PIX' },
-                { name: 'contestedAmount', desc: 'Valor contestado em BRL' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="dispute.updated"
-              color="text-amber-400 bg-amber-500/10 border-amber-500/20"
-              when="Status de uma disputa existente é atualizado (resolvida, perdida, etc.)."
-              payload={`{
-  "disputeId": "cly9abc...",
-  "newStatus": "RESOLVIDO"
-}`}
-              fields={[
-                { name: 'disputeId', desc: 'ID interno da disputa atualizada' },
-                { name: 'newStatus', desc: 'Novo status: ABERTO | RESOLVIDO | PERDIDO | CANCELADO' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="balance.updated"
-              color="text-blue-400 bg-blue-500/10 border-blue-500/20"
-              when="Saldo do merchant é alterado (crédito de venda, liberação de reserva, débito de saque, etc.)."
-              payload={`{
-  "available": 1280.50,
-  "reserved":   450.00,
-  "blocked":      0.00,
-  "reason":    "sale_credited"
-}`}
-              fields={[
-                { name: 'available', desc: 'Novo saldo disponível após a alteração' },
-                { name: 'reserved',  desc: 'Saldo em reserva de risco' },
-                { name: 'blocked',   desc: 'Saldo bloqueado por disputa' },
-                { name: 'reason',    desc: 'Motivo: sale_credited | reserve_released | withdrawal_deducted | chargeback_blocked' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="withdrawal.created"
-              color="text-blue-400 bg-blue-500/10 border-blue-500/20"
-              when="Saque solicitado via POST /v1/withdrawals. Ainda pendente de aprovação."
-              payload={`{
-  "withdrawalId": "clx9xyz...",
-  "amount":       500.00,
-  "pixKey":       "empresa@email.com",
-  "pixKeyType":   "EMAIL"
-}`}
-              fields={[
-                { name: 'withdrawalId', desc: 'ID interno da solicitação de saque' },
-                { name: 'amount',       desc: 'Valor solicitado em BRL' },
-                { name: 'pixKey',       desc: 'Chave Pix de destino' },
-                { name: 'pixKeyType',   desc: 'CPF | CNPJ | EMAIL | TELEFONE | ALEATORIA' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="withdrawal.paid"
-              color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-              when="Saque aprovado e transferido via Pix pelo time operacional."
-              payload={`{
-  "merchantId":    "${idPlaceholder}",
-  "amount":        500.00,
-  "requestLogId":  "clx9xyz..."
-}`}
-              fields={[
-                { name: 'merchantId',   desc: 'ID do merchant beneficiário' },
-                { name: 'amount',       desc: 'Valor pago em BRL' },
-                { name: 'requestLogId', desc: 'ID do registro de solicitação original' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="withdrawal.rejected"
-              color="text-red-400 bg-red-500/10 border-red-500/20"
-              when="Saque rejeitado pelo time operacional. O valor é devolvido ao saldo disponível."
-              payload={`{
-  "merchantId":    "${idPlaceholder}",
-  "amount":        500.00,
-  "requestLogId":  "clx9xyz..."
-}`}
-              fields={[
-                { name: 'merchantId',   desc: 'ID do merchant' },
-                { name: 'amount',       desc: 'Valor devolvido ao saldo em BRL' },
-                { name: 'requestLogId', desc: 'ID do registro de solicitação original' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="reserve.released"
-              color="text-purple-400 bg-purple-500/10 border-purple-500/20"
-              when="Reserva de risco de uma venda é liberada para o saldo disponível ao atingir o prazo."
-              payload={`{
-  "merchantId":    "${idPlaceholder}",
-  "amount":         22.50,
-  "saleLogId":     "clx1abc...",
-  "releasedAt":    "2024-08-01T03:00:00.000Z"
-}`}
-              fields={[
-                { name: 'merchantId', desc: 'ID do merchant' },
-                { name: 'amount',     desc: 'Valor liberado em BRL' },
-                { name: 'saleLogId',  desc: 'ID da venda original que gerou a reserva' },
-                { name: 'releasedAt', desc: 'Data e hora ISO da liberação' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="cdi.credited"
-              color="text-purple-400 bg-purple-500/10 border-purple-500/20"
-              when="Rendimento CDI creditado mensalmente no saldo investido."
-              payload={`{
-  "sellerId":      "${idPlaceholder}",
-  "amount":         12.80,
-  "baseBalance":   320.00,
-  "cdiRate":        0.04,
-  "creditedAt":    "2024-07-01T03:00:00.000Z",
-  "newCdiBalance": 332.80
-}`}
-              fields={[
-                { name: 'sellerId',      desc: 'ID do merchant beneficiário' },
-                { name: 'amount',        desc: 'Rendimento creditado em BRL' },
-                { name: 'baseBalance',   desc: 'Saldo base sobre o qual o CDI foi calculado' },
-                { name: 'cdiRate',       desc: 'Taxa CDI aplicada no ciclo' },
-                { name: 'creditedAt',    desc: 'Data e hora ISO do crédito' },
-                { name: 'newCdiBalance', desc: 'Novo saldo CDI após o crédito' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="merchant.activated"
-              color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-              when="Conta aprovada e ativada após revisão de KYC."
-              payload={`{
-  "merchantId": "${idPlaceholder}",
-  "newStatus":  "ACTIVE"
-}`}
-              fields={[
-                { name: 'merchantId', desc: 'ID do merchant ativado' },
-                { name: 'newStatus',  desc: 'Sempre ACTIVE' },
-              ]}
-            />
-
-            <WebhookEventDoc
-              event="merchant.blocked"
-              color="text-red-400 bg-red-500/10 border-red-500/20"
-              when="Conta bloqueada por risco, disputa ou decisão operacional."
-              payload={`{
-  "merchantId": "${idPlaceholder}",
-  "newStatus":  "BLOCKED"
-}`}
-              fields={[
-                { name: 'merchantId', desc: 'ID do merchant bloqueado' },
-                { name: 'newStatus',  desc: 'Sempre BLOCKED' },
-              ]}
-            />
+            {/* Eventos */}
+            {([
+              { event: 'payment.approved',    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', when: 'Venda registrada com sucesso via POST /v1/sales.',
+                payload: `{\n  "saleLogId":   "clx1abc...",\n  "amount":      150.00,\n  "description": "Plano Mensal",\n  "externalId":  "ORD-2024-001"\n}`,
+                fields: [{ name: 'saleLogId', desc: 'ID interno da transação' }, { name: 'amount', desc: 'Valor bruto em BRL' }, { name: 'description', desc: 'Pode ser null' }, { name: 'externalId', desc: 'Pode ser null' }] },
+              { event: 'payment.refused',     color: 'text-red-400 bg-red-500/10 border-red-500/20',             when: 'Tentativa de venda recusada.',
+                payload: `{\n  "amount":  150.00,\n  "reason":  "insufficient_funds",\n  "externalId": "ORD-2024-002"\n}`,
+                fields: [{ name: 'amount', desc: 'Valor tentado' }, { name: 'reason', desc: 'Código de recusa' }, { name: 'externalId', desc: 'Pode ser null' }] },
+              { event: 'refund.created',      color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',       when: 'Reembolso ou estorno aprovado.',
+                payload: `{\n  "saleLogId": "clx1abc...",\n  "amount":    150.00,\n  "type":      "REEMBOLSO",\n  "reason":    "Solicitação do cliente"\n}`,
+                fields: [{ name: 'saleLogId', desc: 'ID da transação original' }, { name: 'amount', desc: 'Valor reembolsado' }, { name: 'type', desc: 'REEMBOLSO ou ESTORNO' }] },
+              { event: 'chargeback.opened',   color: 'text-orange-400 bg-orange-500/10 border-orange-500/20',    when: 'Chargeback aberto pelo time operacional.',
+                payload: `{\n  "disputeId":        "cly9abc...",\n  "type":             "CHARGEBACK",\n  "contestedAmount":  150.00\n}`,
+                fields: [{ name: 'disputeId', desc: 'ID interno da disputa' }, { name: 'contestedAmount', desc: 'Valor contestado' }] },
+              { event: 'med.opened',          color: 'text-orange-400 bg-orange-500/10 border-orange-500/20',    when: 'MED Pix aberto pelo time operacional.',
+                payload: `{\n  "disputeId":        "cly9def...",\n  "type":             "MED_PIX",\n  "contestedAmount":  75.00\n}`,
+                fields: [{ name: 'disputeId', desc: 'ID interno' }, { name: 'contestedAmount', desc: 'Valor contestado' }] },
+              { event: 'dispute.updated',     color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',       when: 'Status de uma disputa atualizado.',
+                payload: `{\n  "disputeId": "cly9abc...",\n  "newStatus": "RESOLVIDO"\n}`,
+                fields: [{ name: 'disputeId', desc: 'ID da disputa' }, { name: 'newStatus', desc: 'ABERTO | RESOLVIDO | PERDIDO | CANCELADO' }] },
+              { event: 'balance.updated',     color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',          when: 'Saldo do merchant alterado (venda, saque, liberação, etc.).',
+                payload: `{\n  "available": 1280.50,\n  "reserved":   450.00,\n  "blocked":      0.00,\n  "reason":    "sale_credited"\n}`,
+                fields: [{ name: 'available', desc: 'Novo saldo disponível' }, { name: 'reason', desc: 'sale_credited | reserve_released | withdrawal_deducted | chargeback_blocked' }] },
+              { event: 'withdrawal.created',  color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',          when: 'Saque solicitado via POST /v1/withdrawals.',
+                payload: `{\n  "withdrawalId": "clx9xyz...",\n  "amount":       500.00,\n  "pixKey":       "empresa@email.com",\n  "pixKeyType":   "EMAIL"\n}`,
+                fields: [{ name: 'withdrawalId', desc: 'ID da solicitação' }, { name: 'amount', desc: 'Valor em BRL' }] },
+              { event: 'withdrawal.paid',     color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', when: 'Saque aprovado e pago via Pix.',
+                payload: `{\n  "merchantId":    "${idPlaceholder}",\n  "amount":        500.00,\n  "requestLogId":  "clx9xyz..."\n}`,
+                fields: [{ name: 'amount', desc: 'Valor pago' }, { name: 'requestLogId', desc: 'ID do registro original' }] },
+              { event: 'withdrawal.rejected', color: 'text-red-400 bg-red-500/10 border-red-500/20',             when: 'Saque rejeitado. Valor devolvido ao saldo.',
+                payload: `{\n  "merchantId":    "${idPlaceholder}",\n  "amount":        500.00,\n  "requestLogId":  "clx9xyz..."\n}`,
+                fields: [{ name: 'amount', desc: 'Valor devolvido ao saldo' }] },
+              { event: 'reserve.released',    color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',    when: 'Reserva de risco liberada para o saldo disponível.',
+                payload: `{\n  "merchantId":  "${idPlaceholder}",\n  "amount":       22.50,\n  "saleLogId":   "clx1abc...",\n  "releasedAt":  "2024-08-01T03:00:00.000Z"\n}`,
+                fields: [{ name: 'amount', desc: 'Valor liberado' }, { name: 'saleLogId', desc: 'Venda que gerou a reserva' }] },
+              { event: 'cdi.credited',        color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',    when: 'Rendimento CDI creditado mensalmente.',
+                payload: `{\n  "sellerId":      "${idPlaceholder}",\n  "amount":         12.80,\n  "baseBalance":   320.00,\n  "cdiRate":        0.04,\n  "newCdiBalance": 332.80\n}`,
+                fields: [{ name: 'amount', desc: 'Rendimento creditado' }, { name: 'cdiRate', desc: 'Taxa aplicada no ciclo' }, { name: 'newCdiBalance', desc: 'Novo saldo CDI' }] },
+              { event: 'merchant.activated',  color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', when: 'Conta aprovada e ativada após revisão de KYC.',
+                payload: `{\n  "merchantId": "${idPlaceholder}",\n  "newStatus":  "ACTIVE"\n}`,
+                fields: [{ name: 'newStatus', desc: 'Sempre ACTIVE' }] },
+              { event: 'merchant.blocked',    color: 'text-red-400 bg-red-500/10 border-red-500/20',             when: 'Conta bloqueada por risco ou decisão operacional.',
+                payload: `{\n  "merchantId": "${idPlaceholder}",\n  "newStatus":  "BLOCKED"\n}`,
+                fields: [{ name: 'newStatus', desc: 'Sempre BLOCKED' }] },
+            ] as const).map(({ event, color, when, payload, fields }) => (
+              <Accordion
+                key={event}
+                title={<code className={`shrink-0 text-[11px] font-semibold font-mono px-2.5 py-1 rounded border ${color}`}>{event}</code>}
+                badge={<span className="text-[11px] text-slate-500 flex-1">{when}</span>}
+              >
+                <pre className="text-[11px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-3.5 overflow-x-auto border border-slate-800/40 leading-relaxed">
+                  {`// data:\n${payload}`}
+                </pre>
+                <div className="space-y-1">
+                  {([...fields] as { name: string; desc: string }[]).map((f) => (
+                    <div key={f.name} className="flex gap-2 text-[11px]">
+                      <code className="font-mono text-blue-400 w-28 shrink-0">{f.name}</code>
+                      <span className="text-slate-600">{f.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </Accordion>
+            ))}
 
           </div>
         </section>
@@ -752,40 +622,7 @@ function isValid(rawBody, signature, secret) {
   )
 }
 
-/* ── Componentes internos (Server-safe, sem estado) ────────────── */
-
-function EndpointCard({
-  method, path, auth, description, children,
-}: {
-  method: 'GET' | 'POST'
-  path: string
-  auth: 'header' | 'body'
-  description: string
-  children: React.ReactNode
-}) {
-  const methodColor = method === 'GET'
-    ? 'bg-blue-500/15 text-blue-400 border-blue-500/20'
-    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
-
-  return (
-    <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-slate-800/60">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <span className={`text-[11px] font-semibold font-mono px-2.5 py-1 rounded border ${methodColor}`}>{method}</span>
-          <code className="text-[13px] font-mono text-slate-200">/api{path}</code>
-          {auth === 'body' && (
-            <span className="text-[10px] text-amber-500/80 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded ml-1">apiKey no body</span>
-          )}
-          {auth === 'header' && (
-            <span className="text-[10px] text-slate-500 bg-slate-800/40 border border-slate-700/30 px-1.5 py-0.5 rounded ml-1">Bearer token</span>
-          )}
-        </div>
-        <p className="text-[11.5px] text-slate-500 mt-2">{description}</p>
-      </div>
-      <div className="px-5 py-4 space-y-4">{children}</div>
-    </section>
-  )
-}
+/* ── Componentes internos (Server-safe) ────────────────────────── */
 
 function FieldTable({ title, fields }: {
   title: string
@@ -799,8 +636,8 @@ function FieldTable({ title, fields }: {
           <div key={f.name} className="flex items-center gap-3 px-3 py-2 flex-wrap">
             <code className="text-[11.5px] font-mono text-slate-200 w-28 shrink-0">{f.name}</code>
             <code className="text-[10px] font-mono text-blue-400 w-14 shrink-0">{f.type}</code>
-            <span className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${
-              f.req ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-slate-700/30 text-slate-500 border border-slate-700/30'
+            <span className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded shrink-0 border ${
+              f.req ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-slate-700/30 text-slate-500 border-slate-700/30'
             }`}>{f.req ? 'obrigatório' : 'opcional'}</span>
             <span className="text-[11px] text-slate-500 flex-1">{f.desc}</span>
           </div>
@@ -828,40 +665,8 @@ function ErrorTable({ errors }: { errors: { code: number; desc: string }[] }) {
       <div className="space-y-1">
         {errors.map((e) => (
           <div key={e.code} className="flex items-center gap-3 text-[11px]">
-            <code className={`font-mono font-semibold w-10 shrink-0 ${
-              e.code >= 500 ? 'text-red-400' : e.code >= 400 ? 'text-amber-400' : 'text-emerald-400'
-            }`}>{e.code}</code>
+            <code className={`font-mono font-semibold w-10 shrink-0 ${e.code >= 500 ? 'text-red-400' : e.code >= 400 ? 'text-amber-400' : 'text-emerald-400'}`}>{e.code}</code>
             <span className="text-slate-500">{e.desc}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function WebhookEventDoc({
-  event, color, when, payload, fields,
-}: {
-  event: string
-  color: string
-  when: string
-  payload: string
-  fields: { name: string; desc: string }[]
-}) {
-  return (
-    <div className="px-5 py-4 space-y-3">
-      <div className="flex items-start gap-3 flex-wrap">
-        <code className={`shrink-0 text-[11px] font-semibold font-mono px-2.5 py-1 rounded border ${color}`}>{event}</code>
-        <p className="text-[11.5px] text-slate-500 flex-1">{when}</p>
-      </div>
-      <pre className="text-[11px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-3.5 overflow-x-auto border border-slate-800/40 leading-relaxed">
-        {`// data:\n${payload}`}
-      </pre>
-      <div className="space-y-1">
-        {fields.map((f) => (
-          <div key={f.name} className="flex gap-2 text-[11px]">
-            <code className="font-mono text-blue-400 w-28 shrink-0">{f.name}</code>
-            <span className="text-slate-600">{f.desc}</span>
           </div>
         ))}
       </div>
