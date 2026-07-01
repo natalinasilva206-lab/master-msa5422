@@ -1,43 +1,75 @@
 /**
- * Master Score — motor de cálculo de saúde financeira dos sellers (0–100).
+ * Master Score — motor de cálculo de saúde financeira dos sellers (0–100 pontos).
  *
- * O score é READ-ONLY do ponto de vista do negócio: classifica e sugere,
- * nunca bloqueia operações nem altera saldos automaticamente.
+ * O score é READ-ONLY: classifica e sugere, nunca bloqueia operações
+ * nem altera saldos automaticamente.
  *
- * Sub-scores (0–100 cada):
- *   volumeScore      — volume mensal processado
- *   chargebackScore  — taxa de chargeback (penalidade principal)
- *   medScore         — ocorrências de MED Pix
- *   reembolsoScore   — taxa de reembolso sobre vendas
- *   saldoScore       — saldo médio disponível + CDI
- *   crescimentoScore — tendência de volume (mês atual vs. anterior)
- *   tempoContaScore  — maturidade da conta em dias
- *   margemScore      — adequação da reserva de risco
- *
- * scoreTotal = média ponderada dos sub-scores.
+ * Composição (total máximo = 100 pontos):
+ *   volumeScore      — volume mensal processado          (máx 20 pts)
+ *   chargebackScore  — taxa de chargeback                (máx 25 pts)
+ *   medScore         — ocorrências de MED Pix no mês     (máx 15 pts)
+ *   reembolsoScore   — taxa de reembolso sobre vendas    (máx 10 pts)
+ *   saldoScore       — saldo médio disponível + CDI      (máx 10 pts)
+ *   crescimentoScore — variação de volume mês a mês      (máx 10 pts)
+ *   tempoContaScore  — maturidade da conta em dias       (máx  5 pts)
+ *   margemScore      — margem gerada para a plataforma   (máx  5 pts)
  */
 
 export type ScoreLevel  = 'Bronze' | 'Prata' | 'Ouro' | 'Diamante'
 export type ScoreStatus = 'Alto risco' | 'Atenção' | 'Saudável' | 'Premium'
 
+export const SCORE_MAX = {
+  volume:      20,
+  chargeback:  25,
+  med:         15,
+  reembolso:   10,
+  saldo:       10,
+  crescimento: 10,
+  tempoConta:   5,
+  margem:       5,
+  total:       100,
+} as const
+
 export interface ScoreInput {
-  // Métricas brutas derivadas dos eventos de auditoria
-  volumeMensal:      number   // soma BALANCE_ADJUST últimos 30d
-  volumeMesAnterior: number   // soma BALANCE_ADJUST de 30–60d atrás
-  totalVendas:       number   // count de BALANCE_ADJUST total
-  chargebacks:       number   // count de disputas CHARGEBACK
-  medPixCount:       number   // count de MED_PIX / FRAUD_FLAG
-  reembolsos:        number   // count de WITHDRAW_REQUEST negados ou estornos
-  saldoDisponivel:   number   // pendingBalance
-  saldoCdi:          number   // balance (CDI)
-  reservaAtual:      number   // reservedBalance
-  diasDesdeCriacao:  number   // hoje - merchant.createdAt em dias
+  /** Soma dos BALANCE_ADJUST nos últimos 30 dias */
+  volumeMensal:      number
+  /** Soma dos BALANCE_ADJUST de 30–60 dias atrás */
+  volumeMesAnterior: number
+  /** Total histórico de vendas (count) */
+  totalVendas:       number
+  /** Count de disputas CHARGEBACK_OPENED / DISPUTE_OPENED */
+  chargebacks:       number
+  /** Count de MED Pix no mês corrente (últimos 30d) */
+  medPixCount:       number
+  /** Count de estornos/reembolsos */
+  reembolsos:        number
+  /** pendingBalance do merchant */
+  saldoDisponivel:   number
+  /** balance (CDI) do merchant */
+  saldoCdi:          number
+  /** Reserva de risco atual */
+  reservaAtual:      number
+  /** Dias desde a criação do merchant */
+  diasDesdeCriacao:  number
+  /** Volume faturado (base para cálculo de margem) — igual ao volumeMensal quando não há dado separado */
+  volumeFaturado:    number
+  /** Margem estimada gerada para a plataforma (taxa cobrada - custo) */
+  margemEstimada:    number
+}
+
+export interface SubScoreDetail {
+  pontos:   number
+  maxPontos: number
+  faixa:    string   // texto da faixa aplicada
+  valor:    string   // valor bruto usado (para exibir ao ADM)
 }
 
 export interface ScoreResult {
   scoreTotal:       number
   nivelScore:       ScoreLevel
   statusRisco:      ScoreStatus
+
+  // Pontos por dimensão (soma = scoreTotal)
   volumeScore:      number
   chargebackScore:  number
   medScore:         number
@@ -46,171 +78,176 @@ export interface ScoreResult {
   crescimentoScore: number
   tempoContaScore:  number
   margemScore:      number
+
+  // Detalhes de cada dimensão (para transparência no painel)
+  detalheVolume:      SubScoreDetail
+  detalheChargeback:  SubScoreDetail
+  detalheMed:         SubScoreDetail
+  detalheReembolso:   SubScoreDetail
+  detalheSaldo:       SubScoreDetail
+  detalheCrescimento: SubScoreDetail
+  detalheTempoConta:  SubScoreDetail
+  detalheMargem:      SubScoreDetail
+
   observacaoInterna: string
 }
 
-// Pesos de cada sub-score (somam 100)
-const WEIGHTS = {
-  chargebackScore:  25,
-  medScore:         20,
-  reembolsoScore:   15,
-  volumeScore:      12,
-  margemScore:      10,
-  saldoScore:        8,
-  crescimentoScore:  6,
-  tempoContaScore:   4,
-} as const
+// ─── Funções de cálculo por dimensão ────────────────────────────────────────
 
-function clamp(v: number, min = 0, max = 100): number {
-  return Math.max(min, Math.min(max, Math.round(v)))
+function calcVolume(volume: number): SubScoreDetail {
+  const v = `R$ ${volume.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (volume >= 100_000) return { pontos: 20, maxPontos: 20, faixa: 'Acima de R$ 100.000',         valor: v }
+  if (volume >= 50_000)  return { pontos: 15, maxPontos: 20, faixa: 'R$ 50.000 a R$ 100.000',      valor: v }
+  if (volume >= 10_000)  return { pontos: 10, maxPontos: 20, faixa: 'R$ 10.000 a R$ 50.000',       valor: v }
+  if (volume > 0)        return { pontos:  5, maxPontos: 20, faixa: 'Abaixo de R$ 10.000',          valor: v }
+  return                        { pontos:  0, maxPontos: 20, faixa: 'Sem volume no período',        valor: v }
 }
 
-function calcVolumeScore(volume: number): number {
-  if (volume >= 500_000) return 100
-  if (volume >= 200_000) return 90
-  if (volume >= 100_000) return 80
-  if (volume >= 50_000)  return 65
-  if (volume >= 20_000)  return 50
-  if (volume >= 5_000)   return 30
-  if (volume > 0)        return 15
-  return 0
+function calcChargeback(chargebacks: number, totalVendas: number): SubScoreDetail {
+  const taxa = totalVendas > 0 ? (chargebacks / totalVendas) * 100 : 0
+  const v = totalVendas > 0 ? `${taxa.toFixed(2)}% (${chargebacks}/${totalVendas})` : 'Sem vendas'
+  if (taxa <= 0.5)   return { pontos: 25, maxPontos: 25, faixa: '0% a 0,50%',      valor: v }
+  if (taxa <= 1.0)   return { pontos: 18, maxPontos: 25, faixa: '0,51% a 1,00%',   valor: v }
+  if (taxa <= 2.0)   return { pontos: 10, maxPontos: 25, faixa: '1,01% a 2,00%',   valor: v }
+  return                    { pontos:  0, maxPontos: 25, faixa: 'Acima de 2%',      valor: v }
 }
 
-function calcChargebackScore(chargebacks: number, totalVendas: number): number {
-  if (totalVendas === 0) return 80 // sem histórico — neutro-positivo
-  const taxa = (chargebacks / totalVendas) * 100
-  if (taxa === 0)        return 100
-  if (taxa < 0.2)        return 90
-  if (taxa < 0.5)        return 70
-  if (taxa < 1.0)        return 45
-  if (taxa < 2.0)        return 20
-  return 0
+function calcMed(medCount: number): SubScoreDetail {
+  const v = `${medCount} MED${medCount !== 1 ? 's' : ''} no mês`
+  if (medCount === 0) return { pontos: 15, maxPontos: 15, faixa: 'Nenhum MED Pix',        valor: v }
+  if (medCount === 1) return { pontos: 10, maxPontos: 15, faixa: '1 MED no mês',           valor: v }
+  if (medCount <= 3)  return { pontos:  5, maxPontos: 15, faixa: '2 a 3 MEDs no mês',      valor: v }
+  return                     { pontos:  0, maxPontos: 15, faixa: 'Acima de 3 MEDs',         valor: v }
 }
 
-function calcMedScore(medCount: number): number {
-  if (medCount === 0) return 100
-  if (medCount === 1) return 75
-  if (medCount === 2) return 50
-  if (medCount === 3) return 25
-  if (medCount <= 5)  return 10
-  return 0
+function calcReembolso(reembolsos: number, totalVendas: number): SubScoreDetail {
+  const taxa = totalVendas > 0 ? (reembolsos / totalVendas) * 100 : 0
+  const v = totalVendas > 0 ? `${taxa.toFixed(2)}% (${reembolsos}/${totalVendas})` : 'Sem vendas'
+  if (taxa <= 2.0)   return { pontos: 10, maxPontos: 10, faixa: 'Até 2%',          valor: v }
+  if (taxa <= 5.0)   return { pontos:  6, maxPontos: 10, faixa: '2,01% a 5%',      valor: v }
+  if (taxa <= 10.0)  return { pontos:  3, maxPontos: 10, faixa: '5,01% a 10%',     valor: v }
+  return                    { pontos:  0, maxPontos: 10, faixa: 'Acima de 10%',     valor: v }
 }
 
-function calcReembolsoScore(reembolsos: number, totalVendas: number): number {
-  if (totalVendas === 0) return 80
-  const taxa = (reembolsos / totalVendas) * 100
-  if (taxa === 0)      return 100
-  if (taxa < 1)        return 90
-  if (taxa < 3)        return 70
-  if (taxa < 5)        return 50
-  if (taxa < 10)       return 25
-  return 0
-}
-
-function calcSaldoScore(saldoDisponivel: number, saldoCdi: number): number {
+function calcSaldo(saldoDisponivel: number, saldoCdi: number): SubScoreDetail {
   const total = saldoDisponivel + saldoCdi
-  if (total >= 50_000) return 100
-  if (total >= 20_000) return 80
-  if (total >= 5_000)  return 60
-  if (total >= 1_000)  return 40
-  if (total > 0)       return 20
-  return 0
+  const v = `R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (total >= 20_000) return { pontos: 10, maxPontos: 10, faixa: 'Saldo alto (≥ R$ 20.000)',         valor: v }
+  if (total >= 5_000)  return { pontos:  6, maxPontos: 10, faixa: 'Saldo médio (R$ 5.000–R$ 20.000)', valor: v }
+  if (total > 0)       return { pontos:  3, maxPontos: 10, faixa: 'Saldo baixo (< R$ 5.000)',          valor: v }
+  return                      { pontos:  0, maxPontos: 10, faixa: 'Sem saldo',                         valor: v }
 }
 
-function calcCrescimentoScore(volumeAtual: number, volumeAnterior: number): number {
-  if (volumeAnterior === 0 && volumeAtual === 0) return 50
-  if (volumeAnterior === 0) return 70 // primeiro mês com volume
-  const delta = ((volumeAtual - volumeAnterior) / volumeAnterior) * 100
-  if (delta >= 30)   return 100
-  if (delta >= 15)   return 85
-  if (delta >= 5)    return 70
-  if (delta >= 0)    return 60
-  if (delta >= -10)  return 40
-  if (delta >= -25)  return 20
-  return 5
+function calcCrescimento(volumeAtual: number, volumeAnterior: number): SubScoreDetail {
+  let delta = 0
+  let descDelta = 'Primeiro mês com volume'
+
+  if (volumeAnterior > 0) {
+    delta = ((volumeAtual - volumeAnterior) / volumeAnterior) * 100
+    descDelta = `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}% vs. mês anterior`
+  } else if (volumeAtual > 0) {
+    descDelta = 'Primeiro mês com volume'
+    return { pontos: 5, maxPontos: 10, faixa: 'Primeiro mês — estável',       valor: descDelta }
+  } else {
+    return { pontos: 0, maxPontos: 10, faixa: 'Sem volume',                   valor: descDelta }
+  }
+
+  if (delta >= 10)   return { pontos: 10, maxPontos: 10, faixa: 'Crescimento saudável (≥ +10%)', valor: descDelta }
+  if (delta >= -5)   return { pontos:  5, maxPontos: 10, faixa: 'Estável (−5% a +10%)',           valor: descDelta }
+  return                    { pontos:  0, maxPontos: 10, faixa: 'Queda forte (abaixo de −5%)',     valor: descDelta }
 }
 
-function calcTempoContaScore(dias: number): number {
-  if (dias >= 365 * 2) return 100
-  if (dias >= 365)     return 80
-  if (dias >= 180)     return 60
-  if (dias >= 90)      return 40
-  if (dias >= 30)      return 20
-  return 5
+function calcTempoConta(dias: number): SubScoreDetail {
+  const v = `${dias} dia${dias !== 1 ? 's' : ''} de conta`
+  if (dias > 90) return { pontos: 5, maxPontos: 5, faixa: 'Acima de 90 dias', valor: v }
+  if (dias >= 30) return { pontos: 3, maxPontos: 5, faixa: '30 a 90 dias',    valor: v }
+  return               { pontos: 1, maxPontos: 5, faixa: 'Menos de 30 dias', valor: v }
 }
 
-function calcMargemScore(reservaAtual: number, volumeMensal: number): number {
-  if (volumeMensal === 0) return 50
-  const reservaIdeal = volumeMensal * 0.03
-  const cobertura = reservaAtual / reservaIdeal
-  if (cobertura >= 1.5)  return 100
-  if (cobertura >= 1.0)  return 85
-  if (cobertura >= 0.7)  return 65
-  if (cobertura >= 0.4)  return 40
-  if (cobertura >= 0.1)  return 20
-  return 0
+function calcMargem(margemEstimada: number, volumeFaturado: number): SubScoreDetail {
+  const pctMargem = volumeFaturado > 0 ? (margemEstimada / volumeFaturado) * 100 : 0
+  const v = volumeFaturado > 0
+    ? `R$ ${margemEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pctMargem.toFixed(2)}% do volume)`
+    : 'Sem faturamento'
+  if (margemEstimada >= 500 || pctMargem >= 1.5)
+    return { pontos: 5, maxPontos: 5, faixa: 'Boa margem',   valor: v }
+  if (margemEstimada >= 100 || pctMargem >= 0.5)
+    return { pontos: 3, maxPontos: 5, faixa: 'Margem média', valor: v }
+  if (margemEstimada > 0)
+    return { pontos: 1, maxPontos: 5, faixa: 'Baixa margem', valor: v }
+  return   { pontos: 0, maxPontos: 5, faixa: 'Sem margem',   valor: v }
 }
+
+// ─── Classificação final ─────────────────────────────────────────────────────
 
 function resolveLevel(score: number): ScoreLevel {
-  if (score >= 85) return 'Diamante'
-  if (score >= 65) return 'Ouro'
+  if (score >= 80) return 'Diamante'
+  if (score >= 60) return 'Ouro'
   if (score >= 40) return 'Prata'
   return 'Bronze'
 }
 
 function resolveStatus(score: number): ScoreStatus {
-  if (score >= 85) return 'Premium'
-  if (score >= 65) return 'Saudável'
+  if (score >= 80) return 'Premium'
+  if (score >= 60) return 'Saudável'
   if (score >= 40) return 'Atenção'
   return 'Alto risco'
 }
 
-function buildObservacao(sub: Omit<ScoreResult, 'scoreTotal' | 'nivelScore' | 'statusRisco' | 'observacaoInterna'>, input: ScoreInput): string {
+function buildObservacao(r: ScoreResult): string {
   const flags: string[] = []
-
-  if (sub.chargebackScore < 45)  flags.push('chargeback acima do limite')
-  if (sub.medScore < 50)         flags.push(`${input.medPixCount} ocorrências MED Pix`)
-  if (sub.reembolsoScore < 50)   flags.push('taxa de reembolso elevada')
-  if (sub.margemScore < 40)      flags.push('reserva abaixo do mínimo recomendado (3% do volume)')
-  if (sub.crescimentoScore < 20) flags.push('queda significativa de volume')
-  if (sub.tempoContaScore < 20)  flags.push('conta recente — histórico limitado')
+  if (r.chargebackScore  ===  0) flags.push('chargeback acima de 2% — crítico')
+  else if (r.chargebackScore < 18) flags.push('chargeback entre 1% e 2%')
+  if (r.medScore         ===  0) flags.push('mais de 3 MEDs Pix no mês')
+  else if (r.medScore    <  10)  flags.push('MEDs Pix acima do aceitável')
+  if (r.reembolsoScore   ===  0) flags.push('taxa de reembolso acima de 10%')
+  if (r.crescimentoScore ===  0) flags.push('queda de volume superior a 5%')
+  if (r.saldoScore       <=  3)  flags.push('saldo baixo')
 
   if (flags.length === 0) {
-    if (sub.chargebackScore === 100 && sub.medScore === 100) return 'Operação excelente. Sem alertas.'
-    return 'Operação dentro dos parâmetros esperados.'
+    if (r.scoreTotal >= 80) return 'Operação excelente. Todos os indicadores dentro do esperado.'
+    return 'Operação dentro dos parâmetros. Sem alertas críticos.'
   }
-
   return `Atenção: ${flags.join('; ')}.`
 }
 
+// ─── Função principal ─────────────────────────────────────────────────────────
+
 export function calcMasterScore(input: ScoreInput): ScoreResult {
-  const volumeScore      = clamp(calcVolumeScore(input.volumeMensal))
-  const chargebackScore  = clamp(calcChargebackScore(input.chargebacks, input.totalVendas))
-  const medScore         = clamp(calcMedScore(input.medPixCount))
-  const reembolsoScore   = clamp(calcReembolsoScore(input.reembolsos, input.totalVendas))
-  const saldoScore       = clamp(calcSaldoScore(input.saldoDisponivel, input.saldoCdi))
-  const crescimentoScore = clamp(calcCrescimentoScore(input.volumeMensal, input.volumeMesAnterior))
-  const tempoContaScore  = clamp(calcTempoContaScore(input.diasDesdeCriacao))
-  const margemScore      = clamp(calcMargemScore(input.reservaAtual, input.volumeMensal))
+  const dVolume      = calcVolume(input.volumeMensal)
+  const dChargeback  = calcChargeback(input.chargebacks, input.totalVendas)
+  const dMed         = calcMed(input.medPixCount)
+  const dReembolso   = calcReembolso(input.reembolsos, input.totalVendas)
+  const dSaldo       = calcSaldo(input.saldoDisponivel, input.saldoCdi)
+  const dCrescimento = calcCrescimento(input.volumeMensal, input.volumeMesAnterior)
+  const dTempoConta  = calcTempoConta(input.diasDesdeCriacao)
+  const dMargem      = calcMargem(input.margemEstimada, input.volumeFaturado)
 
-  const scoreTotal = clamp(
-    (chargebackScore  * WEIGHTS.chargebackScore +
-     medScore         * WEIGHTS.medScore +
-     reembolsoScore   * WEIGHTS.reembolsoScore +
-     volumeScore      * WEIGHTS.volumeScore +
-     margemScore      * WEIGHTS.margemScore +
-     saldoScore       * WEIGHTS.saldoScore +
-     crescimentoScore * WEIGHTS.crescimentoScore +
-     tempoContaScore  * WEIGHTS.tempoContaScore) / 100
-  )
+  const scoreTotal =
+    dVolume.pontos + dChargeback.pontos + dMed.pontos + dReembolso.pontos +
+    dSaldo.pontos  + dCrescimento.pontos + dTempoConta.pontos + dMargem.pontos
 
-  const sub = { volumeScore, chargebackScore, medScore, reembolsoScore, saldoScore, crescimentoScore, tempoContaScore, margemScore }
-
-  return {
+  const partial: Omit<ScoreResult, 'observacaoInterna'> = {
     scoreTotal,
     nivelScore:        resolveLevel(scoreTotal),
     statusRisco:       resolveStatus(scoreTotal),
-    observacaoInterna: buildObservacao(sub, input),
-    ...sub,
+    volumeScore:       dVolume.pontos,
+    chargebackScore:   dChargeback.pontos,
+    medScore:          dMed.pontos,
+    reembolsoScore:    dReembolso.pontos,
+    saldoScore:        dSaldo.pontos,
+    crescimentoScore:  dCrescimento.pontos,
+    tempoContaScore:   dTempoConta.pontos,
+    margemScore:       dMargem.pontos,
+    detalheVolume:      dVolume,
+    detalheChargeback:  dChargeback,
+    detalheMed:         dMed,
+    detalheReembolso:   dReembolso,
+    detalheSaldo:       dSaldo,
+    detalheCrescimento: dCrescimento,
+    detalheTempoConta:  dTempoConta,
+    detalheMargem:      dMargem,
   }
+
+  return { ...partial, observacaoInterna: buildObservacao(partial as ScoreResult) }
 }
