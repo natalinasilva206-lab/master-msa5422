@@ -24,6 +24,7 @@ model User {
   merchantId        String?
   merchant   Merchant?  @relation(fields: [merchantId], references: [id])
   auditLogs  AuditLog[]
+  tickets    Ticket[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -71,6 +72,7 @@ model Merchant {
   webhookEndpoints   WebhookEndpoint[]
   masterScore        MasterScore?
   masterScoreAudits  MasterScoreAudit[]
+  tickets            Ticket[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -286,6 +288,44 @@ model Notification {
 
   @@index([merchantId])
   @@index([merchantId, read])
+}
+
+model Ticket {
+  id          String          @id @default(cuid())
+  merchantId  String
+  merchant    Merchant        @relation(fields: [merchantId], references: [id])
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  subject     String
+  category    String          @default("Outro")
+  // ABERTO | EM_ANALISE | AGUARDANDO_CLIENTE | RESPONDIDO | FECHADO | REABERTO
+  status      String          @default("ABERTO")
+  // BAIXA | MEDIA | ALTA | URGENTE
+  priority    String          @default("MEDIA")
+  assignedTo  String?
+  slaDueAt    DateTime?
+  closedAt    DateTime?
+  messages    TicketMessage[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([merchantId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model TicketMessage {
+  id             String  @id @default(cuid())
+  ticketId       String
+  ticket         Ticket  @relation(fields: [ticketId], references: [id])
+  senderId       String
+  senderRole     String  // SELLER | ADMIN
+  message        String
+  isInternalNote Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([ticketId])
 }
 
 model SystemConfig {
