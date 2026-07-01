@@ -1,80 +1,95 @@
 'use client'
 
-import { useState } from 'react'
-import { approveAntecipacao } from './actions'
+import { useState, useTransition } from 'react'
+import { approveAntecipacao, rejectAntecipacao } from './actions'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 interface Props {
-  merchantId: string
-  name: string
+  id: string
+  merchantName: string
   plan: string
-  taxaPercent: number
-  initial: string
-  gradient: string
-  pendingBalance: number
-  taxa: number
-  liquido: number
+  requestedAmount: number
+  feePercent: number
+  feeAmount: number
+  netAmount: number
+  notes: string | null
+  createdAt: string
 }
 
-export function AntecipacaoRow({ merchantId, name, plan, taxaPercent, initial, gradient, pendingBalance, taxa, liquido }: Props) {
-  const [loading, setLoading] = useState(false)
-  const [done,    setDone]    = useState(false)
-  const [error,   setError]   = useState('')
+export function AntecipacaoRow({ id, merchantName, plan, requestedAmount, feePercent, feeAmount, netAmount, notes, createdAt }: Props) {
+  const [status, setStatus] = useState<'idle' | 'approved' | 'rejected'>('idle')
+  const [error, setError] = useState('')
+  const [approving, startApprove] = useTransition()
+  const [rejecting, startReject] = useTransition()
 
-  async function handleApprove() {
-    if (loading || done) return
-    if (!confirm(`Aprovar antecipação de recebíveis de cartão de R$ ${formatBRL(liquido)} para ${name}? (taxa ${taxaPercent}%)`)) return
-    setLoading(true)
-    setError('')
-    try {
-      await approveAntecipacao(merchantId)
-      setDone(true)
-    } catch (e: any) {
-      setError(e?.message ?? 'Erro ao aprovar antecipação.')
-    } finally {
-      setLoading(false)
-    }
+  function handleApprove() {
+    if (!confirm(`Aprovar antecipação de R$ ${formatBRL(netAmount)} líquido para ${merchantName}?\n\nBruto: R$ ${formatBRL(requestedAmount)}\nTaxa ${feePercent}%: −R$ ${formatBRL(feeAmount)}\nLíquido: R$ ${formatBRL(netAmount)}`)) return
+    startApprove(async () => {
+      const r = await approveAntecipacao(id)
+      if (r?.error) setError(r.error)
+      else setStatus('approved')
+    })
   }
+
+  function handleReject() {
+    const motivo = prompt('Motivo da rejeição (opcional):') ?? undefined
+    startReject(async () => {
+      const r = await rejectAntecipacao(id, motivo)
+      if (r?.error) setError(r.error)
+      else setStatus('rejected')
+    })
+  }
+
+  const busy = approving || rejecting
 
   return (
     <>
-      <tr className={`hover:bg-slate-800/25 transition-colors ${done ? 'opacity-40' : ''}`}>
+      <tr className={`hover:bg-slate-800/25 transition-colors ${status !== 'idle' ? 'opacity-40' : ''}`}>
         <td className="px-5 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center text-[10px] font-bold text-white shrink-0`}>
-              {initial}
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-white truncate max-w-[120px]">{name}</p>
-              <p className="text-[11px] text-slate-600">Cartão · {plan} · {taxaPercent}%</p>
-            </div>
+          <div>
+            <p className="text-[13px] font-semibold text-white">{merchantName}</p>
+            <p className="text-[10.5px] text-slate-500">
+              {plan} · Taxa {feePercent}% · {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(createdAt))}
+            </p>
+            {notes && <p className="text-[10px] text-slate-600 mt-0.5 italic">"{notes}"</p>}
           </div>
         </td>
         <td className="px-4 py-3.5 text-right">
-          <span className="text-[13px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(pendingBalance)}</span>
+          <span className="text-[13px] font-semibold text-amber-400 tabular-nums">R$ {formatBRL(requestedAmount)}</span>
         </td>
         <td className="px-4 py-3.5 text-right hidden md:table-cell">
-          <span className="text-[12px] text-red-400 tabular-nums">−R$ {formatBRL(taxa)}</span>
+          <span className="text-[12px] text-red-400 tabular-nums">−R$ {formatBRL(feeAmount)}</span>
         </td>
         <td className="px-5 py-3.5 text-right">
-          <span className="text-[13px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(liquido)}</span>
+          <span className="text-[13px] font-bold text-emerald-400 tabular-nums">R$ {formatBRL(netAmount)}</span>
         </td>
         <td className="px-4 py-3.5 text-right">
-          {done ? (
-            <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-              Aprovado
-            </span>
-          ) : (
-            <button
-              onClick={handleApprove}
-              disabled={loading}
-              className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Processando…' : 'Aprovar'}
-            </button>
+          {status === 'approved' && (
+            <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">Aprovado</span>
+          )}
+          {status === 'rejected' && (
+            <span className="text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">Rejeitado</span>
+          )}
+          {status === 'idle' && (
+            <div className="flex items-center justify-end gap-1.5">
+              <button
+                onClick={handleApprove}
+                disabled={busy}
+                className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50"
+              >
+                {approving ? '…' : 'Aprovar'}
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={busy}
+                className="text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50"
+              >
+                {rejecting ? '…' : 'Rejeitar'}
+              </button>
+            </div>
           )}
         </td>
       </tr>

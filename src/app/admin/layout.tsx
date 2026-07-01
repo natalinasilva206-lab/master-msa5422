@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // Always read fresh from DB so theme updates apply on next navigation
   const userId = (session.user as any).id as string
-  const [prefs, pendingSaques, openDisputas, pendingKyc] = await Promise.all([
+  const [prefs, pendingSaques, openDisputas, pendingKyc, pendingAntecipacoes] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { theme: true, accentColor: true },
@@ -24,15 +24,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       where: { status: { in: ['ABERTO', 'EM_ANALISE', 'AGUARDANDO_DOCUMENTO'] } },
     }).catch(() => 0),
     prisma.merchant.count({ where: { status: 'REVIEW' } }).catch(() => 0),
+    prisma.anticipation.count({ where: { status: 'PENDENTE' } }).catch(() => 0),
   ])
 
   const theme       = prefs?.theme       ?? (session.user as any).theme       ?? 'dark'
   const accentColor = prefs?.accentColor ?? (session.user as any).accentColor ?? 'blue'
 
   const badges: Record<string, number> = {}
-  if (pendingSaques > 0) badges['/admin/saques'] = pendingSaques
-  if (openDisputas  > 0) badges['/admin/disputas'] = openDisputas
-  if (pendingKyc    > 0) badges['/admin/kyc'] = pendingKyc
+  if (pendingSaques       > 0) badges['/admin/saques'] = pendingSaques
+  if (openDisputas        > 0) badges['/admin/disputas'] = openDisputas
+  if (pendingKyc          > 0) badges['/admin/kyc'] = pendingKyc
+  if (pendingAntecipacoes > 0) badges['/admin/antecipacoes'] = pendingAntecipacoes
 
   return (
     <div
