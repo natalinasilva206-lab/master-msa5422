@@ -55,7 +55,7 @@ export function ClienteContaTabs({
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-all whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg text-[13px] font-semibold transition-all whitespace-nowrap ${
               activeTab === tab
                 ? 'bg-blue-600 text-white shadow'
                 : 'text-slate-400 hover:text-slate-200'
@@ -125,7 +125,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+      <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
         {label}
         {readOnly && (
           <span className="ml-2 text-[9.5px] font-normal normal-case text-slate-600 bg-slate-800/60 px-2 py-0.5 rounded">
@@ -213,11 +213,11 @@ function PerfilTab({ user, merchant }: { user: User; merchant: Merchant | null }
           <p className="text-[13px] font-semibold text-slate-200">{user.name}</p>
           <p className="text-[11px] text-slate-500">{user.email}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[9.5px] font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
               Seller
             </span>
             {merchant && (
-              <span className={`flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+              <span className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
                 sm.color
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
@@ -319,8 +319,8 @@ function EmpresaTab({
             { label: 'Membro desde',   value: new Date(merchant.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) },
           ].map(({ label, value }) => (
             <div key={label} className="px-5 py-3 flex items-center justify-between gap-3">
-              <p className="text-[11px] text-slate-600 shrink-0">{label}</p>
-              <p className="text-[12.5px] text-slate-300 font-medium text-right">{value}</p>
+              <p className="text-[13px] text-slate-600 shrink-0">{label}</p>
+              <p className="text-[14px] text-slate-300 font-medium text-right">{value}</p>
             </div>
           ))}
         </div>
@@ -346,7 +346,7 @@ function EmpresaTab({
               placeholder="Ex.: Loja ABC"
             />
             <div>
-              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+              <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
                 Tipo de Negócio
               </label>
               <select
@@ -462,17 +462,17 @@ function EmpresaTab({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </div>
-                        <p className="text-[12px] font-semibold text-slate-200">
+                        <p className="text-[14px] font-semibold text-slate-200">
                           {changes.length} campo{changes.length !== 1 ? 's' : ''} alterado{changes.length !== 1 ? 's' : ''}
                         </p>
                         {meta.sensitiveReview && (
-                          <span className="text-[9.5px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
                             Em análise
                           </span>
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-[10px] text-slate-600">
+                        <p className="text-[12px] text-slate-600">
                           {new Date(log.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
@@ -481,12 +481,12 @@ function EmpresaTab({
                     {/* Field-level diff */}
                     {changes.length > 0 && (
                       <div className="rounded-lg overflow-hidden border border-slate-800/50">
-                        <table className="w-full text-[11px]">
+                        <table className="w-full text-[13px]">
                           <thead>
                             <tr className="bg-slate-800/40">
-                              <th className="text-left px-3 py-2 text-[9.5px] font-bold uppercase tracking-widest text-slate-600">Campo</th>
-                              <th className="text-left px-3 py-2 text-[9.5px] font-bold uppercase tracking-widest text-slate-600">Anterior</th>
-                              <th className="text-left px-3 py-2 text-[9.5px] font-bold uppercase tracking-widest text-slate-600">Novo</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-slate-600">Campo</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-slate-600">Anterior</th>
+                              <th className="text-left px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-slate-600">Novo</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-800/30">
@@ -519,7 +519,7 @@ function EmpresaTab({
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
         <div>
-          <p className="text-[12px] font-semibold text-amber-400">Dados protegidos pelo KYC</p>
+          <p className="text-[14px] font-semibold text-amber-400">Dados protegidos pelo KYC</p>
           <p className="text-[11px] text-slate-500 mt-0.5">
             Razão Social, CNPJ/CPF e e-mail da empresa só podem ser alterados pelo suporte.
             {' '}<a href="/cliente/suporte" className="text-amber-400 hover:underline">Abrir chamado</a>
@@ -569,7 +569,7 @@ function PwField({ name, label, placeholder, value, onChange }: {
   const [show, setShow] = useState(false)
   return (
     <div>
-      <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
+      <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">{label}</label>
       <div className="relative">
         <input
           type={show ? 'text' : 'password'}
@@ -657,7 +657,7 @@ function SenhaTab() {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[10.5px] font-semibold text-slate-400">{strength.label}</p>
-                <div className="flex gap-3 text-[10px] text-slate-600">
+                <div className="flex gap-3 text-[12px] text-slate-600">
                   {[['8+','length'],['A–Z','upper'],['0–9','digit'],['!@#','special']].map(([lbl, key]) => (
                     <span key={key} className={
                       (key === 'length'  && newPw.length >= 8)        ? 'text-emerald-400' :
@@ -944,7 +944,7 @@ function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
             <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Função</p>
-            <span className="text-[9.5px] font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Seller</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">Seller</span>
           </div>
           <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
             <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Conta criada em</p>
@@ -952,16 +952,16 @@ function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
           </div>
           <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
             <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Último login</p>
-            <p className="text-[12px] font-semibold text-slate-200">{fmtRel(user.lastLoginAt)}</p>
+            <p className="text-[14px] font-semibold text-slate-200">{fmtRel(user.lastLoginAt)}</p>
             <p className="text-[9.5px] text-slate-600 mt-0.5">{fmtDT(user.lastLoginAt)}</p>
           </div>
           <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
             <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">IP do último login</p>
-            <p className="text-[12px] font-semibold text-slate-200 font-mono">{user.lastLoginIp ?? '—'}</p>
+            <p className="text-[14px] font-semibold text-slate-200 font-mono">{user.lastLoginIp ?? '—'}</p>
           </div>
           <div className="col-span-2 bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
             <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Dispositivo do último login</p>
-            <p className="text-[12px] font-semibold text-slate-200">
+            <p className="text-[14px] font-semibold text-slate-200">
               {user.lastLoginUa ? parseUa(user.lastLoginUa) : '—'}
             </p>
           </div>
@@ -1086,7 +1086,7 @@ function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-[13px] font-semibold text-slate-200">Autenticação em Dois Fatores (2FA)</p>
-              <span className="text-[9.5px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Em breve</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Em breve</span>
             </div>
             <p className="text-[11px] text-slate-500 mt-0.5">
               Proteção extra via app autenticador (TOTP/Authenticator). Disponível em breve.
@@ -1121,7 +1121,7 @@ function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
         <div className="px-5 py-4">
           {revoked ? (
             <div className="py-4 text-center">
-              <p className="text-[12px] font-semibold text-amber-400">Sessão encerrada. Redirecionando para o login…</p>
+              <p className="text-[14px] font-semibold text-amber-400">Sessão encerrada. Redirecionando para o login…</p>
             </div>
           ) : (
             <div className="flex items-start gap-4 p-4 bg-slate-800/30 border border-emerald-500/20 rounded-xl">
@@ -1215,7 +1215,7 @@ function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-[12px] font-semibold text-slate-200">{info.label}</p>
+                      <p className="text-[14px] font-semibold text-slate-200">{info.label}</p>
                       {meta.ip && (
                         <span className="text-[9.5px] text-slate-600 font-mono bg-slate-800/60 px-1.5 py-0.5 rounded">
                           {meta.ip}
@@ -1231,7 +1231,7 @@ function SegurancaTab({ user, securityLogs, tokenIat, goToSenha }: {
                       <span className="text-[10px] text-slate-700">{fmtDT(new Date(log.createdAt))}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-600 shrink-0 mt-0.5 whitespace-nowrap">
+                  <span className="text-[12px] text-slate-600 shrink-0 mt-0.5 whitespace-nowrap">
                     {fmtRel(new Date(log.createdAt))}
                   </span>
                 </div>

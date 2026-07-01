@@ -139,7 +139,7 @@ export default async function FaturamentoPage({
               <Link
                 key={p.key}
                 href={`/admin/faturamento?periodo=${p.key}`}
-                className={`px-4 py-1.5 rounded-md text-[12px] font-semibold transition-colors ${
+                className={`px-4 py-1.5 rounded-md text-[13px] font-semibold transition-colors ${
                   periodo === p.key
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-400 hover:text-slate-200'
@@ -151,7 +151,7 @@ export default async function FaturamentoPage({
           </div>
           <Link
             href="/admin/transacoes"
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800/60 border border-slate-700/50 rounded-lg text-[12px] font-semibold text-slate-300 hover:bg-slate-700/60 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800/60 border border-slate-700/50 rounded-lg text-[13px] font-semibold text-slate-300 hover:bg-slate-700/60 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -169,9 +169,9 @@ export default async function FaturamentoPage({
             { label: 'Ticket Médio',        value: `R$ ${formatBRL(ticketMedio)}`, color: 'text-slate-200',     sub: 'por transação' },
           ].map((c) => (
             <div key={c.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
-              <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
-              <p className={`text-[20px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
-              <p className="text-[10px] text-slate-600 mt-1">{c.sub}</p>
+              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mb-2">{c.label}</p>
+              <p className={`text-[24px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+              <p className="text-[13px] text-slate-600 mt-1">{c.sub}</p>
             </div>
           ))}
         </section>
@@ -181,8 +181,8 @@ export default async function FaturamentoPage({
 
           {/* Volume por Dia — area/line chart */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5">
-            <p className="text-[13px] font-semibold text-white mb-1">Volume por Dia</p>
-            <p className="text-[10.5px] text-slate-500 mb-4">Volume de vendas aprovadas por dia</p>
+            <p className="text-[18px] font-semibold text-white mb-1">Volume por Dia</p>
+            <p className="text-[13px] text-slate-500 mb-4">Volume de vendas aprovadas por dia</p>
             <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 180 }}>
               <defs>
                 <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
@@ -224,8 +224,8 @@ export default async function FaturamentoPage({
 
           {/* Taxas por Dia — bar chart */}
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-5">
-            <p className="text-[13px] font-semibold text-white mb-1">Taxas por Dia</p>
-            <p className="text-[10.5px] text-slate-500 mb-4">Taxas arrecadadas por dia</p>
+            <p className="text-[18px] font-semibold text-white mb-1">Taxas por Dia</p>
+            <p className="text-[13px] text-slate-500 mb-4">Taxas arrecadadas por dia</p>
             <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 180 }}>
               {/* Y-axis grid + labels */}
               {yFeeTicks.map((tick, ti) => {
@@ -273,8 +273,8 @@ export default async function FaturamentoPage({
         {/* CDI / empresa ranking (kept below as secondary info) */}
         <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60">
-            <p className="text-[13px] font-semibold text-white">Faturamento por Empresa</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">Volume de vendas aprovadas no período por empresa</p>
+            <p className="text-[18px] font-semibold text-white">Faturamento por Empresa</p>
+            <p className="text-[13px] text-slate-500 mt-0.5">Volume de vendas aprovadas no período por empresa</p>
           </div>
           <EmpresaRanking startDate={startDate} />
         </div>
@@ -296,7 +296,7 @@ async function EmpresaRanking({ startDate }: { startDate: Date }) {
 
   if (rows.length === 0) {
     return (
-      <div className="px-5 py-8 text-center text-[12px] text-slate-600">
+      <div className="px-5 py-8 text-center text-[13px] text-slate-600">
         Nenhuma venda aprovada no período.
       </div>
     )
@@ -324,12 +324,12 @@ async function EmpresaRanking({ startDate }: { startDate: Date }) {
         return (
           <div key={r.merchantId} className="px-5 py-3 hover:bg-slate-800/20 transition-colors">
             <div className="flex items-center gap-3 mb-1.5">
-              <span className="text-[11px] font-bold text-slate-700 w-5 shrink-0">#{i+1}</span>
+              <span className="text-[12px] font-bold text-slate-700 w-5 shrink-0">#{i+1}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-[12.5px] font-semibold text-slate-200 truncate">{m?.name ?? r.merchantId}</p>
-                <p className="text-[10px] text-slate-600">{cnt} transaç{cnt !== 1 ? 'ões' : 'ão'}</p>
+                <p className="text-[14px] font-semibold text-slate-200 truncate">{m?.name ?? r.merchantId}</p>
+                <p className="text-[12px] text-slate-600">{cnt} transaç{cnt !== 1 ? 'ões' : 'ão'}</p>
               </div>
-              <p className="text-[13px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(vol)}</p>
+              <p className="text-[14px] font-bold text-white tabular-nums shrink-0">R$ {formatBRL(vol)}</p>
             </div>
             <div className="ml-8 h-0.5 bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-blue-700 to-blue-400 rounded-full" style={{ width: `${pct}%` }} />

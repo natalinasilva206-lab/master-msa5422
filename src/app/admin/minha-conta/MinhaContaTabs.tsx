@@ -35,7 +35,7 @@ export function MinhaContaTabs({
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2 rounded-lg text-[12.5px] font-semibold transition-all ${
+            className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all ${
               activeTab === tab
                 ? 'bg-blue-600 text-white shadow'
                 : 'text-slate-400 hover:text-slate-200'
@@ -85,7 +85,7 @@ function ProfileTab({ user }: { user: User }) {
         <div>
           <p className="text-[13px] font-semibold text-slate-200">{user.name}</p>
           <p className="text-[11px] text-slate-500">{user.email}</p>
-          <span className="mt-1 inline-block text-[9.5px] font-bold uppercase tracking-widest text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+          <span className="mt-1 inline-block text-[11px] font-bold uppercase tracking-widest text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
             Admin
           </span>
         </div>
@@ -96,7 +96,7 @@ function ProfileTab({ user }: { user: User }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Nome */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+          <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
             Nome completo
           </label>
           <input
@@ -110,7 +110,7 @@ function ProfileTab({ user }: { user: User }) {
 
         {/* Telefone */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+          <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
             Telefone
           </label>
           <input
@@ -123,7 +123,7 @@ function ProfileTab({ user }: { user: User }) {
 
         {/* E-mail (readonly) */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+          <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
             E-mail
             <span className="ml-2 text-[9.5px] font-normal normal-case text-slate-600 bg-slate-800/60 px-2 py-0.5 rounded">
               somente leitura
@@ -234,7 +234,7 @@ function PasswordField({
   const [show, setShow] = useState(false)
   return (
     <div>
-      <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+      <label className="block text-[13px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
         {label}
       </label>
       <div className="relative">
@@ -422,7 +422,7 @@ function PasswordTab() {
 
         {/* Requisitos de senha */}
         <div className="bg-slate-800/30 border border-slate-800/50 rounded-lg px-4 py-3 space-y-1.5">
-          <p className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider">Requisitos da senha</p>
+          <p className="text-[12px] font-semibold text-slate-500 uppercase tracking-wider">Requisitos da senha</p>
           {[
             { label: 'Mínimo de 8 caracteres',       ok: newPw.length >= 8 },
             { label: 'Pelo menos uma letra maiúscula', ok: /[A-Z]/.test(newPw) },
@@ -826,7 +826,7 @@ function SegurancaTab({
           <div className="bg-slate-800/30 border border-slate-800/40 rounded-xl p-3.5">
             <p className="text-[9.5px] font-bold text-slate-600 uppercase tracking-widest mb-1.5">Função</p>
             <div className="flex items-center gap-2">
-              <span className="text-[9.5px] font-bold uppercase tracking-widest text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full">
                 Administrador
               </span>
             </div>
