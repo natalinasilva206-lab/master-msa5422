@@ -29,14 +29,54 @@ export async function updateCdiRate(merchantId: string, rate: number) {
   revalidatePath('/admin/cdi')
 }
 
-export async function updateBalance(merchantId: string, balance: number) {
-  await requireAdminSession()
-  if (balance < 0) throw new Error('Saldo inválido')
-  await prisma.merchant.update({
-    where: { id: merchantId },
-    data: { balance },
+export async function updateBalance(
+  merchantId: string,
+  balance: number,
+  reason: string,
+): Promise<{ error?: string }> {
+  const session = await requireAdminSession()
+  const admin   = session.user as any
+
+  if (!reason?.trim()) return { error: 'Motivo é obrigatório para ajuste manual de saldo.' }
+  if (balance < 0)     return { error: 'Saldo não pode ser negativo.' }
+
+  const merchant = await prisma.merchant.findUnique({
+    where:  { id: merchantId },
+    select: { id: true, name: true, balance: true },
   })
+  if (!merchant) return { error: 'Merchant não encontrado.' }
+
+  const before = merchant.balance
+  const delta  = Math.round((balance - before) * 100) / 100
+
+  await prisma.$transaction([
+    prisma.merchant.update({
+      where: { id: merchantId },
+      data:  { balance },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'CDI_BALANCE_ADJUSTED',
+        entity:   'Merchant',
+        entityId: merchantId,
+        metadata: JSON.stringify({
+          merchantId,
+          merchantName:   merchant.name,
+          before:         { balance: before },
+          after:          { balance },
+          delta,
+          reason:         reason.trim(),
+          adminName:      admin.name,
+          adminEmail:     admin.email,
+          adjustedAt:     new Date().toISOString(),
+        }),
+      },
+    }),
+  ])
+
   revalidatePath('/admin/cdi')
+  return {}
 }
 
 export async function setCdiPrazo(merchantId: string, expiresAt: string | null) {
