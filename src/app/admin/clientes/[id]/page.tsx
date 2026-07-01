@@ -121,7 +121,7 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     : null
 
   // Fetch risk audit history + recent transactions + open disputes (parallel)
-  const [riskLogs, recentSales, openDisputes] = await Promise.all([
+  const [riskLogsBase, reserveStatusLogs, recentSales, openDisputes] = await Promise.all([
     prisma.auditLog.findMany({
       where: {
         entityId: merchant.id,
@@ -129,6 +129,12 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
       },
       orderBy: { createdAt: 'desc' },
       take: 30,
+    }),
+    // RESERVE_STATUS_CHANGE is logged with entity='ReserveRelease', so needs separate query
+    prisma.auditLog.findMany({
+      where: { action: 'RESERVE_STATUS_CHANGE', entity: 'ReserveRelease' },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
     }),
     prisma.saleLog.findMany({
       where: { merchantId: merchant.id },
@@ -141,14 +147,24 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     }),
   ])
 
+  // Filter RESERVE_STATUS_CHANGE to only this merchant (merchantId stored in metadata)
+  const reserveLogsFiltered = reserveStatusLogs.filter((l) => {
+    try { return (JSON.parse(l.metadata ?? '{}') as any).merchantId === merchant.id } catch { return false }
+  })
+
+  const riskLogs = [...riskLogsBase, ...reserveLogsFiltered]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 30)
+
   const riskActionLabel: Record<string, string> = {
-    RISK_RESERVE_SET:   'Reserva separada (manual)',
-    RISK_BLOCK_SET:     'Saldo bloqueado',
-    RISK_FUTURE_SET:    'Liberação agendada',
-    RISK_RELEASE:       'Saldo liberado',
-    RISK_AUTO_RESERVE:  'Reserva automática (venda)',
-    BALANCE_ADJUST:     'Venda aprovada',
-    RISK_CONFIG_UPDATE: 'Config de risco alterada',
+    RISK_RESERVE_SET:      'Reserva separada (manual)',
+    RISK_BLOCK_SET:        'Saldo bloqueado',
+    RISK_FUTURE_SET:       'Liberação agendada',
+    RISK_RELEASE:          'Saldo liberado',
+    RISK_AUTO_RESERVE:     'Reserva automática (venda)',
+    BALANCE_ADJUST:        'Venda aprovada',
+    RISK_CONFIG_UPDATE:    'Config de risco alterada',
+    RESERVE_STATUS_CHANGE: 'Status de reserva alterado (manual)',
   }
 
   return (

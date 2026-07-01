@@ -585,8 +585,8 @@ export default async function ClienteDashboardPage({ searchParams }: { searchPar
               {[
                 { label: 'Transações',    href: '/cliente/transacoes',   icon: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',    color: 'text-blue-400 bg-blue-500/10' },
                 { label: 'Extrato',       href: '/cliente/extrato',      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',          color: 'text-purple-400 bg-purple-500/10' },
-                { label: 'Antecipações', href: '/cliente/antecipacoes', icon: 'M13 10V3L4 14h7v7l9-11h-7z',  color: 'text-amber-400 bg-amber-500/10' },
-                { label: 'Integrações',  href: '/cliente/integracoes',  icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', color: 'text-slate-300 bg-slate-700/40' },
+                { label: 'Reservas',      href: '/cliente/reservas',     icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', color: 'text-amber-400 bg-amber-500/10' },
+                { label: 'Integrações',   href: '/cliente/integracoes',  icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4', color: 'text-slate-300 bg-slate-700/40' },
               ].map((l) => (
                 <Link key={l.href} href={l.href} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800/40 hover:bg-slate-800/70 border border-slate-800/60 hover:border-slate-700/60 transition-all">
                   <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${l.color}`}>
