@@ -80,10 +80,10 @@ export async function GET(req: NextRequest) {
     return [
       date,
       ACTION_LABELS[log.action] ?? log.action,
-      log.user?.merchant?.name ?? log.entityId,
+      log.user?.merchant?.name ?? log.entityId ?? '',
       log.user?.name ?? log.user?.email ?? log.userId,
       details,
-      log.entityId,
+      log.entityId ?? '',
     ].map(escapeCsv).join(',')
   })
 
