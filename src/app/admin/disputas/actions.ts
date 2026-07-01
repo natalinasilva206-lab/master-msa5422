@@ -553,7 +553,8 @@ export async function addDisputeDocument(
     if (!dispute) return { error: 'Caso não encontrado.' }
     if (!docName.trim()) return { error: 'Nome do documento obrigatório.' }
 
-    const current: string[] = JSON.parse(dispute.documents ?? '[]')
+    let current: string[] = []
+    try { current = JSON.parse(dispute.documents || '[]') } catch { current = [] }
     current.push(docName.trim())
 
     await prisma.$transaction([

@@ -42,7 +42,8 @@ export default async function DisputeDetailPage({ params }: PageProps) {
     take: 30,
   })
 
-  const docs: string[] = JSON.parse(dispute.documents ?? '[]')
+  let docs: string[] = []
+  try { docs = JSON.parse(dispute.documents || '[]') } catch { docs = [] }
 
   const isOverdue = dispute.deadline && new Date(dispute.deadline) < new Date() &&
     !['RESOLVIDO_SELLER','RESOLVIDO_CONTRA','DEVOLVIDO_PARCIAL','FINALIZADO'].includes(dispute.status)
