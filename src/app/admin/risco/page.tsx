@@ -46,6 +46,29 @@ function computeStatus(
   return 'SAUDAVEL'
 }
 
+function computeRecommendation(
+  status: SellerStatus,
+  riskLevel: string,
+  openDisputes: number,
+  openMed: number,
+  openReembolso: number,
+  reservePercent: number,
+): string {
+  if (status === 'BLOQUEADO')   return 'Revisar motivo do bloqueio'
+  if (status === 'EM_ANALISE')  return 'Concluir análise KYC'
+  if (status === 'ALTO_RISCO') {
+    if (openDisputes >= 2)       return 'Múltiplas disputas — elevar reserva'
+    if (riskLevel === 'HIGH')    return 'Nível alto — ajustar % de reserva'
+    return 'Saldo bloqueado — verificar disputa'
+  }
+  if (status === 'ATENCAO') {
+    if (openMed > 0)             return 'MED Pix ativo — acompanhar prazo'
+    if (openReembolso > 0)       return 'Reembolso pendente — resolver'
+    if (openDisputes > 0)        return 'Disputa aberta — monitorar'
+  }
+  return '—'
+}
+
 /* ─── page ─────────────────────────────────────────────────── */
 export default async function RiscoPage() {
   const now    = new Date()
@@ -63,7 +86,7 @@ export default async function RiscoPage() {
     liberar30d,
     merchants,
     openDisputesByMerchant,
-    monthlyVolByMerchant,
+    monthlySalesByMerchant,
   ] = await Promise.all([
     /* total reservado (reservedBalance) */
     prisma.merchant.aggregate({ _sum: { reservedBalance: true } }).catch(() => ({ _sum: { reservedBalance: 0 } })),
@@ -74,7 +97,7 @@ export default async function RiscoPage() {
       _sum: { blockedAmount: true },
     }).catch(() => ({ _sum: { blockedAmount: 0 } })),
 
-    /* total em chargeback */
+    /* total em chargeback (valor contestado) */
     prisma.dispute.aggregate({
       where: {
         type:   'CHARGEBACK',
@@ -83,7 +106,7 @@ export default async function RiscoPage() {
       _sum: { contestedAmount: true },
     }).catch(() => ({ _sum: { contestedAmount: 0 } })),
 
-    /* total em MED Pix */
+    /* total em MED Pix (valor contestado) */
     prisma.dispute.aggregate({
       where: {
         type:   'MED_PIX',
@@ -114,51 +137,61 @@ export default async function RiscoPage() {
       orderBy: { name: 'asc' },
     }).catch(() => []),
 
-    /* disputas abertas por merchant */
+    /* disputas abertas por merchant e tipo */
     prisma.dispute.groupBy({
       by: ['merchantId', 'type'],
       where: { status: { notIn: ['RESOLVIDO_SELLER', 'RESOLVIDO_CONTRA', 'DEVOLVIDO_PARCIAL', 'FINALIZADO'] } },
       _count: { id: true },
     }).catch(() => []),
 
-    /* volume mensal (BALANCE_ADJUST últimos 30 dias) por merchant */
-    prisma.auditLog.findMany({
-      where: { action: 'BALANCE_ADJUST', createdAt: { gte: ago30d }, entityId: { not: null } },
-      select: { entityId: true, metadata: true },
+    /* volume mensal real por merchant — usa SaleLog VENDA APROVADO (30d) */
+    prisma.saleLog.groupBy({
+      by: ['merchantId'],
+      where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } },
+      _sum: { amount: true },
     }).catch(() => []),
   ])
+
+  /* ── derived counts ── */
+  const reservedTotal  = totalReservado._sum.reservedBalance ?? 0
+  const blockedTotal   = totalBloqueado._sum.blockedAmount   ?? 0
+  const volumeProtegido = reservedTotal + blockedTotal
 
   /* sellers em alto risco */
   const altaRiscoCount = merchants.filter(
     (m) => m.riskLevel === 'HIGH' || m.status === 'BLOCKED'
   ).length
 
-  /* mapeia disputas por merchant */
-  const disputeMap = new Map<string, { total: number; med: number }>()
+  /* mapeia disputas por merchant (total, med, reembolso, chargeback) */
+  const disputeMap = new Map<string, { total: number; med: number; reembolso: number; chargeback: number }>()
   for (const d of openDisputesByMerchant) {
-    const cur = disputeMap.get(d.merchantId) ?? { total: 0, med: 0 }
+    const cur = disputeMap.get(d.merchantId) ?? { total: 0, med: 0, reembolso: 0, chargeback: 0 }
     cur.total += d._count.id
-    if (d.type === 'MED_PIX') cur.med += d._count.id
+    if (d.type === 'MED_PIX')    cur.med       += d._count.id
+    if (d.type === 'REEMBOLSO')  cur.reembolso += d._count.id
+    if (d.type === 'CHARGEBACK') cur.chargeback += d._count.id
     disputeMap.set(d.merchantId, cur)
   }
 
-  /* mapeia volume mensal por merchant */
+  /* sellers com pelo menos 1 disputa aberta / MED aberto */
+  const sellersComDisputa = Array.from(disputeMap.values()).filter((d) => d.total > 0).length
+  const sellersComMed     = Array.from(disputeMap.values()).filter((d) => d.med   > 0).length
+
+  /* mapeia volume mensal por merchant — fonte: SaleLog */
   const volMap = new Map<string, number>()
-  for (const log of monthlyVolByMerchant) {
-    if (!log.entityId) continue
-    try {
-      const m = JSON.parse(log.metadata ?? '{}')
-      const gross = parseFloat(m.grossAmount ?? m.amount ?? 0)
-      volMap.set(log.entityId, (volMap.get(log.entityId) ?? 0) + gross)
-    } catch { /* */ }
+  for (const s of monthlySalesByMerchant) {
+    volMap.set(s.merchantId, s._sum.amount ?? 0)
   }
 
   /* monta rows */
   const rows = merchants.map((m) => {
-    const disp = disputeMap.get(m.id) ?? { total: 0, med: 0 }
+    const disp = disputeMap.get(m.id) ?? { total: 0, med: 0, reembolso: 0, chargeback: 0 }
     const vol  = volMap.get(m.id) ?? 0
     const status = computeStatus(m.status, m.riskLevel, disp.total, disp.med, m.blockedBalance)
-    return { ...m, vol, openDisputes: disp.total, openMed: disp.med, status }
+    const recommendation = computeRecommendation(
+      status, m.riskLevel, disp.total, disp.med, disp.reembolso, m.riskReservePercent
+    )
+    return { ...m, vol, openDisputes: disp.total, openMed: disp.med, openReembolso: disp.reembolso, openChargeback: disp.chargeback, status, recommendation }
   })
 
   /* sort: risk priority */
@@ -167,11 +200,11 @@ export default async function RiscoPage() {
   }
   rows.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
 
-  /* ─── kpi cards data ─── */
+  /* ─── kpi cards ─── */
   const kpis = [
     {
       label: 'Total reservado',
-      value: fmtBRL(totalReservado._sum.reservedBalance ?? 0),
+      value: fmtBRL(reservedTotal),
       sub:   'saldo reservado na plataforma',
       icon:  'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
       color: 'border-amber-500/20 bg-amber-500/5',
@@ -179,7 +212,7 @@ export default async function RiscoPage() {
     },
     {
       label: 'Bloqueado em disputas',
-      value: fmtBRL(totalBloqueado._sum.blockedAmount ?? 0),
+      value: fmtBRL(blockedTotal),
       sub:   'em casos ativos',
       icon:  'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636',
       color: 'border-red-500/20 bg-red-500/5',
@@ -218,12 +251,36 @@ export default async function RiscoPage() {
       vc:    'text-indigo-300',
     },
     {
+      label: 'Volume protegido',
+      value: fmtBRL(volumeProtegido),
+      sub:   'reservado + bloqueado em disputa',
+      icon:  'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+      color: 'border-teal-500/20 bg-teal-500/5',
+      vc:    'text-teal-300',
+    },
+    {
       label: 'Sellers em alto risco',
       value: altaRiscoCount,
       sub:   'nível HIGH ou status BLOCKED',
       icon:  'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
       color: altaRiscoCount > 0 ? 'border-red-500/30 bg-red-500/8' : 'border-slate-700/40 bg-slate-800/30',
       vc:    altaRiscoCount > 0 ? 'text-red-400' : 'text-slate-400',
+    },
+    {
+      label: 'Com disputa aberta',
+      value: sellersComDisputa,
+      sub:   'sellers com caso ativo',
+      icon:  'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+      color: sellersComDisputa > 0 ? 'border-red-500/20 bg-red-500/5' : 'border-slate-700/40 bg-slate-800/30',
+      vc:    sellersComDisputa > 0 ? 'text-red-400' : 'text-slate-400',
+    },
+    {
+      label: 'Com MED aberto',
+      value: sellersComMed,
+      sub:   'MED Pix em andamento',
+      icon:  'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      color: sellersComMed > 0 ? 'border-orange-500/20 bg-orange-500/5' : 'border-slate-700/40 bg-slate-800/30',
+      vc:    sellersComMed > 0 ? 'text-orange-400' : 'text-slate-400',
     },
   ]
 
@@ -243,7 +300,7 @@ export default async function RiscoPage() {
       <div className="p-6 space-y-6">
 
         {/* ── KPI Cards ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
           {kpis.map((k) => (
             <div key={k.label} className={`rounded-xl border p-4 flex flex-col gap-2 ${k.color}`}>
               <div className="flex items-start justify-between gap-1">
@@ -299,9 +356,11 @@ export default async function RiscoPage() {
                       'Bloqueado',
                       '% Reserva',
                       'Nível risco',
-                      'Disputas',
+                      'Chargebacks',
                       'MED',
+                      'Reembolsos',
                       'Status',
+                      'Recomendação',
                       '',
                     ].map((h) => (
                       <th
@@ -389,12 +448,12 @@ export default async function RiscoPage() {
                           </span>
                         </td>
 
-                        {/* Disputas abertas */}
+                        {/* Chargebacks */}
                         <td className="px-4 py-3 whitespace-nowrap text-center">
-                          {r.openDisputes > 0 ? (
-                            <Link href={`/admin/disputas?merchantId=${r.id}`}>
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors">
-                                {r.openDisputes}
+                          {r.openChargeback > 0 ? (
+                            <Link href={`/admin/disputas?type=CHARGEBACK`}>
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-colors">
+                                {r.openChargeback}
                               </span>
                             </Link>
                           ) : (
@@ -413,6 +472,17 @@ export default async function RiscoPage() {
                           )}
                         </td>
 
+                        {/* Reembolsos */}
+                        <td className="px-4 py-3 whitespace-nowrap text-center">
+                          {r.openReembolso > 0 ? (
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400">
+                              {r.openReembolso}
+                            </span>
+                          ) : (
+                            <span className="text-slate-600 text-[12px]">—</span>
+                          )}
+                        </td>
+
                         {/* Status */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${sm.color}`}>
@@ -421,7 +491,14 @@ export default async function RiscoPage() {
                           </span>
                         </td>
 
-                        {/* Ações */}
+                        {/* Ação recomendada */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`text-[11px] ${r.recommendation === '—' ? 'text-slate-600' : 'text-slate-300'}`}>
+                            {r.recommendation}
+                          </span>
+                        </td>
+
+                        {/* Gerenciar */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Link
@@ -465,6 +542,9 @@ export default async function RiscoPage() {
                       )}
                       {r.blockedBalance > 0 && (
                         <span className="text-[10px] text-red-400">R$ {fmtBRLFull(r.blockedBalance)} bloqueado</span>
+                      )}
+                      {r.recommendation !== '—' && (
+                        <span className="text-[10px] text-slate-500 italic">{r.recommendation}</span>
                       )}
                       <Link
                         href={`/admin/clientes/${r.id}`}
