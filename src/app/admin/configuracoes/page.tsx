@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
+import { ConfigActionsPanel } from './ConfigActionsPanel'
 
 const planColor: Record<string, string> = {
   Start:  'bg-slate-400',
@@ -24,13 +25,14 @@ export default async function ConfiguracoesPage() {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  const [merchantCount, userCount, logCount, feePlans, merchantsByPlan, disputeCount] = await Promise.all([
+  const [merchantCount, userCount, logCount, feePlans, merchantsByPlan, disputeCount, pendingReserves] = await Promise.all([
     prisma.merchant.count(),
     prisma.user.count(),
     prisma.auditLog.count(),
     prisma.feePlan.findMany({ orderBy: { name: 'asc' } }).catch(() => []),
     prisma.merchant.groupBy({ by: ['plan'], _count: { id: true } }).catch(() => []),
     prisma.dispute.count({ where: { status: 'ABERTO' } }).catch(() => 0),
+    prisma.reserveRelease.count({ where: { status: 'RESERVADO', releaseAt: { lte: new Date() } } }).catch(() => 0),
   ])
 
   const planCountMap: Record<string, number> = {}
@@ -235,6 +237,8 @@ export default async function ConfiguracoesPage() {
             </table>
           </div>
         </section>
+
+        <ConfigActionsPanel pendingReserves={pendingReserves as number} />
 
         <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl px-5 py-4 flex items-start gap-3">
           <svg className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

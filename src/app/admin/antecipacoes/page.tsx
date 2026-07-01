@@ -30,7 +30,7 @@ const TAXA_DEFAULT = 2.5
 export default async function AntecipacoesPage() {
   const [merchants, antecipacaoLogs] = await Promise.all([
     prisma.merchant.findMany({
-      where: { status: 'ACTIVE', pendingBalance: { gt: 0 } },
+      where: { status: 'ACTIVE', pendingBalance: { gte: 10 } },
       orderBy: { pendingBalance: 'desc' },
     }),
     prisma.auditLog.findMany({
@@ -121,12 +121,12 @@ export default async function AntecipacoesPage() {
           <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
-                <p className="text-[13px] font-semibold text-white">Sellers com Saldo Pendente</p>
-                <p className="text-[10.5px] text-slate-600 mt-0.5">Elegíveis para antecipação de recebíveis</p>
+                <p className="text-[13px] font-semibold text-white">Antecipação Admin-Iniciada</p>
+                <p className="text-[10.5px] text-slate-600 mt-0.5">Sellers com saldo pendente ≥ R$10 disponíveis para antecipar</p>
               </div>
               {merchants.length > 0 && (
                 <span className="text-[10.5px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
-                  {merchants.length} elegível{merchants.length !== 1 ? 'is' : ''}
+                  {merchants.length} disponível{merchants.length !== 1 ? 'is' : ''}
                 </span>
               )}
             </div>
@@ -136,8 +136,8 @@ export default async function AntecipacoesPage() {
                 <svg className="w-10 h-10 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-[13px] font-medium">Nenhum saldo pendente</p>
-                <p className="text-[11px] text-slate-800 mt-1">Sellers sem saldo a receber no momento.</p>
+                <p className="text-[13px] font-medium">Nenhum seller elegível</p>
+                <p className="text-[11px] text-slate-800 mt-1">Nenhum seller ativo com saldo pendente ≥ R$10.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
