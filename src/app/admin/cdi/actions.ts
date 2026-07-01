@@ -198,6 +198,145 @@ export async function retryCdiWebhookDelivery(deliveryId: string): Promise<{ suc
   return result
 }
 
+// ─── CDI Cycle Preview ──────────────────────────────────────────────────────
+
+export type CdiCyclePreviewSeller = {
+  id: string
+  name: string
+  email: string
+  balance: number
+  cdiRate: number
+  yield: number
+  newBalance: number
+  inconsistency: string | null
+}
+
+export type CdiCyclePreviewData = {
+  sellers: CdiCyclePreviewSeller[]
+  totalEligible: number
+  totalToCredit: number
+  inconsistencies: string[]
+  generatedAt: string
+}
+
+export async function generateCdiPreview(): Promise<{ id: string; preview: CdiCyclePreviewData }> {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+
+  // Block if there's already a PENDING cycle
+  const existing = await prisma.cdiCycle.findFirst({ where: { status: 'PENDING' } })
+  if (existing) throw new Error('Já existe uma prévia pendente de aprovação. Cancele-a antes de gerar uma nova.')
+
+  const merchants = await prisma.merchant.findMany({
+    where: { status: 'ACTIVE' },
+    select: { id: true, name: true, email: true, balance: true, cdiRate: true },
+  })
+
+  const sellers: CdiCyclePreviewSeller[] = []
+  const inconsistencies: string[] = []
+  let totalToCredit = 0
+
+  for (const m of merchants) {
+    const inconsistency: string[] = []
+    if (m.balance <= 0) continue                           // not eligible — skip
+    if (m.cdiRate <= 0) inconsistency.push('taxa CDI = 0')
+    if (m.cdiRate > 5)  inconsistency.push(`taxa CDI elevada (${m.cdiRate}%/mês)`)
+
+    const yield_ = Math.round(m.balance * (m.cdiRate / 100) * 100) / 100
+    const newBalance = Math.round((m.balance + yield_) * 100) / 100
+    const note = inconsistency.length > 0 ? inconsistency.join('; ') : null
+
+    sellers.push({
+      id:            m.id,
+      name:          m.name,
+      email:         m.email,
+      balance:       m.balance,
+      cdiRate:       m.cdiRate,
+      yield:         yield_,
+      newBalance,
+      inconsistency: note,
+    })
+
+    if (note) inconsistencies.push(`${m.name}: ${note}`)
+    if (yield_ > 0) totalToCredit += yield_
+  }
+
+  const preview: CdiCyclePreviewData = {
+    sellers,
+    totalEligible: sellers.filter((s) => s.yield > 0).length,
+    totalToCredit: Math.round(totalToCredit * 100) / 100,
+    inconsistencies,
+    generatedAt: new Date().toISOString(),
+  }
+
+  const cycle = await prisma.cdiCycle.create({
+    data: {
+      status:        'PENDING',
+      previewData:   JSON.stringify(preview),
+      generatedById: userId,
+    },
+  })
+
+  revalidatePath('/admin/cdi')
+  return { id: cycle.id, preview }
+}
+
+export async function approveCdiCycle(cycleId: string): Promise<{ count: number; totalCredited: number }> {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+
+  const cycle = await prisma.cdiCycle.findUnique({ where: { id: cycleId } })
+  if (!cycle) throw new Error('Ciclo não encontrado.')
+  if (cycle.status !== 'PENDING') throw new Error('Este ciclo não está mais pendente.')
+
+  // Mark as approved first so duplicate clicks are blocked
+  await prisma.cdiCycle.update({
+    where: { id: cycleId },
+    data: { status: 'APPROVED', approvedAt: new Date(), approvedById: userId },
+  })
+
+  try {
+    // Run the actual CDI credit (same logic as creditCdiToAll)
+    const result = await creditCdiToAll()
+
+    await prisma.cdiCycle.update({
+      where: { id: cycleId },
+      data: {
+        status:       'CREDITED',
+        creditedAt:   new Date(),
+        creditedById: userId,
+        count:        result.count,
+        totalCredited: result.totalCredited,
+      },
+    })
+
+    revalidatePath('/admin/cdi')
+    return result
+  } catch (err: unknown) {
+    await prisma.cdiCycle.update({
+      where: { id: cycleId },
+      data: { status: 'ERROR', errorMessage: err instanceof Error ? err.message : String(err) },
+    })
+    throw err
+  }
+}
+
+export async function cancelCdiCycle(cycleId: string): Promise<void> {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+
+  const cycle = await prisma.cdiCycle.findUnique({ where: { id: cycleId } })
+  if (!cycle) throw new Error('Ciclo não encontrado.')
+  if (cycle.status !== 'PENDING') throw new Error('Apenas ciclos pendentes podem ser cancelados.')
+
+  await prisma.cdiCycle.update({
+    where: { id: cycleId },
+    data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: userId },
+  })
+
+  revalidatePath('/admin/cdi')
+}
+
 export async function setIrIofSimulation(enabled: boolean): Promise<void> {
   await requireAdminSession()
   await setSystemConfig('ir_iof_simulation_enabled', enabled ? 'true' : 'false')

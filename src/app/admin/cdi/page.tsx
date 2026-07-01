@@ -13,6 +13,7 @@ import { IrIofToggle } from './IrIofToggle'
 import Link from 'next/link'
 import { getSystemConfig } from '@/lib/systemConfig'
 import { WebhookRetryButton } from './WebhookRetryButton'
+import { CdiCyclePanel } from './CdiCyclePanel'
 
 const statusLabel: Record<string, string> = {
   ACTIVE:   'Ativo',
@@ -80,7 +81,7 @@ const historyMeta: Record<string, { label: string; dot: string; sign: string; co
 export default async function CdiPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim().toLowerCase() ?? ''
 
-  const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit, irIofConfigValue, webhookDeliveries] = await Promise.all([
+  const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit, irIofConfigValue, webhookDeliveries, cdiCycles] = await Promise.all([
     prisma.merchant.findMany({ orderBy: { balance: 'desc' } }),
     prisma.auditLog.findMany({
       where: { action: { in: ['CDI_LIMIT_SET', 'CDI_LOCK_SET'] } },
@@ -111,6 +112,10 @@ export default async function CdiPage({ searchParams }: PageProps) {
       where: { event: 'cdi.credited' },
       orderBy: { createdAt: 'desc' },
       take: 50,
+    }),
+    prisma.cdiCycle.findMany({
+      orderBy: { generatedAt: 'desc' },
+      take: 20,
     }),
   ])
 
@@ -452,6 +457,11 @@ export default async function CdiPage({ searchParams }: PageProps) {
               </table>
             </div>
           )}
+        </section>
+
+        {/* CDI Cycle — Preview & Approval */}
+        <section className="bg-[#101827]/80 border border-slate-800/60 rounded-2xl p-5">
+          <CdiCyclePanel cycles={cdiCycles} />
         </section>
 
         {/* Histórico de operações CDI */}
