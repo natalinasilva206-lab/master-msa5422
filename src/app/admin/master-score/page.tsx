@@ -6,105 +6,19 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { Topbar } from '@/components/layout/Topbar'
 import Link from 'next/link'
+import { RecalcAllButton, RecalcSellerButton } from './ScoreActions'
+import type { ScoreLevel, ScoreStatus } from '@/lib/masterScore'
 
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
-
 function formatBRLCompact(v: number) {
   if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(1)}k`
+  if (v >= 1_000)     return `R$ ${(v / 1_000).toFixed(1)}k`
   return `R$ ${formatBRL(v)}`
 }
-
-type ScoreLevel = 'Bronze' | 'Prata' | 'Ouro' | 'Diamante'
-type ScoreStatus = 'Alto risco' | 'Atenção' | 'Saudável' | 'Premium'
-
-interface SellerScore {
-  id: string
-  name: string
-  plan: string
-  volumeMensal: number
-  saldoMedio: number
-  taxaChargeback: number
-  qtdMedPix: number
-  taxaReembolso: number
-  reservaAtual: number
-  score: number
-  level: ScoreLevel
-  status: ScoreStatus
-  sugestao: string
-}
-
-function calcScore({
-  taxaChargeback,
-  qtdMedPix,
-  taxaReembolso,
-  volumeMensal,
-  saldoMedio,
-  reservaAtual,
-}: {
-  taxaChargeback: number
-  qtdMedPix: number
-  taxaReembolso: number
-  volumeMensal: number
-  saldoMedio: number
-  reservaAtual: number
-}): number {
-  // Score 0–1000
-  let score = 1000
-
-  // Penalidades por chargeback (peso alto)
-  if (taxaChargeback >= 2)      score -= 400
-  else if (taxaChargeback >= 1) score -= 250
-  else if (taxaChargeback >= 0.5) score -= 120
-  else if (taxaChargeback >= 0.2) score -= 40
-
-  // Penalidades por MED Pix
-  if (qtdMedPix >= 5)  score -= 250
-  else if (qtdMedPix >= 3) score -= 150
-  else if (qtdMedPix >= 1) score -= 60
-
-  // Penalidades por taxa de reembolso
-  if (taxaReembolso >= 10) score -= 200
-  else if (taxaReembolso >= 5) score -= 100
-  else if (taxaReembolso >= 2) score -= 40
-
-  // Bônus por volume
-  if (volumeMensal >= 100_000) score += 80
-  else if (volumeMensal >= 50_000) score += 40
-  else if (volumeMensal >= 20_000) score += 20
-
-  // Bônus por reserva adequada (cobertura mínima de 3% do volume)
-  const reservaIdeal = volumeMensal * 0.03
-  if (reservaAtual >= reservaIdeal) score += 50
-
-  return Math.max(0, Math.min(1000, Math.round(score)))
-}
-
-function getLevel(score: number): ScoreLevel {
-  if (score >= 850) return 'Diamante'
-  if (score >= 650) return 'Ouro'
-  if (score >= 400) return 'Prata'
-  return 'Bronze'
-}
-
-function getStatus(score: number): ScoreStatus {
-  if (score >= 850) return 'Premium'
-  if (score >= 650) return 'Saudável'
-  if (score >= 400) return 'Atenção'
-  return 'Alto risco'
-}
-
-function getSugestao(score: number, taxaChargeback: number, qtdMedPix: number, taxaReembolso: number, reservaAtual: number, volumeMensal: number): string {
-  if (taxaChargeback >= 1)  return 'Revisão imediata — chargeback crítico'
-  if (qtdMedPix >= 5)       return 'Bloquear novas operações — excesso de MED Pix'
-  if (taxaReembolso >= 10)  return 'Auditoria de reembolsos necessária'
-  const reservaIdeal = volumeMensal * 0.03
-  if (reservaAtual < reservaIdeal) return `Aumentar reserva para ${formatBRLCompact(reservaIdeal)}`
-  if (score >= 850)         return 'Manter monitoramento — operação excelente'
-  if (score >= 650)         return 'Operação saudável — acompanhar regularmente'
-  return 'Monitorar de perto — indicadores em alerta'
+function formatDate(d: Date) {
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 }
 
 const levelMeta: Record<ScoreLevel, { color: string; bg: string; border: string; dot: string }> = {
@@ -115,45 +29,53 @@ const levelMeta: Record<ScoreLevel, { color: string; bg: string; border: string;
 }
 
 const statusMeta: Record<ScoreStatus, { color: string; bg: string; border: string }> = {
-  Premium:    { color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20' },
-  Saudável:   { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  Atenção:    { color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20' },
-  'Alto risco': { color: 'text-red-400',   bg: 'bg-red-500/10',     border: 'border-red-500/20' },
+  Premium:      { color: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20' },
+  Saudável:     { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+  Atenção:      { color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20' },
+  'Alto risco': { color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/20' },
 }
 
 const planDot: Record<string, string> = {
-  Start:  'bg-slate-400',
-  Growth: 'bg-blue-400',
-  Prime:  'bg-purple-400',
-  Black:  'bg-white',
+  Start: 'bg-slate-400', Growth: 'bg-blue-400', Prime: 'bg-purple-400', Black: 'bg-white',
 }
 
-function ScoreBar({ score }: { score: number }) {
-  const pct = (score / 1000) * 100
+function ScoreBar({ score, max = 100 }: { score: number; max?: number }) {
+  const pct = Math.min(100, (score / max) * 100)
   const color =
-    score >= 850 ? 'bg-cyan-400' :
-    score >= 650 ? 'bg-emerald-400' :
-    score >= 400 ? 'bg-amber-400' :
+    score >= 85 ? 'bg-cyan-400' :
+    score >= 65 ? 'bg-emerald-400' :
+    score >= 40 ? 'bg-amber-400' :
     'bg-red-400'
+  const text =
+    score >= 85 ? 'text-cyan-400' :
+    score >= 65 ? 'text-emerald-400' :
+    score >= 40 ? 'text-amber-400' :
+    'text-red-400'
   return (
-    <div className="flex items-center gap-2 min-w-[120px]">
+    <div className="flex items-center gap-2 min-w-[130px]">
       <div className="flex-1 h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-[13px] font-bold tabular-nums w-10 text-right shrink-0 ${
-        score >= 850 ? 'text-cyan-400' : score >= 650 ? 'text-emerald-400' : score >= 400 ? 'text-amber-400' : 'text-red-400'
-      }`}>{score}</span>
+      <span className={`text-[13px] font-bold tabular-nums w-8 text-right shrink-0 ${text}`}>{score}</span>
     </div>
   )
+}
+
+function SubScoreCell({ score }: { score: number }) {
+  const color =
+    score >= 85 ? 'text-cyan-400' :
+    score >= 65 ? 'text-emerald-400' :
+    score >= 40 ? 'text-amber-400' :
+    'text-red-400'
+  return <span className={`text-[12px] font-semibold tabular-nums font-mono ${color}`}>{score}</span>
 }
 
 export default async function MasterScorePage() {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  // Fetch merchants + their audit logs for metric computation
+  // Buscar todos os merchants com seu score (se existir)
   const merchants = await prisma.merchant.findMany({
-    orderBy: { createdAt: 'asc' },
     select: {
       id: true,
       name: true,
@@ -161,131 +83,79 @@ export default async function MasterScorePage() {
       balance: true,
       pendingBalance: true,
       reservedBalance: true,
+      masterScore: true,
     },
+    orderBy: { createdAt: 'asc' },
   }).catch(() => [] as any[])
 
-  // For each merchant, get relevant audit events
-  const merchantIds = merchants.map((m: any) => m.id)
+  // Separar quem tem score calculado de quem não tem
+  const comScore    = merchants.filter((m: any) => m.masterScore !== null)
+  const semScore    = merchants.filter((m: any) => m.masterScore === null)
 
-  const [balanceLogs, withdrawLogs, chargebackLogs, medPixLogs] = merchantIds.length > 0
-    ? await Promise.all([
-        prisma.auditLog.findMany({
-          where: { entityId: { in: merchantIds }, action: 'BALANCE_ADJUST' },
-          select: { entityId: true, metadata: true },
-        }).catch(() => []),
-        prisma.auditLog.findMany({
-          where: { entityId: { in: merchantIds }, action: { in: ['WITHDRAW_REQUEST', 'WITHDRAW_APPROVED'] } },
-          select: { entityId: true, action: true, metadata: true },
-        }).catch(() => []),
-        prisma.auditLog.findMany({
-          where: { entityId: { in: merchantIds }, action: { in: ['CHARGEBACK_OPENED', 'CHARGEBACK_WON', 'CHARGEBACK_LOST', 'DISPUTE_OPENED'] } },
-          select: { entityId: true, action: true },
-        }).catch(() => []),
-        prisma.auditLog.findMany({
-          where: { entityId: { in: merchantIds }, action: { in: ['MED_PIX_REQUEST', 'FRAUD_FLAG', 'ANTIFRAUDE_FLAG'] } },
-          select: { entityId: true },
-        }).catch(() => []),
-      ])
-    : [[], [], [], []]
+  // Ordenar por scoreTotal desc
+  comScore.sort((a: any, b: any) => (b.masterScore?.scoreTotal ?? 0) - (a.masterScore?.scoreTotal ?? 0))
 
-  function getAmt(metadata: string | null) {
-    try { return parseFloat(JSON.parse(metadata ?? '{}').amount || 0) } catch { return 0 }
-  }
+  // Todos juntos para a tabela (sem score aparecem no final com score 0)
+  const rows = [
+    ...comScore,
+    ...semScore.map((m: any) => ({ ...m, masterScore: null })),
+  ]
 
-  const sellers: SellerScore[] = merchants.map((m: any) => {
-    const mId = m.id
+  // KPIs agregados
+  const scoreTotais  = comScore.map((m: any) => m.masterScore!.scoreTotal)
+  const scoreMedio   = scoreTotais.length > 0
+    ? Math.round(scoreTotais.reduce((s: number, v: number) => s + v, 0) / scoreTotais.length)
+    : 0
 
-    const vendas = (balanceLogs as any[]).filter((l) => l.entityId === mId)
-    const volumeMensal = vendas.reduce((s: number, l: any) => s + getAmt(l.metadata), 0)
-    const saldoMedio   = ((m.balance ?? 0) + (m.pendingBalance ?? 0)) / 2
-    const reservaAtual = m.reservedBalance ?? 0
-
-    const totalVendasCount = vendas.length || 1
-    const cbCount = (chargebackLogs as any[]).filter((l) => l.entityId === mId).length
-    const medCount = (medPixLogs as any[]).filter((l) => l.entityId === mId).length
-
-    // Reembolso simulado como % do volume (baseado em saques negados e proporção)
-    const sacosNegados = (withdrawLogs as any[]).filter((l) => l.entityId === mId && l.action === 'WITHDRAW_REQUEST').length
-    const reembolsoSim = totalVendasCount > 0 ? (sacosNegados / totalVendasCount) * 100 : 0
-
-    const taxaChargeback = totalVendasCount > 0 ? (cbCount / totalVendasCount) * 100 : 0
-    const taxaReembolso  = parseFloat(reembolsoSim.toFixed(2))
-
-    const score   = calcScore({ taxaChargeback, qtdMedPix: medCount, taxaReembolso, volumeMensal, saldoMedio, reservaAtual })
-    const level   = getLevel(score)
-    const status  = getStatus(score)
-    const sugestao = getSugestao(score, taxaChargeback, medCount, taxaReembolso, reservaAtual, volumeMensal)
-
-    return {
-      id: mId,
-      name: m.name ?? '—',
-      plan: m.plan ?? 'Start',
-      volumeMensal,
-      saldoMedio,
-      taxaChargeback: parseFloat(taxaChargeback.toFixed(2)),
-      qtdMedPix: medCount,
-      taxaReembolso,
-      reservaAtual,
-      score,
-      level,
-      status,
-      sugestao,
-    }
-  })
-
-  sellers.sort((a, b) => b.score - a.score)
-
-  // Aggregate KPIs
-  const scoreMedio = sellers.length > 0 ? Math.round(sellers.reduce((s, x) => s + x.score, 0) / sellers.length) : 0
-  const premium    = sellers.filter((s) => s.status === 'Premium').length
-  const atencao    = sellers.filter((s) => s.status === 'Atenção').length
-  const altoRisco  = sellers.filter((s) => s.status === 'Alto risco').length
-  const volumeTotal = sellers.reduce((s, x) => s + x.volumeMensal, 0)
-  const reservaTotal = sellers.reduce((s, x) => s + x.reservaAtual, 0)
-  const reservaSugerida = sellers.reduce((s, x) => s + x.volumeMensal * 0.03, 0)
+  const premium    = comScore.filter((m: any) => m.masterScore?.statusRisco === 'Premium').length
+  const atencao    = comScore.filter((m: any) => m.masterScore?.statusRisco === 'Atenção').length
+  const altoRisco  = comScore.filter((m: any) => m.masterScore?.statusRisco === 'Alto risco').length
+  const volumeTotal = merchants.reduce((s: number, m: any) => s + (m.pendingBalance ?? 0) + (m.balance ?? 0), 0)
+  const reservaAtual    = merchants.reduce((s: number, m: any) => s + (m.reservedBalance ?? 0), 0)
+  const reservaSugerida = 0 // será calculada via ScoreInput em runtime; aqui só exibimos o que temos
 
   const kpis = [
     {
       label: 'Score Médio',
-      value: String(scoreMedio),
-      sub: `de 1000 pontos`,
-      color: scoreMedio >= 650 ? 'text-emerald-400' : scoreMedio >= 400 ? 'text-amber-400' : 'text-red-400',
+      value: scoreTotais.length > 0 ? String(scoreMedio) : '—',
+      sub: 'de 100 pontos',
+      color: scoreMedio >= 65 ? 'text-emerald-400' : scoreMedio >= 40 ? 'text-amber-400' : 'text-red-400',
       border: 'border-slate-800/70',
     },
     {
       label: 'Sellers Premium',
       value: String(premium),
-      sub: `score ≥ 850`,
+      sub: 'score ≥ 85',
       color: 'text-cyan-400',
       border: 'border-cyan-500/20',
     },
     {
       label: 'Em Atenção',
       value: String(atencao),
-      sub: `score 400–649`,
+      sub: 'score 40–64',
       color: 'text-amber-400',
       border: 'border-amber-500/20',
     },
     {
       label: 'Alto Risco',
       value: String(altoRisco),
-      sub: `score < 400`,
+      sub: 'score < 40',
       color: 'text-red-400',
       border: 'border-red-500/20',
     },
     {
-      label: 'Volume Analisado',
+      label: 'Volume Total',
       value: formatBRLCompact(volumeTotal),
-      sub: `${sellers.length} sellers`,
+      sub: `${merchants.length} sellers`,
       color: 'text-blue-400',
       border: 'border-blue-500/15',
     },
     {
-      label: 'Reservas Sugeridas',
-      value: formatBRLCompact(reservaSugerida),
-      sub: `atual: ${formatBRLCompact(reservaTotal)}`,
-      color: reservaTotal >= reservaSugerida ? 'text-emerald-400' : 'text-orange-400',
-      border: reservaTotal >= reservaSugerida ? 'border-emerald-500/20' : 'border-orange-500/20',
+      label: 'Reserva Atual',
+      value: formatBRLCompact(reservaAtual),
+      sub: 'bloqueado em reserva',
+      color: 'text-purple-400',
+      border: 'border-purple-500/15',
     },
   ]
 
@@ -294,7 +164,8 @@ export default async function MasterScorePage() {
       <Topbar
         title="Master Score"
         breadcrumb="Casa › Risco"
-        subtitle={`Nota de saúde financeira e performance de ${sellers.length} seller${sellers.length !== 1 ? 's' : ''}`}
+        subtitle={`Saúde financeira de ${merchants.length} seller${merchants.length !== 1 ? 's' : ''} · ${comScore.length} com score calculado`}
+        actions={<RecalcAllButton />}
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -309,6 +180,22 @@ export default async function MasterScorePage() {
             </div>
           ))}
         </section>
+
+        {/* Aviso se nenhum score calculado */}
+        {comScore.length === 0 && merchants.length > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-5 py-4 flex items-start gap-3">
+            <svg className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <p className="text-[12px] font-semibold text-amber-400">Scores ainda não calculados</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Clique em <strong className="text-slate-300">Recalcular todos</strong> no topo para gerar os scores pela primeira vez.
+                Após isso, cada score será atualizado automaticamente a cada evento relevante.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-4 px-1">
@@ -334,13 +221,13 @@ export default async function MasterScorePage() {
           })}
         </div>
 
-        {/* Table */}
+        {/* Tabela */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
             <div>
               <p className="text-[13px] font-semibold text-white">Ranking de Sellers</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">
-                Ordenado por score · Atualizado em tempo real com dados do sistema
+                Ordenado por score total · Score 0–100 · Recálculo sob demanda ou por evento
               </p>
             </div>
             {altoRisco > 0 && (
@@ -354,13 +241,13 @@ export default async function MasterScorePage() {
             )}
           </div>
 
-          {sellers.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-700">
               <svg className="w-8 h-8 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
               </svg>
               <p className="text-[13px] font-medium">Nenhum seller cadastrado</p>
-              <p className="text-[11px] text-slate-800 mt-1">O Master Score será calculado automaticamente após os primeiros cadastros.</p>
+              <p className="text-[11px] text-slate-800 mt-1">Os scores serão gerados automaticamente após os primeiros cadastros.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -368,135 +255,122 @@ export default async function MasterScorePage() {
                 <thead>
                   <tr className="border-b border-slate-800/60">
                     {[
-                      { label: '#',               cls: 'w-10 text-center' },
+                      { label: '#',                cls: 'w-10 text-center' },
                       { label: 'Seller / Empresa', cls: 'text-left' },
-                      { label: 'Volume Mensal',    cls: 'text-right' },
-                      { label: 'Saldo Médio',      cls: 'text-right hidden lg:table-cell' },
-                      { label: 'Chargeback',       cls: 'text-right hidden md:table-cell' },
-                      { label: 'MED Pix',          cls: 'text-right hidden md:table-cell' },
-                      { label: 'Reembolso',        cls: 'text-right hidden xl:table-cell' },
-                      { label: 'Reserva',          cls: 'text-right hidden lg:table-cell' },
-                      { label: 'Score',            cls: 'text-left min-w-[160px]' },
+                      { label: 'Score Total',      cls: 'text-left min-w-[150px]' },
+                      { label: 'CB',               cls: 'text-center hidden md:table-cell', title: 'Chargeback Score' },
+                      { label: 'MED',              cls: 'text-center hidden md:table-cell', title: 'MED Pix Score' },
+                      { label: 'Reimb.',           cls: 'text-center hidden lg:table-cell', title: 'Reembolso Score' },
+                      { label: 'Vol.',             cls: 'text-center hidden lg:table-cell', title: 'Volume Score' },
+                      { label: 'Saldo',            cls: 'text-center hidden xl:table-cell', title: 'Saldo Score' },
+                      { label: 'Reserva',          cls: 'text-center hidden xl:table-cell', title: 'Margem/Reserva Score' },
                       { label: 'Nível',            cls: 'text-center hidden sm:table-cell' },
                       { label: 'Status',           cls: 'text-center' },
-                      { label: 'Sugestão',         cls: 'text-left hidden xl:table-cell min-w-[200px]' },
-                      { label: '',                 cls: 'w-16' },
-                    ].map(({ label, cls }) => (
-                      <th key={label} className={`px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider ${cls}`}>
+                      { label: 'Observação',       cls: 'text-left hidden xl:table-cell min-w-[180px]' },
+                      { label: 'Atualizado',       cls: 'text-right hidden lg:table-cell' },
+                      { label: '',                 cls: 'w-24' },
+                    ].map(({ label, cls, title }) => (
+                      <th key={label} title={title} className={`px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider ${cls}`}>
                         {label}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/40">
-                  {sellers.map((s, i) => {
-                    const lm = levelMeta[s.level]
-                    const sm = statusMeta[s.status]
+                  {rows.map((m: any, i: number) => {
+                    const ms = m.masterScore
+                    const level  = (ms?.nivelScore  ?? 'Bronze')     as ScoreLevel
+                    const status = (ms?.statusRisco ?? 'Alto risco') as ScoreStatus
+                    const lm = levelMeta[level]
+                    const sm = statusMeta[status]
+
                     return (
-                      <tr key={s.id} className="hover:bg-slate-800/20 transition-colors group">
+                      <tr key={m.id} className="hover:bg-slate-800/20 transition-colors">
 
                         {/* Rank */}
                         <td className="px-4 py-3.5 text-center">
-                          <span className="text-[12px] font-bold text-slate-600 tabular-nums">
-                            {i + 1}
-                          </span>
+                          <span className="text-[12px] font-bold text-slate-600 tabular-nums">{i + 1}</span>
                         </td>
 
                         {/* Seller */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-2.5">
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${planDot[s.plan] ?? 'bg-slate-500'}`} />
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${planDot[m.plan] ?? 'bg-slate-500'}`} />
                             <div className="min-w-0">
-                              <p className="text-[13px] font-semibold text-slate-200 truncate max-w-[160px]">{s.name}</p>
-                              <p className="text-[11px] text-slate-600">{s.plan}</p>
+                              <p className="text-[13px] font-semibold text-slate-200 truncate max-w-[160px]">{m.name}</p>
+                              <p className="text-[11px] text-slate-600">{m.plan}</p>
                             </div>
                           </div>
                         </td>
 
-                        {/* Volume */}
-                        <td className="px-4 py-3.5 text-right">
-                          <span className="text-[13px] font-semibold text-slate-200 tabular-nums font-mono">
-                            {formatBRLCompact(s.volumeMensal)}
-                          </span>
-                        </td>
-
-                        {/* Saldo médio */}
-                        <td className="px-4 py-3.5 text-right hidden lg:table-cell">
-                          <span className="text-[12px] text-slate-400 tabular-nums font-mono">
-                            {formatBRLCompact(s.saldoMedio)}
-                          </span>
-                        </td>
-
-                        {/* Chargeback */}
-                        <td className="px-4 py-3.5 text-right hidden md:table-cell">
-                          <span className={`text-[13px] font-semibold tabular-nums font-mono ${
-                            s.taxaChargeback >= 1   ? 'text-red-400' :
-                            s.taxaChargeback >= 0.5 ? 'text-amber-400' :
-                            'text-slate-400'
-                          }`}>
-                            {s.taxaChargeback.toFixed(2)}%
-                          </span>
-                        </td>
-
-                        {/* MED Pix */}
-                        <td className="px-4 py-3.5 text-right hidden md:table-cell">
-                          <span className={`text-[13px] font-semibold tabular-nums ${
-                            s.qtdMedPix >= 5 ? 'text-red-400' :
-                            s.qtdMedPix >= 2 ? 'text-amber-400' :
-                            'text-slate-400'
-                          }`}>
-                            {s.qtdMedPix}
-                          </span>
-                        </td>
-
-                        {/* Reembolso */}
-                        <td className="px-4 py-3.5 text-right hidden xl:table-cell">
-                          <span className={`text-[12px] font-semibold tabular-nums font-mono ${
-                            s.taxaReembolso >= 5 ? 'text-amber-400' : 'text-slate-500'
-                          }`}>
-                            {s.taxaReembolso.toFixed(1)}%
-                          </span>
-                        </td>
-
-                        {/* Reserva */}
-                        <td className="px-4 py-3.5 text-right hidden lg:table-cell">
-                          <span className="text-[12px] text-slate-500 tabular-nums font-mono">
-                            {formatBRLCompact(s.reservaAtual)}
-                          </span>
-                        </td>
-
                         {/* Score bar */}
                         <td className="px-4 py-3.5">
-                          <ScoreBar score={s.score} />
+                          {ms ? (
+                            <ScoreBar score={Math.round(ms.scoreTotal)} />
+                          ) : (
+                            <span className="text-[11px] text-slate-700 italic">não calculado</span>
+                          )}
+                        </td>
+
+                        {/* Sub-scores */}
+                        <td className="px-4 py-3.5 text-center hidden md:table-cell">
+                          {ms ? <SubScoreCell score={Math.round(ms.chargebackScore)} /> : <span className="text-slate-800">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-center hidden md:table-cell">
+                          {ms ? <SubScoreCell score={Math.round(ms.medScore)} /> : <span className="text-slate-800">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-center hidden lg:table-cell">
+                          {ms ? <SubScoreCell score={Math.round(ms.reembolsoScore)} /> : <span className="text-slate-800">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-center hidden lg:table-cell">
+                          {ms ? <SubScoreCell score={Math.round(ms.volumeScore)} /> : <span className="text-slate-800">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-center hidden xl:table-cell">
+                          {ms ? <SubScoreCell score={Math.round(ms.saldoScore)} /> : <span className="text-slate-800">—</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-center hidden xl:table-cell">
+                          {ms ? <SubScoreCell score={Math.round(ms.margemScore)} /> : <span className="text-slate-800">—</span>}
                         </td>
 
                         {/* Nível */}
                         <td className="px-4 py-3.5 text-center hidden sm:table-cell">
                           <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${lm.color} ${lm.bg} ${lm.border}`}>
-                            {s.level}
+                            {level}
                           </span>
                         </td>
 
                         {/* Status */}
                         <td className="px-4 py-3.5 text-center">
                           <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${sm.color} ${sm.bg} ${sm.border}`}>
-                            {s.status}
+                            {status}
                           </span>
                         </td>
 
-                        {/* Sugestão */}
+                        {/* Observação */}
                         <td className="px-4 py-3.5 hidden xl:table-cell">
-                          <p className="text-[11px] text-slate-500 max-w-[200px] leading-relaxed">{s.sugestao}</p>
+                          <p className="text-[11px] text-slate-500 max-w-[200px] leading-relaxed line-clamp-2">
+                            {ms?.observacaoInterna ?? <span className="italic text-slate-700">—</span>}
+                          </p>
                         </td>
 
-                        {/* Ação */}
-                        <td className="px-4 py-3.5 text-right">
-                          <Link
-                            href={`/admin/clientes/${s.id}`}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 rounded-lg transition-colors"
-                          >
-                            Ver
-                          </Link>
+                        {/* Atualizado */}
+                        <td className="px-4 py-3.5 text-right hidden lg:table-cell">
+                          <span className="text-[11px] text-slate-700">
+                            {ms ? formatDate(ms.dataUltimaAtualizacao) : '—'}
+                          </span>
+                        </td>
+
+                        {/* Ações */}
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <RecalcSellerButton merchantId={m.id} />
+                            <Link
+                              href={`/admin/clientes/${m.id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/40 rounded-lg transition-colors"
+                            >
+                              Ver
+                            </Link>
+                          </div>
                         </td>
 
                       </tr>
@@ -505,18 +379,19 @@ export default async function MasterScorePage() {
                 </tbody>
               </table>
 
+              {/* Footer */}
               <div className="px-5 py-3 border-t border-slate-800/50 flex items-center justify-between">
                 <span className="text-[11px] text-slate-700">
-                  {sellers.length} seller{sellers.length !== 1 ? 's' : ''} analisado{sellers.length !== 1 ? 's' : ''}
+                  {rows.length} seller{rows.length !== 1 ? 's' : ''} · {comScore.length} com score calculado
                 </span>
                 <div className="flex items-center gap-4">
                   {(['Diamante', 'Ouro', 'Prata', 'Bronze'] as ScoreLevel[]).map((lv) => {
-                    const count = sellers.filter((s) => s.level === lv).length
+                    const count = comScore.filter((m: any) => m.masterScore?.nivelScore === lv).length
                     if (count === 0) return null
-                    const m = levelMeta[lv]
+                    const meta = levelMeta[lv]
                     return (
                       <span key={lv} className="text-[11px] text-slate-600">
-                        <span className={`font-semibold ${m.color}`}>{count}</span> {lv}
+                        <span className={`font-semibold ${meta.color}`}>{count}</span> {lv}
                       </span>
                     )
                   })}
@@ -526,30 +401,42 @@ export default async function MasterScorePage() {
           )}
         </section>
 
-        {/* Metodologia */}
-        <section className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-5 py-4">
-          <p className="text-[12px] font-semibold text-blue-400 mb-2">Como o Master Score é calculado</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {/* Sub-scores explicados */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <p className="text-[13px] font-semibold text-white">Composição do Score (pesos)</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Cada sub-score vale de 0 a 100 · Score final é a média ponderada</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 divide-x divide-y divide-slate-800/40">
             {[
-              { label: 'Taxa de Chargeback', desc: 'Peso elevado. Acima de 1% gera penalidade severa.', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', color: 'text-red-400' },
-              { label: 'MED Pix',            desc: 'Mecanismo especial de devolução. 5+ = bloqueio sugerido.', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', color: 'text-amber-400' },
-              { label: 'Taxa de Reembolso',  desc: 'Proporção de devoluções sobre o total de vendas.', icon: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', color: 'text-orange-400' },
-              { label: 'Volume e Reserva',   desc: 'Bônus por volume saudável e reserva adequada (3% do volume).', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', color: 'text-emerald-400' },
+              { label: 'Chargeback',  peso: 25, color: 'text-red-400',     desc: 'Taxa CB sobre vendas' },
+              { label: 'MED Pix',     peso: 20, color: 'text-orange-400',  desc: 'Ocorrências de MED' },
+              { label: 'Reembolso',   peso: 15, color: 'text-amber-400',   desc: 'Taxa de devoluções' },
+              { label: 'Volume',      peso: 12, color: 'text-blue-400',    desc: 'Volume mensal' },
+              { label: 'Reserva',     peso: 10, color: 'text-purple-400',  desc: 'Cobertura de reserva' },
+              { label: 'Saldo',       peso:  8, color: 'text-slate-300',   desc: 'Disponível + CDI' },
+              { label: 'Crescimento', peso:  6, color: 'text-emerald-400', desc: 'Variação mês a mês' },
+              { label: 'Maturidade',  peso:  4, color: 'text-slate-400',   desc: 'Dias de conta ativa' },
             ].map((item) => (
-              <div key={item.label} className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-lg bg-slate-800/60 flex items-center justify-center shrink-0 ${item.color}`}>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
-                  </svg>
+              <div key={item.label} className="px-4 py-3 flex flex-col gap-0.5">
+                <div className="flex items-center justify-between gap-1">
+                  <p className={`text-[11px] font-semibold ${item.color}`}>{item.label}</p>
+                  <span className="text-[11px] font-bold text-slate-500 tabular-nums">{item.peso}%</span>
                 </div>
-                <div>
-                  <p className="text-[12px] font-semibold text-slate-300">{item.label}</p>
-                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">{item.desc}</p>
+                <p className="text-[10px] text-slate-700">{item.desc}</p>
+                <div className="h-1 bg-slate-800/60 rounded-full mt-1 overflow-hidden">
+                  <div className="h-full bg-slate-600/60 rounded-full" style={{ width: `${item.peso * 4}%` }} />
                 </div>
               </div>
             ))}
           </div>
         </section>
+
+        {/* Nota de rodapé */}
+        <p className="text-[11px] text-slate-700 text-center">
+          O Master Score é uma ferramenta de apoio à decisão. Não bloqueia operações automaticamente nem altera saldos.
+          Atualize manualmente ou aguarde o recálculo por evento (nova venda, chargeback, MED Pix, reembolso, ajuste de reserva).
+        </p>
 
       </div>
     </div>
