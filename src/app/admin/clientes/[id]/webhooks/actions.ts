@@ -13,15 +13,20 @@ async function requireAdmin() {
 }
 
 const VALID_EVENTS = [
-  'sale.created',
-  'dispute.opened',
+  'payment.approved',
+  'payment.refused',
+  'refund.created',
+  'chargeback.opened',
+  'med.opened',
   'dispute.updated',
-  'merchant.activated',
-  'merchant.blocked',
-  'withdrawal.approved',
-  'withdrawal.denied',
+  'balance.updated',
+  'withdrawal.created',
+  'withdrawal.paid',
+  'withdrawal.rejected',
   'reserve.released',
   'cdi.credited',
+  'merchant.activated',
+  'merchant.blocked',
 ]
 
 export async function createWebhook(merchantId: string, url: string, events: string[]) {

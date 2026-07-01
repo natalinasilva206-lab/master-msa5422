@@ -53,14 +53,20 @@ export default async function WebhooksPage({ params }: PageProps) {
               <p className="text-[12px] font-semibold text-white">Eventos Disponíveis</p>
               <div className="space-y-1 text-[11px]">
                 {[
-                  ['sale.created',        'Nova venda processada'],
-                  ['dispute.opened',      'Disputa / chargeback aberto'],
+                  ['payment.approved',    'Pagamento aprovado via API'],
+                  ['payment.refused',     'Pagamento recusado'],
+                  ['refund.created',      'Reembolso criado'],
+                  ['chargeback.opened',   'Chargeback aberto pelo ADM'],
+                  ['med.opened',          'MED Pix aberto pelo ADM'],
                   ['dispute.updated',     'Disputa atualizada'],
+                  ['balance.updated',     'Saldo do merchant alterado'],
+                  ['withdrawal.created',  'Saque solicitado via API'],
+                  ['withdrawal.paid',     'Saque aprovado e pago'],
+                  ['withdrawal.rejected', 'Saque rejeitado'],
+                  ['reserve.released',    'Reserva de risco liberada'],
+                  ['cdi.credited',        'Rendimento CDI creditado'],
                   ['merchant.activated',  'Conta ativada'],
                   ['merchant.blocked',    'Conta bloqueada'],
-                  ['withdrawal.approved', 'Saque aprovado'],
-                  ['withdrawal.denied',   'Saque negado'],
-                  ['reserve.released',    'Reserva liberada'],
                 ].map(([evt, desc]) => (
                   <div key={evt} className="flex items-start gap-2">
                     <code className="text-blue-400 shrink-0">{evt}</code>

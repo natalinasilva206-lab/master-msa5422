@@ -468,55 +468,282 @@ export default async function IntegracoesPage() {
         {/* ── WEBHOOKS ────────────────────────────────────────────── */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60">
-            <p className="text-[13px] font-semibold text-white">Webhooks — eventos e payload</p>
-            <p className="text-[10.5px] text-slate-500 mt-0.5">Notificações entregues via POST no seu endpoint configurado</p>
-          </div>
-
-          {/* Formato do payload */}
-          <div className="px-5 py-4 border-b border-slate-800/40">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Formato do payload entregue</p>
-            <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40">
-{`// Header recebido no seu endpoint:
-// X-MasterPay-Signature: <hmac-sha256>
-// X-MasterPay-Event: sale.created
-
-// Body (JSON):
-{
-  "event": "sale.created",
-  "timestamp": "2024-07-01T14:32:00.000Z",
-  "data": {
-    "saleLogId": "clx1abc...",
-    "amount": 150.00,
-    "description": "Plano Mensal",
-    "externalId": "ORD-2024-001"
-  }
-}`}
-            </pre>
-            <p className="text-[10.5px] text-slate-600 mt-2">
-              Valide a assinatura comparando o header <code className="font-mono text-slate-400">X-MasterPay-Signature</code>{' '}
-              com <code className="font-mono text-slate-400">HMAC-SHA256(webhookSecret, bodyString)</code>.
-              Configure endpoints em{' '}
+            <p className="text-[13px] font-semibold text-white">Webhooks — eventos e exemplos de payload</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">
+              Notificações entregues via <code className="font-mono text-slate-400">POST</code> no seu endpoint. Gerencie em{' '}
               <a href="/cliente/minha-conta" className="text-blue-400 hover:underline">Minha Conta → Webhooks</a>.
             </p>
           </div>
 
-          {/* Lista de eventos */}
+          {/* Envelope + validação */}
+          <div className="px-5 py-4 border-b border-slate-800/40 space-y-3">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Envelope padrão (todos os eventos)</p>
+            <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40 overflow-x-auto">
+{`// Headers recebidos:
+X-MasterPay-Event:     payment.approved
+X-MasterPay-Signature: a3f9c1... (HMAC-SHA256)
+
+// Body JSON:
+{
+  "event":     "payment.approved",
+  "timestamp": "2024-07-01T14:32:00.000Z",
+  "data":      { /* veja cada evento abaixo */ }
+}`}
+            </pre>
+            <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 border border-slate-800/40 overflow-x-auto">
+{`// Validação da assinatura (Node.js):
+const crypto = require('crypto')
+
+function isValid(rawBody, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)          // string bruta — antes do JSON.parse
+    .digest('hex')
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  )
+}`}
+            </pre>
+          </div>
+
+          {/* Eventos com payload */}
           <div className="divide-y divide-slate-800/40">
-            {[
-              { event: 'sale.created',        desc: 'Nova venda registrada via API',                    color: 'text-emerald-400 bg-emerald-500/10' },
-              { event: 'reserve.released',    desc: 'Reserva de risco liberada para saldo disponível', color: 'text-purple-400 bg-purple-500/10' },
-              { event: 'withdrawal.approved', desc: 'Saque aprovado e liberado via Pix',               color: 'text-blue-400 bg-blue-500/10' },
-              { event: 'withdrawal.denied',   desc: 'Saque negado pela equipe',                        color: 'text-red-400 bg-red-500/10' },
-              { event: 'dispute.opened',      desc: 'Nova disputa ou chargeback aberto',               color: 'text-orange-400 bg-orange-500/10' },
-              { event: 'dispute.updated',     desc: 'Status de disputa atualizado',                    color: 'text-amber-400 bg-amber-500/10' },
-              { event: 'merchant.activated',  desc: 'Conta aprovada e ativada após KYC',              color: 'text-emerald-400 bg-emerald-500/10' },
-              { event: 'merchant.blocked',    desc: 'Conta bloqueada por risco ou disputa',            color: 'text-red-400 bg-red-500/10' },
-            ].map((e) => (
-              <div key={e.event} className="px-5 py-2.5 flex items-center gap-3">
-                <code className={`shrink-0 text-[11px] font-semibold font-mono px-2 py-0.5 rounded ${e.color}`}>{e.event}</code>
-                <span className="text-[12px] text-slate-500">{e.desc}</span>
-              </div>
-            ))}
+
+            <WebhookEventDoc
+              event="payment.approved"
+              color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+              when="Venda registrada com sucesso via POST /v1/sales."
+              payload={`{
+  "saleLogId":   "clx1abc...",
+  "amount":      150.00,
+  "description": "Plano Mensal",
+  "externalId":  "ORD-2024-001"
+}`}
+              fields={[
+                { name: 'saleLogId',   desc: 'ID interno da transação' },
+                { name: 'amount',      desc: 'Valor bruto da venda em BRL' },
+                { name: 'description', desc: 'Descrição informada na requisição (pode ser null)' },
+                { name: 'externalId',  desc: 'ID externo do pedido (pode ser null)' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="payment.refused"
+              color="text-red-400 bg-red-500/10 border-red-500/20"
+              when="Tentativa de venda recusada pelo processador de pagamento."
+              payload={`{
+  "amount":  150.00,
+  "reason":  "insufficient_funds",
+  "externalId": "ORD-2024-002"
+}`}
+              fields={[
+                { name: 'amount',     desc: 'Valor tentado em BRL' },
+                { name: 'reason',     desc: 'Código de recusa do processador' },
+                { name: 'externalId', desc: 'ID externo informado na requisição (pode ser null)' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="refund.created"
+              color="text-amber-400 bg-amber-500/10 border-amber-500/20"
+              when="Reembolso ou estorno aprovado pelo time operacional."
+              payload={`{
+  "saleLogId": "clx1abc...",
+  "amount":    150.00,
+  "type":      "REEMBOLSO",
+  "reason":    "Solicitação do cliente"
+}`}
+              fields={[
+                { name: 'saleLogId', desc: 'ID da transação original reembolsada' },
+                { name: 'amount',    desc: 'Valor reembolsado em BRL' },
+                { name: 'type',      desc: 'REEMBOLSO ou ESTORNO' },
+                { name: 'reason',    desc: 'Motivo informado pelo time (pode ser null)' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="chargeback.opened"
+              color="text-orange-400 bg-orange-500/10 border-orange-500/20"
+              when="Chargeback aberto pelo time operacional (disputa bancária)."
+              payload={`{
+  "disputeId":        "cly9abc...",
+  "type":             "CHARGEBACK",
+  "contestedAmount":  150.00
+}`}
+              fields={[
+                { name: 'disputeId',       desc: 'ID interno da disputa' },
+                { name: 'type',            desc: 'Sempre CHARGEBACK' },
+                { name: 'contestedAmount', desc: 'Valor contestado em BRL' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="med.opened"
+              color="text-orange-400 bg-orange-500/10 border-orange-500/20"
+              when="MED Pix aberto pelo time operacional (mecanismo especial de devolução)."
+              payload={`{
+  "disputeId":        "cly9def...",
+  "type":             "MED_PIX",
+  "contestedAmount":  75.00
+}`}
+              fields={[
+                { name: 'disputeId',       desc: 'ID interno da disputa' },
+                { name: 'type',            desc: 'Sempre MED_PIX' },
+                { name: 'contestedAmount', desc: 'Valor contestado em BRL' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="dispute.updated"
+              color="text-amber-400 bg-amber-500/10 border-amber-500/20"
+              when="Status de uma disputa existente é atualizado (resolvida, perdida, etc.)."
+              payload={`{
+  "disputeId": "cly9abc...",
+  "newStatus": "RESOLVIDO"
+}`}
+              fields={[
+                { name: 'disputeId', desc: 'ID interno da disputa atualizada' },
+                { name: 'newStatus', desc: 'Novo status: ABERTO | RESOLVIDO | PERDIDO | CANCELADO' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="balance.updated"
+              color="text-blue-400 bg-blue-500/10 border-blue-500/20"
+              when="Saldo do merchant é alterado (crédito de venda, liberação de reserva, débito de saque, etc.)."
+              payload={`{
+  "available": 1280.50,
+  "reserved":   450.00,
+  "blocked":      0.00,
+  "reason":    "sale_credited"
+}`}
+              fields={[
+                { name: 'available', desc: 'Novo saldo disponível após a alteração' },
+                { name: 'reserved',  desc: 'Saldo em reserva de risco' },
+                { name: 'blocked',   desc: 'Saldo bloqueado por disputa' },
+                { name: 'reason',    desc: 'Motivo: sale_credited | reserve_released | withdrawal_deducted | chargeback_blocked' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="withdrawal.created"
+              color="text-blue-400 bg-blue-500/10 border-blue-500/20"
+              when="Saque solicitado via POST /v1/withdrawals. Ainda pendente de aprovação."
+              payload={`{
+  "withdrawalId": "clx9xyz...",
+  "amount":       500.00,
+  "pixKey":       "empresa@email.com",
+  "pixKeyType":   "EMAIL"
+}`}
+              fields={[
+                { name: 'withdrawalId', desc: 'ID interno da solicitação de saque' },
+                { name: 'amount',       desc: 'Valor solicitado em BRL' },
+                { name: 'pixKey',       desc: 'Chave Pix de destino' },
+                { name: 'pixKeyType',   desc: 'CPF | CNPJ | EMAIL | TELEFONE | ALEATORIA' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="withdrawal.paid"
+              color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+              when="Saque aprovado e transferido via Pix pelo time operacional."
+              payload={`{
+  "merchantId":    "${idPlaceholder}",
+  "amount":        500.00,
+  "requestLogId":  "clx9xyz..."
+}`}
+              fields={[
+                { name: 'merchantId',   desc: 'ID do merchant beneficiário' },
+                { name: 'amount',       desc: 'Valor pago em BRL' },
+                { name: 'requestLogId', desc: 'ID do registro de solicitação original' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="withdrawal.rejected"
+              color="text-red-400 bg-red-500/10 border-red-500/20"
+              when="Saque rejeitado pelo time operacional. O valor é devolvido ao saldo disponível."
+              payload={`{
+  "merchantId":    "${idPlaceholder}",
+  "amount":        500.00,
+  "requestLogId":  "clx9xyz..."
+}`}
+              fields={[
+                { name: 'merchantId',   desc: 'ID do merchant' },
+                { name: 'amount',       desc: 'Valor devolvido ao saldo em BRL' },
+                { name: 'requestLogId', desc: 'ID do registro de solicitação original' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="reserve.released"
+              color="text-purple-400 bg-purple-500/10 border-purple-500/20"
+              when="Reserva de risco de uma venda é liberada para o saldo disponível ao atingir o prazo."
+              payload={`{
+  "merchantId":    "${idPlaceholder}",
+  "amount":         22.50,
+  "saleLogId":     "clx1abc...",
+  "releasedAt":    "2024-08-01T03:00:00.000Z"
+}`}
+              fields={[
+                { name: 'merchantId', desc: 'ID do merchant' },
+                { name: 'amount',     desc: 'Valor liberado em BRL' },
+                { name: 'saleLogId',  desc: 'ID da venda original que gerou a reserva' },
+                { name: 'releasedAt', desc: 'Data e hora ISO da liberação' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="cdi.credited"
+              color="text-purple-400 bg-purple-500/10 border-purple-500/20"
+              when="Rendimento CDI creditado mensalmente no saldo investido."
+              payload={`{
+  "sellerId":      "${idPlaceholder}",
+  "amount":         12.80,
+  "baseBalance":   320.00,
+  "cdiRate":        0.04,
+  "creditedAt":    "2024-07-01T03:00:00.000Z",
+  "newCdiBalance": 332.80
+}`}
+              fields={[
+                { name: 'sellerId',      desc: 'ID do merchant beneficiário' },
+                { name: 'amount',        desc: 'Rendimento creditado em BRL' },
+                { name: 'baseBalance',   desc: 'Saldo base sobre o qual o CDI foi calculado' },
+                { name: 'cdiRate',       desc: 'Taxa CDI aplicada no ciclo' },
+                { name: 'creditedAt',    desc: 'Data e hora ISO do crédito' },
+                { name: 'newCdiBalance', desc: 'Novo saldo CDI após o crédito' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="merchant.activated"
+              color="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+              when="Conta aprovada e ativada após revisão de KYC."
+              payload={`{
+  "merchantId": "${idPlaceholder}",
+  "newStatus":  "ACTIVE"
+}`}
+              fields={[
+                { name: 'merchantId', desc: 'ID do merchant ativado' },
+                { name: 'newStatus',  desc: 'Sempre ACTIVE' },
+              ]}
+            />
+
+            <WebhookEventDoc
+              event="merchant.blocked"
+              color="text-red-400 bg-red-500/10 border-red-500/20"
+              when="Conta bloqueada por risco, disputa ou decisão operacional."
+              payload={`{
+  "merchantId": "${idPlaceholder}",
+  "newStatus":  "BLOCKED"
+}`}
+              fields={[
+                { name: 'merchantId', desc: 'ID do merchant bloqueado' },
+                { name: 'newStatus',  desc: 'Sempre BLOCKED' },
+              ]}
+            />
+
           </div>
         </section>
 
@@ -605,6 +832,36 @@ function ErrorTable({ errors }: { errors: { code: number; desc: string }[] }) {
               e.code >= 500 ? 'text-red-400' : e.code >= 400 ? 'text-amber-400' : 'text-emerald-400'
             }`}>{e.code}</code>
             <span className="text-slate-500">{e.desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function WebhookEventDoc({
+  event, color, when, payload, fields,
+}: {
+  event: string
+  color: string
+  when: string
+  payload: string
+  fields: { name: string; desc: string }[]
+}) {
+  return (
+    <div className="px-5 py-4 space-y-3">
+      <div className="flex items-start gap-3 flex-wrap">
+        <code className={`shrink-0 text-[11px] font-semibold font-mono px-2.5 py-1 rounded border ${color}`}>{event}</code>
+        <p className="text-[11.5px] text-slate-500 flex-1">{when}</p>
+      </div>
+      <pre className="text-[11px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-3.5 overflow-x-auto border border-slate-800/40 leading-relaxed">
+        {`// data:\n${payload}`}
+      </pre>
+      <div className="space-y-1">
+        {fields.map((f) => (
+          <div key={f.name} className="flex gap-2 text-[11px]">
+            <code className="font-mono text-blue-400 w-28 shrink-0">{f.name}</code>
+            <span className="text-slate-600">{f.desc}</span>
           </div>
         ))}
       </div>

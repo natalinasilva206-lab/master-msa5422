@@ -2,15 +2,20 @@ import { prisma } from '@/lib/prisma'
 import { signWebhookPayload } from '@/lib/apiKey'
 
 export type WebhookEvent =
-  | 'sale.created'
-  | 'dispute.opened'
+  | 'payment.approved'
+  | 'payment.refused'
+  | 'refund.created'
+  | 'chargeback.opened'
+  | 'med.opened'
   | 'dispute.updated'
-  | 'merchant.activated'
-  | 'merchant.blocked'
-  | 'withdrawal.approved'
-  | 'withdrawal.denied'
+  | 'balance.updated'
+  | 'withdrawal.created'
+  | 'withdrawal.paid'
+  | 'withdrawal.rejected'
   | 'reserve.released'
   | 'cdi.credited'
+  | 'merchant.activated'
+  | 'merchant.blocked'
 
 const MAX_RESPONSE_CHARS = 1000
 const TIMEOUT_MS         = 8000

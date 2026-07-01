@@ -4,15 +4,20 @@ import { useState, useTransition } from 'react'
 import { createWebhook, toggleWebhook, deleteWebhook, rotateWebhookSecret } from './actions'
 
 const ALL_EVENTS = [
-  { value: 'sale.created',        label: 'Venda criada' },
-  { value: 'dispute.opened',      label: 'Disputa aberta' },
-  { value: 'dispute.updated',     label: 'Disputa atualizada' },
-  { value: 'merchant.activated',  label: 'Merchant ativado' },
-  { value: 'merchant.blocked',    label: 'Merchant bloqueado' },
-  { value: 'withdrawal.approved', label: 'Saque aprovado' },
-  { value: 'withdrawal.denied',   label: 'Saque negado' },
-  { value: 'reserve.released',    label: 'Reserva liberada' },
-  { value: 'cdi.credited',        label: 'CDI creditado' },
+  { value: 'payment.approved',   label: 'Pagamento aprovado' },
+  { value: 'payment.refused',    label: 'Pagamento recusado' },
+  { value: 'refund.created',     label: 'Reembolso criado' },
+  { value: 'chargeback.opened',  label: 'Chargeback aberto' },
+  { value: 'med.opened',         label: 'MED Pix aberto' },
+  { value: 'dispute.updated',    label: 'Disputa atualizada' },
+  { value: 'balance.updated',    label: 'Saldo atualizado' },
+  { value: 'withdrawal.created', label: 'Saque solicitado' },
+  { value: 'withdrawal.paid',    label: 'Saque pago' },
+  { value: 'withdrawal.rejected', label: 'Saque rejeitado' },
+  { value: 'reserve.released',   label: 'Reserva liberada' },
+  { value: 'cdi.credited',       label: 'CDI creditado' },
+  { value: 'merchant.activated', label: 'Conta ativada' },
+  { value: 'merchant.blocked',   label: 'Conta bloqueada' },
 ]
 
 interface Endpoint {

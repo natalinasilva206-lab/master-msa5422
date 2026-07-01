@@ -21,6 +21,8 @@ export default async function AdminIntegracoesPage() {
     vendas30d,
     vendas7d,
     merchantsComApiAtiva,
+    totalDeliveries7d,
+    falhas7d,
   ] = await Promise.all([
     prisma.merchant.count(),
     prisma.merchant.count({ where: { apiKey: { not: null } } }),
@@ -28,13 +30,45 @@ export default async function AdminIntegracoesPage() {
     prisma.webhookEndpoint.count({ where: { active: true } }),
     prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } } }),
     prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago7d } } }),
-    // Merchants que fizeram pelo menos 1 venda nos últimos 30d (API ativa)
     prisma.saleLog.findMany({
       where:    { type: 'VENDA', createdAt: { gte: ago30d } },
       select:   { merchantId: true },
       distinct: ['merchantId'],
     }).then((r) => r.length),
+    prisma.webhookDelivery.count({ where: { createdAt: { gte: ago7d } } }),
+    prisma.webhookDelivery.count({ where: { success: false, createdAt: { gte: ago7d } } }),
   ])
+
+  // Últimas falhas de webhook (success=false, últimas 48h para monitoramento rápido)
+  const ago48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
+  const falhasRecentes = await prisma.webhookDelivery.findMany({
+    where:   { success: false, createdAt: { gte: ago48h } },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+    select: {
+      id:         true,
+      merchantId: true,
+      event:      true,
+      url:        true,
+      statusCode: true,
+      error:      true,
+      attempt:    true,
+      createdAt:  true,
+    },
+  })
+
+  // Nomes dos merchants para exibição na tabela
+  const merchantIds = Array.from(new Set(falhasRecentes.map((f) => f.merchantId)))
+  const merchantNames = merchantIds.length > 0
+    ? await prisma.merchant.findMany({
+        where:  { id: { in: merchantIds } },
+        select: { id: true, name: true },
+      }).then((ms) => Object.fromEntries(ms.map((m) => [m.id, m.name])))
+    : {} as Record<string, string>
+
+  const taxaFalha = totalDeliveries7d > 0
+    ? Math.round((falhas7d / totalDeliveries7d) * 100)
+    : 0
 
   // Lista de merchants com status de integração
   const merchants = await prisma.merchant.findMany({
@@ -76,6 +110,27 @@ export default async function AdminIntegracoesPage() {
       value: webhooksAtivos.toString(),
       sub: `${merchantsComApiAtiva} merchants com uso nos 30d`,
       color: webhooksAtivos > 0 ? 'text-purple-400' : 'text-slate-500',
+    },
+  ]
+
+  const webhookHealth = [
+    {
+      label: 'Entregas (7d)',
+      value: totalDeliveries7d.toLocaleString('pt-BR'),
+      sub: `${falhas7d} falha${falhas7d !== 1 ? 's' : ''}`,
+      color: 'text-blue-400',
+    },
+    {
+      label: 'Taxa de falha (7d)',
+      value: `${taxaFalha}%`,
+      sub: totalDeliveries7d > 0 ? `de ${totalDeliveries7d} tentativas` : 'sem dados',
+      color: taxaFalha === 0 ? 'text-emerald-400' : taxaFalha < 10 ? 'text-amber-400' : 'text-red-400',
+    },
+    {
+      label: 'Falhas (48h)',
+      value: falhasRecentes.length.toString(),
+      sub: falhasRecentes.length > 0 ? 'requerem atenção' : 'tudo ok',
+      color: falhasRecentes.length === 0 ? 'text-emerald-400' : 'text-red-400',
     },
   ]
 
@@ -174,6 +229,97 @@ export default async function AdminIntegracoesPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* Webhook Health */}
+        <section>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Saúde dos Webhooks</p>
+          <div className="grid grid-cols-3 gap-3">
+            {webhookHealth.map((h) => (
+              <div key={h.label} className="bg-slate-900/60 border border-slate-800/70 rounded-xl p-4">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{h.label}</p>
+                <p className={`text-[20px] font-bold tabular-nums ${h.color}`}>{h.value}</p>
+                <p className="text-[12px] text-slate-600 mt-1">{h.sub}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Falhas recentes */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
+            <div>
+              <p className="text-[13px] font-semibold text-white">Falhas recentes de webhook</p>
+              <p className="text-[10.5px] text-slate-500 mt-0.5">Entregas com <code className="font-mono">success = false</code> nas últimas 48 horas</p>
+            </div>
+            {falhasRecentes.length > 0 && (
+              <span className="text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
+                {falhasRecentes.length} falha{falhasRecentes.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          {falhasRecentes.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-[12px] text-emerald-400 font-semibold">Nenhuma falha nas últimas 48h</p>
+              <p className="text-[11px] text-slate-600 mt-1">Todas as entregas de webhook foram bem-sucedidas.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11.5px]">
+                <thead>
+                  <tr className="border-b border-slate-800/60">
+                    <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Seller</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Evento</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">URL</th>
+                    <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="text-center px-3 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Tentativas</th>
+                    <th className="text-right px-5 py-2.5 text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Quando</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40">
+                  {falhasRecentes.map((f) => (
+                    <tr key={f.id} className="hover:bg-slate-800/20 transition-colors">
+                      <td className="px-5 py-2.5">
+                        <a href={`/admin/clientes/${f.merchantId}`} className="text-slate-300 hover:text-white transition-colors font-medium text-[11px]">
+                          {merchantNames[f.merchantId] ?? f.merchantId.slice(0, 12) + '…'}
+                        </a>
+                        <p className="text-[9.5px] text-slate-700 font-mono">{f.merchantId.slice(0, 14)}…</p>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <code className="text-[10.5px] font-mono text-amber-400">{f.event}</code>
+                      </td>
+                      <td className="px-4 py-2.5 max-w-[180px]">
+                        <p className="text-[10.5px] font-mono text-slate-500 truncate">{f.url}</p>
+                        {f.error && (
+                          <p className="text-[9.5px] text-red-400/80 truncate mt-0.5">{f.error}</p>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        {f.statusCode ? (
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded font-mono ${
+                            f.statusCode >= 500 ? 'text-red-400 bg-red-500/10' :
+                            f.statusCode >= 400 ? 'text-amber-400 bg-amber-500/10' :
+                            'text-slate-400 bg-slate-700/40'
+                          }`}>{f.statusCode}</span>
+                        ) : (
+                          <span className="text-[10px] text-red-400">timeout</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className="text-[10px] text-slate-500 tabular-nums">{f.attempt}</span>
+                      </td>
+                      <td className="px-5 py-2.5 text-right">
+                        <p className="text-[10.5px] text-slate-600 tabular-nums">
+                          {f.createdAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {/* Endpoints reference */}

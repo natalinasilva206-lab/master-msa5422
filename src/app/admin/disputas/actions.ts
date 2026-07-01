@@ -133,7 +133,11 @@ export async function createDispute(
       return d
     })
 
-    dispatchWebhook(input.merchantId, 'dispute.opened', { disputeId: dispute.id, type: input.type, contestedAmount: input.contestedAmount }).catch(() => {})
+    dispatchWebhook(
+      input.merchantId,
+      input.type === 'MED_PIX' ? 'med.opened' : 'chargeback.opened',
+      { disputeId: dispute.id, type: input.type, contestedAmount: input.contestedAmount },
+    ).catch(() => {})
     scheduleScoreRecalc(input.merchantId, 'chargeback_opened')
 
     revalidatePath('/admin/disputas')

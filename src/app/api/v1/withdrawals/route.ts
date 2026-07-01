@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyApiKey } from '@/lib/apiKey'
+import { dispatchWebhook } from '@/lib/dispatchWebhook'
 
 // GET /api/v1/withdrawals
 // Header: Authorization: Bearer <apiKey>
@@ -131,6 +132,13 @@ export async function POST(req: NextRequest) {
         },
       }),
     ])
+
+    dispatchWebhook(merchantId, 'withdrawal.created', {
+      withdrawalId: log.id,
+      amount,
+      pixKey,
+      pixKeyType,
+    }).catch(() => {})
 
     return NextResponse.json({ ok: true, withdrawalId: log.id, amount, pixKey, pixKeyType, status: 'PENDENTE' }, { status: 201 })
   } catch (e: any) {

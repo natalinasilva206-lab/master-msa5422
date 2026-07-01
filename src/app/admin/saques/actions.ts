@@ -55,7 +55,7 @@ export async function resolveWithdrawal(
     })
   }
 
-  dispatchWebhook(merchantId, approve ? 'withdrawal.approved' : 'withdrawal.denied', { merchantId, amount, requestLogId }).catch(() => {})
+  dispatchWebhook(merchantId, approve ? 'withdrawal.paid' : 'withdrawal.rejected', { merchantId, amount, requestLogId }).catch(() => {})
 
   revalidatePath('/admin/saques')
   revalidatePath('/cliente/saques')

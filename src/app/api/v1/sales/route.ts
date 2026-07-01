@@ -47,11 +47,11 @@ export async function POST(req: NextRequest) {
     })
 
     // Dispara webhook assincronamente (sem bloquear a resposta)
-    dispatchWebhook(merchantId, 'sale.created', {
-      saleLogId: result.saleLogId,
-      amount: saleAmount,
-      description,
-      externalId,
+    dispatchWebhook(merchantId, 'payment.approved', {
+      saleLogId:   result.saleLogId,
+      amount:      saleAmount,
+      description: description ?? null,
+      externalId:  externalId  ?? null,
     }).catch(() => {})
 
     return NextResponse.json({ ok: true, ...result })
