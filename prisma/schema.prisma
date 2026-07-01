@@ -137,6 +137,7 @@ model SaleLog {
   description String?
   externalId  String?
   disputeId   String?
+  metadata    String?  // JSON: { source?: "api" | "admin" | "internal" }
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       description,
       externalId,
       triggeredBy,
+      source: 'api',
     })
 
     // Dispara webhook assincronamente (sem bloquear a resposta)

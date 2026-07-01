@@ -7,6 +7,7 @@ export interface SalePayload {
   description?: string          // descrição / ID externo
   externalId?:  string          // ID na plataforma do gateway
   triggeredBy:  string          // userId que disparou (admin ou sistema)
+  source?:      'api' | 'admin' | 'internal'  // origem da operação
 }
 
 export interface SaleResult {
@@ -22,7 +23,7 @@ export interface SaleResult {
 }
 
 export async function processSalePayment(payload: SalePayload): Promise<SaleResult> {
-  const { merchantId, saleAmount, description, externalId, triggeredBy } = payload
+  const { merchantId, saleAmount, description, externalId, triggeredBy, source } = payload
 
   if (saleAmount <= 0) throw new Error('Valor de venda inválido.')
 
@@ -76,6 +77,7 @@ export async function processSalePayment(payload: SalePayload): Promise<SaleResu
         feeCost,
         description: description ?? null,
         externalId:  externalId  ?? null,
+        metadata:    source ? JSON.stringify({ source }) : null,
       },
     })
 

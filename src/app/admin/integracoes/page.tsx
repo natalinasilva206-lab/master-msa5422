@@ -31,8 +31,8 @@ export default async function AdminIntegracoesPage() {
     prisma.merchant.count(),
     prisma.merchant.count({ where: { apiKey: { not: null } } }),
     prisma.webhookEndpoint.count({ where: { active: true } }),
-    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } } }),
-    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago7d  } } }),
+    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', metadata: { contains: '"source":"api"' }, createdAt: { gte: ago30d } } }),
+    prisma.saleLog.count({ where: { type: 'VENDA', status: 'APROVADO', metadata: { contains: '"source":"api"' }, createdAt: { gte: ago7d  } } }),
     prisma.webhookDelivery.count({ where: { createdAt: { gte: ago7d } } }),
     prisma.webhookDelivery.count({ where: { success: false, createdAt: { gte: ago7d } } }),
     prisma.auditLog.count({
@@ -41,7 +41,7 @@ export default async function AdminIntegracoesPage() {
   ])
 
   const vendedores30dIds = await prisma.saleLog.findMany({
-    where: { type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } },
+    where: { type: 'VENDA', status: 'APROVADO', metadata: { contains: '"source":"api"' }, createdAt: { gte: ago30d } },
     select: { merchantId: true },
     distinct: ['merchantId'],
   }).then((r) => new Set(r.map((x) => x.merchantId)))
@@ -65,12 +65,12 @@ export default async function AdminIntegracoesPage() {
 
   const vendasPorMerchant = await prisma.saleLog.groupBy({
     by: ['merchantId'],
-    where: { merchantId: { in: mIds }, type: 'VENDA', status: 'APROVADO', createdAt: { gte: ago30d } },
+    where: { merchantId: { in: mIds }, type: 'VENDA', status: 'APROVADO', metadata: { contains: '"source":"api"' }, createdAt: { gte: ago30d } },
     _count: { _all: true },
   }).then((r) => Object.fromEntries(r.map((x) => [x.merchantId, x._count._all])))
 
   const ultimaVendaList = await prisma.saleLog.findMany({
-    where: { merchantId: { in: mIds }, type: 'VENDA', status: 'APROVADO' },
+    where: { merchantId: { in: mIds }, type: 'VENDA', status: 'APROVADO', metadata: { contains: '"source":"api"' } },
     orderBy: { createdAt: 'desc' },
     distinct: ['merchantId'],
     select: { merchantId: true, createdAt: true },
