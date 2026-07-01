@@ -310,68 +310,170 @@ export default async function ClienteCdiPage() {
           />
         )}
 
-        {/* KPIs */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {[
-            {
-              label: 'Saldo em CDI',
-              value: `R$ ${formatBRL(saldo)}`,
-              sub: 'rendendo agora',
-              color: 'text-emerald-400',
-              border: 'border-emerald-500/20',
-              iconBg: 'bg-emerald-500/10 text-emerald-400',
-              icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z',
-            },
-            {
-              label: 'Rendimento Acumulado',
-              value: `R$ ${formatBRL(totalCdiEarned)}`,
-              sub: `${cdiCreditLogs.length} crédito${cdiCreditLogs.length !== 1 ? 's' : ''} recebido${cdiCreditLogs.length !== 1 ? 's' : ''}`,
-              color: 'text-blue-400',
-              border: 'border-blue-500/15',
-              iconBg: 'bg-blue-500/10 text-blue-400',
-              icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
-            },
-            {
-              label: 'Retorno Total',
-              value: totalAportado > 0 ? `+${retornoTotal.toFixed(2)}%` : '—',
-              sub: totalAportado > 0 ? `sobre R$ ${formatBRL(totalAportado)} aportados` : 'aporte para começar',
-              color: retornoTotal > 0 ? 'text-emerald-300' : 'text-slate-500',
-              border: 'border-slate-800/70',
-              iconBg: 'bg-emerald-500/10 text-emerald-500',
-              icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-            },
-            {
-              label: 'Rendimento/Mês',
-              value: saldo > 0 ? `R$ ${formatBRL(rendimentoMes)}` : '—',
-              sub: `${cdiRate.toFixed(2)}%/mês · plano ${plano}`,
-              color: 'text-white',
-              border: 'border-slate-800/70',
-              iconBg: 'bg-purple-500/10 text-purple-400',
-              icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
-            },
-            {
-              label: 'Em 12 Meses',
-              value: saldo > 0 ? `R$ ${formatBRL(rendimento12m)}` : '—',
-              sub: `${cdiAnual.toFixed(2)}% a.a. equivalente`,
-              color: 'text-purple-400',
-              border: 'border-slate-800/70',
-              iconBg: 'bg-slate-800/60 text-slate-400',
-              icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-            },
-          ].map((c) => (
-            <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 hover:bg-slate-800/40 transition-colors`}>
-              <div className="flex items-start justify-between mb-2">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest leading-tight">{c.label}</p>
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-1 ${c.iconBg}`}>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={c.icon} />
-                  </svg>
-                </div>
+        {/* KPIs — Saldo CDI com composição detalhada */}
+        <section className="space-y-3">
+
+          {/* Cartão principal — saldo total + composição visual */}
+          <div className="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1">Saldo CDI Total</p>
+                <p className="text-[32px] font-bold text-emerald-400 tabular-nums leading-none">
+                  R$ {formatBRL(saldo)}
+                </p>
+                <p className="text-[11px] text-slate-600 mt-1.5">
+                  rendendo {cdiRate.toFixed(2)}%/mês · {cdiAnual.toFixed(2)}% a.a. · plano {plano}
+                </p>
               </div>
-              <p className={`text-[20px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
-              <p className="text-[12px] text-slate-600 mt-1.5">{c.sub}</p>
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
             </div>
-          ))}
+
+            {/* Barra de composição visual */}
+            {saldo > 0 && (() => {
+              const pendingEarlyTotal = Array.from(pendingByLock.values()).reduce((s, v) => s + v.amount, 0)
+              const bloqueadoSemPending = lockedTotal - pendingEarlyTotal
+              const livreW   = (freeCdiBalance / saldo) * 100
+              const bloqW    = (bloqueadoSemPending / saldo) * 100
+              const earlyW   = (pendingEarlyTotal / saldo) * 100
+              return (
+                <div className="mb-4">
+                  <div className="flex h-2 rounded-full overflow-hidden gap-0.5 mb-3">
+                    {freeCdiBalance > 0     && <div className="bg-emerald-500 rounded-full"   style={{ width: `${livreW}%` }} title={`Livre: R$ ${formatBRL(freeCdiBalance)}`} />}
+                    {bloqueadoSemPending > 0 && <div className="bg-blue-500 rounded-full"     style={{ width: `${bloqW}%` }} title={`Bloqueado: R$ ${formatBRL(bloqueadoSemPending)}`} />}
+                    {pendingEarlyTotal > 0  && <div className="bg-amber-500 rounded-full"     style={{ width: `${earlyW}%` }} title={`Em resgate: R$ ${formatBRL(pendingEarlyTotal)}`} />}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                      Livre para resgate
+                      <span className="font-bold text-emerald-400 tabular-nums">R$ {formatBRL(freeCdiBalance)}</span>
+                    </span>
+                    {bloqueadoSemPending > 0 && (
+                      <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                        Bloqueado em títulos
+                        <span className="font-bold text-blue-400 tabular-nums">R$ {formatBRL(bloqueadoSemPending)}</span>
+                      </span>
+                    )}
+                    {pendingEarlyTotal > 0 && (
+                      <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                        Em resgate antecipado
+                        <span className="font-bold text-amber-400 tabular-nums">R$ {formatBRL(pendingEarlyTotal)}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Linha divisória */}
+            <div className="border-t border-slate-800/60 pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {(() => {
+                const pendingEarlyTotal = Array.from(pendingByLock.values()).reduce((s, v) => s + v.amount, 0)
+                const bloqueadoSemPending = lockedTotal - pendingEarlyTotal
+                return [
+                  {
+                    label: 'Livre para resgate',
+                    value: `R$ ${formatBRL(freeCdiBalance)}`,
+                    color: 'text-emerald-400',
+                    dot: 'bg-emerald-500',
+                    alert: false,
+                  },
+                  {
+                    label: 'Bloqueado em títulos',
+                    value: bloqueadoSemPending > 0 ? `R$ ${formatBRL(bloqueadoSemPending)}` : '—',
+                    color: bloqueadoSemPending > 0 ? 'text-blue-400' : 'text-slate-600',
+                    dot: 'bg-blue-500',
+                    alert: false,
+                  },
+                  {
+                    label: 'Em resgate antecipado',
+                    value: pendingEarlyTotal > 0 ? `R$ ${formatBRL(pendingEarlyTotal)}` : '—',
+                    color: pendingEarlyTotal > 0 ? 'text-amber-400' : 'text-slate-600',
+                    dot: 'bg-amber-500',
+                    alert: pendingEarlyTotal > 0,
+                  },
+                  {
+                    label: 'Rendimento acumulado',
+                    value: totalCdiEarned > 0 ? `R$ ${formatBRL(totalCdiEarned)}` : '—',
+                    color: totalCdiEarned > 0 ? 'text-purple-400' : 'text-slate-600',
+                    dot: 'bg-purple-500',
+                    alert: false,
+                  },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.dot}`} />
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{item.label}</p>
+                      {item.alert && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
+                    </div>
+                    <p className={`text-[15px] font-bold tabular-nums ${item.color}`}>{item.value}</p>
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+
+          {/* Linha de KPIs secundários */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              {
+                label: 'Rendimento/Mês',
+                value: saldo > 0 ? `R$ ${formatBRL(rendimentoMes)}` : '—',
+                sub: 'projeção do mês atual',
+                color: 'text-white',
+                border: 'border-slate-800/70',
+                iconBg: 'bg-purple-500/10 text-purple-400',
+                icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
+              },
+              {
+                label: 'Em 12 Meses',
+                value: saldo > 0 ? `R$ ${formatBRL(rendimento12m)}` : '—',
+                sub: `${cdiAnual.toFixed(2)}% a.a.`,
+                color: 'text-purple-400',
+                border: 'border-slate-800/70',
+                iconBg: 'bg-slate-800/60 text-slate-400',
+                icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+              },
+              {
+                label: 'Retorno Total',
+                value: totalAportado > 0 ? `+${retornoTotal.toFixed(2)}%` : '—',
+                sub: totalAportado > 0 ? `sobre R$ ${formatBRL(totalAportado)} aportados` : '—',
+                color: retornoTotal > 0 ? 'text-emerald-300' : 'text-slate-500',
+                border: 'border-slate-800/70',
+                iconBg: 'bg-emerald-500/10 text-emerald-500',
+                icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+              },
+              {
+                label: 'Taxa CDI',
+                value: `${cdiRate.toFixed(2)}%/mês`,
+                sub: `${cdiAnual.toFixed(2)}% a.a. · plano ${plano}`,
+                color: 'text-amber-400',
+                border: 'border-amber-500/15',
+                iconBg: 'bg-amber-500/10 text-amber-400',
+                icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',
+              },
+            ].map((c) => (
+              <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4 hover:bg-slate-800/40 transition-colors`}>
+                <div className="flex items-start justify-between mb-2">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest leading-tight">{c.label}</p>
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-1 ${c.iconBg}`}>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={c.icon} />
+                    </svg>
+                  </div>
+                </div>
+                <p className={`text-[18px] font-bold tabular-nums leading-none ${c.color}`}>{c.value}</p>
+                <p className="text-[11px] text-slate-600 mt-1.5">{c.sub}</p>
+              </div>
+            ))}
+          </div>
+
         </section>
 
         {/* Chart + Comparativo */}

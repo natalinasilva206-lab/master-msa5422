@@ -146,6 +146,31 @@ export default async function CdiPage({ searchParams }: PageProps) {
       return { id: r.id, merchantId: r.entityId ?? '', sellerName, amount, createdAt: r.createdAt, cdiBalance }
     })
 
+  // Compute per-merchant locked and pending-early totals for breakdown
+  const merchantLockedMap = new Map<string, number>()      // merchantId → locked em títulos
+  const merchantEarlyMap  = new Map<string, number>()      // merchantId → em resgate antecipado
+
+  // locked = CDI_LOCK_SET logs com vencimento futuro (same logic as client page)
+  for (const log of prazoLogs) {
+    if (log.action !== 'CDI_LOCK_SET' || !log.entityId) continue
+    try {
+      const m = JSON.parse(log.metadata ?? '{}')
+      if (!m.expiresAt || !m.amount) continue
+      if (new Date(m.expiresAt + 'T23:59:59') <= new Date()) continue
+      merchantLockedMap.set(log.entityId, (merchantLockedMap.get(log.entityId) ?? 0) + parseFloat(m.amount))
+    } catch {}
+  }
+
+  // pending early requests per merchant
+  for (const r of earlyRequests) {
+    if (resolvedIds.has(r.id) || !r.entityId) continue
+    try {
+      const m = JSON.parse(r.metadata ?? '{}')
+      const amt = parseFloat(m.amount || 0)
+      merchantEarlyMap.set(r.entityId, (merchantEarlyMap.get(r.entityId) ?? 0) + amt)
+    } catch {}
+  }
+
   const totalBalance    = allMerchants.reduce((s, m) => s + m.balance, 0)
   const totalRendimento = allMerchants.reduce((s, m) => s + m.balance * (m.cdiRate / 100), 0)
   const totalActive     = allMerchants.filter((m) => m.status === 'ACTIVE').length
@@ -344,6 +369,19 @@ export default async function CdiPage({ searchParams }: PageProps) {
                         </td>
                         <td className="px-4 py-4 text-right">
                           <BalanceInput merchantId={m.id} initialBalance={m.balance} />
+                          {m.balance > 0 && (() => {
+                            const locked = merchantLockedMap.get(m.id) ?? 0
+                            const early  = merchantEarlyMap.get(m.id) ?? 0
+                            const free   = Math.max(0, m.balance - locked)
+                            const bloq   = Math.max(0, locked - early)
+                            return (
+                              <div className="mt-1 space-y-0.5 text-right">
+                                <p className="text-[10px] text-emerald-600">↳ Livre: R$ {formatBRL(free)}</p>
+                                {bloq > 0 && <p className="text-[10px] text-blue-500">↳ Bloqueado: R$ {formatBRL(bloq)}</p>}
+                                {early > 0 && <p className="text-[10px] text-amber-500">↳ Em resgate: R$ {formatBRL(early)}</p>}
+                              </div>
+                            )
+                          })()}
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex justify-center">
