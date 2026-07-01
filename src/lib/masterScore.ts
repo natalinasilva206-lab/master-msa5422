@@ -252,6 +252,62 @@ export function calcMasterScore(input: ScoreInput): ScoreResult {
   return { ...partial, observacaoInterna: buildObservacao(partial as ScoreResult) }
 }
 
+// ─── Sugestão de reserva baseada no score ────────────────────────────────────
+
+export interface ReservaSugerida {
+  reservaPercMin:  number
+  reservaPercMax:  number
+  prazoMin:        number
+  prazoMax:        number
+  riskLevelSugerido: 'LOW' | 'MEDIUM' | 'HIGH'
+  acaoSugerida:    'reduzir' | 'manter' | 'aumentar'
+  descricao:       string
+}
+
+export function scoreToReservaSugerida(scoreTotal: number, reservaAtual: number): ReservaSugerida {
+  let result: ReservaSugerida
+
+  if (scoreTotal >= 80) {
+    result = {
+      reservaPercMin: 1, reservaPercMax: 2,
+      prazoMin: 15,      prazoMax: 30,
+      riskLevelSugerido: 'LOW',
+      acaoSugerida: reservaAtual > 2 ? 'reduzir' : 'manter',
+      descricao: 'Score Diamante — perfil excelente. Reserva mínima e prazo reduzido são adequados.',
+    }
+  } else if (scoreTotal >= 60) {
+    result = {
+      reservaPercMin: 3, reservaPercMax: 5,
+      prazoMin: 30,      prazoMax: 45,
+      riskLevelSugerido: 'LOW',
+      acaoSugerida: reservaAtual > 5 ? 'reduzir' : reservaAtual < 3 ? 'aumentar' : 'manter',
+      descricao: 'Score Ouro — operação saudável. Reserva moderada com prazo padrão.',
+    }
+  } else if (scoreTotal >= 40) {
+    result = {
+      reservaPercMin: 5, reservaPercMax: 8,
+      prazoMin: 45,      prazoMax: 60,
+      riskLevelSugerido: 'MEDIUM',
+      acaoSugerida: reservaAtual < 5 ? 'aumentar' : reservaAtual > 8 ? 'manter' : 'manter',
+      descricao: 'Score Prata — atenção necessária. Reserva intermediária e prazo estendido.',
+    }
+  } else {
+    result = {
+      reservaPercMin: 10, reservaPercMax: 15,
+      prazoMin: 60,       prazoMax: 90,
+      riskLevelSugerido: 'HIGH',
+      acaoSugerida: reservaAtual < 10 ? 'aumentar' : 'manter',
+      descricao: 'Score Bronze — alto risco. Reserva elevada e prazo longo são necessários para proteção.',
+    }
+  }
+
+  // Refinar ação sugerida
+  if (result.acaoSugerida === 'manter' && reservaAtual < result.reservaPercMin) result.acaoSugerida = 'aumentar'
+  if (result.acaoSugerida === 'manter' && reservaAtual > result.reservaPercMax) result.acaoSugerida = 'reduzir'
+
+  return result
+}
+
 // ─── Motor de sugestões automáticas ──────────────────────────────────────────
 // Sugestões são informativas — o ADM decide se aplica ou ignora.
 

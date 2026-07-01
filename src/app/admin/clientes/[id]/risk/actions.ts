@@ -369,6 +369,61 @@ export async function triggerCronRelease(): Promise<{ error?: string; processed?
   }
 }
 
+/* ─── applyMasterScoreSuggestion ────────────────────────────── */
+export async function applyMasterScoreSuggestion(
+  merchantId: string,
+  suggestedPercent: number,
+  suggestedDays:    number,
+  suggestedLevel:   string,
+): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    const admin = await getAdminSession()
+    const ip    = getIp()
+
+    const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
+    if (!merchant) return { error: 'Seller não encontrado.' }
+
+    const before = {
+      riskReservePercent: merchant.riskReservePercent,
+      riskReleaseDays:    merchant.riskReleaseDays,
+      riskLevel:          merchant.riskLevel,
+    }
+
+    await prisma.$transaction([
+      prisma.merchant.update({
+        where: { id: merchantId },
+        data: {
+          riskReservePercent: suggestedPercent,
+          riskReleaseDays:    suggestedDays,
+          riskLevel:          suggestedLevel,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId:   admin.id,
+          action:   'RISK_CONFIG_UPDATE',
+          entity:   'Merchant',
+          entityId: merchantId,
+          metadata: buildMeta({
+            action: 'RISK_CONFIG_UPDATE', entity: 'Merchant', entityId: merchantId,
+            before,
+            after: { riskReservePercent: suggestedPercent, riskReleaseDays: suggestedDays, riskLevel: suggestedLevel },
+            notes: 'Aplicado via sugestão do Master Score',
+            extra: { merchantName: merchant.name, source: 'master_score' },
+          }, admin, ip),
+        },
+      }),
+    ])
+
+    revalidatePath(`/admin/clientes/${merchantId}`)
+    return { ok: true }
+  } catch (e: any) {
+    if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
+    console.error('[applyMasterScoreSuggestion]', e)
+    return { error: e.message ?? 'Erro interno.' }
+  }
+}
+
 /* ─── simulateSale ───────────────────────────────────────────── */
 export async function simulateSale(
   merchantId: string,

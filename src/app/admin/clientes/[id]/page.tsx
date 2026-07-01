@@ -11,8 +11,10 @@ import RiskConfigForm from './risk/RiskConfigForm'
 import SimularVendaForm from './risk/SimularVendaForm'
 import ReserveCalendar, { ReserveEntry } from './risk/ReserveCalendar'
 import RiskSuggestions from './risk/RiskSuggestions'
+import MasterScoreRiskBanner from './risk/MasterScoreRiskBanner'
 import SellerTabs from './SellerTabs'
 import { computeRiskSuggestions, computeRiskMetrics } from '@/lib/computeRiskSuggestions'
+import { scoreToReservaSugerida } from '@/lib/masterScore'
 
 const statusLabel: Record<string, string> = {
   ACTIVE: 'Ativo',
@@ -117,11 +119,16 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
     notes:          r.notes ?? null,
   }))
 
-  // Compute risk suggestions + metrics
-  const [riskSuggestions, riskMetrics] = await Promise.all([
+  // Compute risk suggestions + metrics + master score
+  const [riskSuggestions, riskMetrics, masterScore] = await Promise.all([
     computeRiskSuggestions(merchant).catch(() => []),
     computeRiskMetrics(merchant).catch(() => null),
+    prisma.masterScore.findUnique({ where: { merchantId: merchant.id } }).catch(() => null),
   ])
+
+  const reservaSugerida = masterScore
+    ? scoreToReservaSugerida(masterScore.scoreTotal, merchant.riskReservePercent)
+    : null
 
   // Fetch risk audit history
   const riskLogs = await prisma.auditLog.findMany({
@@ -343,6 +350,21 @@ export default async function ClienteDetalhesPage({ params }: PageProps) {
               ))}
             </div>
           </div>
+        )}
+
+        {/* ══ Master Score — Sugestão de Reserva ══ */}
+        {masterScore && reservaSugerida && (
+          <MasterScoreRiskBanner
+            merchantId={merchant.id}
+            scoreTotal={masterScore.scoreTotal}
+            nivelScore={masterScore.nivelScore}
+            statusRisco={masterScore.statusRisco}
+            reservaSugerida={reservaSugerida}
+            reservaAtual={merchant.riskReservePercent}
+            prazoAtual={merchant.riskReleaseDays}
+            riskLevelAtual={merchant.riskLevel}
+            masterScoreHref={`/admin/master-score/${merchant.id}`}
+          />
         )}
 
         {/* ══ Sugestões Automáticas de Risco ══ */}
