@@ -6,11 +6,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { dispatchWebhook } from '@/lib/dispatchWebhook'
+import { headers } from 'next/headers'
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') redirect('/login')
   return session
+}
+
+function getIp(): string {
+  return headers().get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? headers().get('x-real-ip')
+    ?? 'desconhecido'
 }
 
 export async function approveMerchant(merchantId: string) {
@@ -94,23 +101,95 @@ function parseDocs(raw: string | null): KycDoc[] {
 }
 
 export async function addKycDocument(merchantId: string, url: string, type = 'OTHER', label = 'Documento') {
-  await requireAdmin()
-  const merchant = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { kycDocumentUrls: true } })
+  const session = await requireAdmin()
+  const admin   = session.user as any
+
+  const merchant = await prisma.merchant.findUnique({
+    where:  { id: merchantId },
+    select: { name: true, kycDocumentUrls: true },
+  })
   if (!merchant) throw new Error('Merchant não encontrado.')
-  const docs = parseDocs((merchant as any).kycDocumentUrls)
+
+  const before   = parseDocs((merchant as any).kycDocumentUrls)
+  const docs     = [...before]
   const existingIdx = docs.findIndex((d) => d.type === type)
   const newDoc: KycDoc = { type, label, url }
+  const replaced = existingIdx >= 0 ? docs[existingIdx] : null
   if (existingIdx >= 0) { docs[existingIdx] = newDoc } else { docs.push(newDoc) }
-  await prisma.merchant.update({ where: { id: merchantId }, data: { kycDocumentUrls: JSON.stringify(docs) } as any })
+
+  await prisma.$transaction([
+    prisma.merchant.update({
+      where: { id: merchantId },
+      data:  { kycDocumentUrls: JSON.stringify(docs) } as any,
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'KYC_DOCUMENT_ADDED',
+        entity:   'Merchant',
+        entityId: merchantId,
+        metadata: JSON.stringify({
+          merchantId,
+          merchantName:    merchant.name,
+          documentType:    type,
+          documentLabel:   label,
+          documentUrl:     url,
+          replacedDoc:     replaced ?? null,
+          totalDocsAfter:  docs.length,
+          adminName:       admin.name,
+          adminEmail:      admin.email,
+          ip:              getIp(),
+          addedAt:         new Date().toISOString(),
+        }),
+      },
+    }),
+  ])
+
   revalidatePath('/admin/kyc')
 }
 
 export async function removeKycDocument(merchantId: string, url: string) {
-  await requireAdmin()
-  const merchant = await prisma.merchant.findUnique({ where: { id: merchantId }, select: { kycDocumentUrls: true } })
+  const session = await requireAdmin()
+  const admin   = session.user as any
+
+  const merchant = await prisma.merchant.findUnique({
+    where:  { id: merchantId },
+    select: { name: true, kycDocumentUrls: true },
+  })
   if (!merchant) return
-  const docs = parseDocs((merchant as any).kycDocumentUrls).filter((d) => d.url !== url)
-  await prisma.merchant.update({ where: { id: merchantId }, data: { kycDocumentUrls: JSON.stringify(docs) } as any })
+
+  const before  = parseDocs((merchant as any).kycDocumentUrls)
+  const removed = before.find((d) => d.url === url) ?? null
+  const docs    = before.filter((d) => d.url !== url)
+
+  await prisma.$transaction([
+    prisma.merchant.update({
+      where: { id: merchantId },
+      data:  { kycDocumentUrls: JSON.stringify(docs) } as any,
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'KYC_DOCUMENT_REMOVED',
+        entity:   'Merchant',
+        entityId: merchantId,
+        metadata: JSON.stringify({
+          merchantId,
+          merchantName:    merchant.name,
+          documentType:    removed?.type  ?? 'UNKNOWN',
+          documentLabel:   removed?.label ?? 'Documento',
+          documentUrl:     url,
+          totalDocsBefore: before.length,
+          totalDocsAfter:  docs.length,
+          adminName:       admin.name,
+          adminEmail:      admin.email,
+          ip:              getIp(),
+          removedAt:       new Date().toISOString(),
+        }),
+      },
+    }),
+  ])
+
   revalidatePath('/admin/kyc')
 }
 

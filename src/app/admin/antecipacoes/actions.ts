@@ -5,11 +5,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions)
   if (!session || (session.user as any).role !== 'ADMIN') redirect('/login')
   return session
+}
+
+function getIp(): string {
+  return headers().get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? headers().get('x-real-ip')
+    ?? 'desconhecido'
 }
 
 export async function approveAntecipacao(id: string, adminNotes?: string, customFeePercent?: number) {
@@ -110,11 +117,44 @@ export async function rejectAntecipacao(id: string, adminNotes?: string) {
 }
 
 export async function updateAnticipationFee(merchantId: string, feePercent: number) {
-  await requireAdmin()
+  const session = await requireAdmin()
+  const admin   = session.user as any
+
   const fee = Math.max(0, Math.min(20, parseFloat(String(feePercent)) || 2.5))
-  await prisma.merchant.update({
-    where: { id: merchantId },
-    data: { anticipationFeePercent: fee },
+
+  const merchant = await prisma.merchant.findUnique({
+    where:  { id: merchantId },
+    select: { name: true, anticipationFeePercent: true },
   })
+  if (!merchant) return
+
+  const before = merchant.anticipationFeePercent
+
+  await prisma.$transaction([
+    prisma.merchant.update({
+      where: { id: merchantId },
+      data:  { anticipationFeePercent: fee },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId:   admin.id,
+        action:   'ANTICIPATION_FEE_UPDATED',
+        entity:   'Merchant',
+        entityId: merchantId,
+        metadata: JSON.stringify({
+          merchantId,
+          merchantName: merchant.name,
+          before:       { anticipationFeePercent: before },
+          after:        { anticipationFeePercent: fee },
+          adminName:    admin.name,
+          adminEmail:   admin.email,
+          ip:           getIp(),
+          updatedAt:    new Date().toISOString(),
+        }),
+      },
+    }),
+  ])
+
+  revalidatePath('/admin/antecipacoes')
   revalidatePath(`/admin/clientes/${merchantId}`)
 }
