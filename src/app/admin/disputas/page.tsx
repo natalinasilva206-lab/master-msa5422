@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Topbar } from '@/components/layout/Topbar'
 import { prisma } from '@/lib/prisma'
 import { TYPE_LABEL, TYPE_COLOR, STATUS_LABEL, STATUS_COLOR, STATUS_DOT, ALL_STATUSES, ALL_TYPES } from './constants'
+import { AssignButton } from './AssignButton'
 
 function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -199,8 +200,8 @@ export default async function DisputasPage({ searchParams }: PageProps) {
                           )}
                         </td>
                         {/* Responsável */}
-                        <td className="px-4 py-3 whitespace-nowrap text-[12px] text-slate-400">
-                          {d.assignedTo ?? <span className="text-slate-600">—</span>}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <AssignButton disputeId={d.id} current={d.assignedTo} />
                         </td>
                         {/* Ver */}
                         <td className="px-4 py-3.5">

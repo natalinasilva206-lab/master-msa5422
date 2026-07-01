@@ -18,6 +18,7 @@ interface NavGroup {
 interface SidebarProps {
   role: 'ADMIN' | 'CLIENT'
   userName: string
+  badges?: Record<string, number>
 }
 
 function I({ d, d2 }: { d: string; d2?: string }) {
@@ -242,7 +243,7 @@ const clientGroups: NavGroup[] = [
   },
 ]
 
-export function Sidebar({ role, userName }: SidebarProps) {
+export function Sidebar({ role, userName, badges = {} }: SidebarProps) {
   const pathname = usePathname()
   const initial = userName.charAt(0).toUpperCase()
   const groups = role === 'ADMIN' ? adminGroups : clientGroups
@@ -297,6 +298,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
                   )
                 }
                 const active = checkActive(item)
+                const badge = badges[item.href]
                 return (
                   <Link
                     key={item.href}
@@ -309,9 +311,13 @@ export function Sidebar({ role, userName }: SidebarProps) {
                   >
                     <span className={`shrink-0 ${active ? 'text-blue-400' : ''}`}>{item.icon}</span>
                     <span className="truncate flex-1">{item.label}</span>
-                    {active && (
+                    {badge && badge > 0 ? (
+                      <span className="ml-auto shrink-0 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500/20 text-red-400 text-[10px] font-bold px-1">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    ) : active ? (
                       <span className="ml-auto w-0.5 h-3.5 rounded-full bg-blue-500 shrink-0" />
-                    )}
+                    ) : null}
                   </Link>
                 )
               })}

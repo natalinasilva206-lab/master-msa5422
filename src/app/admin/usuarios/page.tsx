@@ -20,24 +20,44 @@ const roleBadge: Record<string, string> = {
   CLIENT: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
 }
 
-export default async function UsuariosPage() {
+interface PageProps {
+  searchParams: { q?: string; role?: string }
+}
+
+export default async function UsuariosPage({ searchParams }: PageProps) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { merchant: { select: { id: true, name: true, plan: true, status: true } } },
-  })
+  const q    = searchParams.q?.trim() ?? ''
+  const role = searchParams.role && searchParams.role !== 'todos' ? searchParams.role : undefined
 
-  const totalAdmin  = users.filter((u) => u.role === 'ADMIN').length
-  const totalClient = users.filter((u) => u.role === 'CLIENT').length
+  const where = {
+    AND: [
+      role ? { role } : {},
+      q ? { OR: [
+        { name:  { contains: q, mode: 'insensitive' as const } },
+        { email: { contains: q, mode: 'insensitive' as const } },
+      ] } : {},
+    ],
+  }
+
+  const [users, totalAdmin, totalClient, totalAll] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { merchant: { select: { id: true, name: true, plan: true, status: true } } },
+    }),
+    prisma.user.count({ where: { role: 'ADMIN' } }),
+    prisma.user.count({ where: { role: 'CLIENT' } }),
+    prisma.user.count(),
+  ])
 
   return (
     <div>
       <Topbar
         title="Usuários e Permissões"
         breadcrumb="Casa › Gestão"
-        subtitle={`${users.length} usuários cadastrados`}
+        subtitle={`${totalAll} usuários cadastrados`}
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -56,10 +76,49 @@ export default async function UsuariosPage() {
           ))}
         </section>
 
+        {/* Filtros */}
+        <form method="GET" className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              name="q"
+              type="text"
+              defaultValue={q}
+              placeholder="Buscar por nome ou e-mail…"
+              className="w-full bg-slate-900/60 border border-slate-800/70 rounded-lg pl-8 pr-3 py-2 text-[12px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/60"
+            />
+          </div>
+          <select
+            name="role"
+            defaultValue={role ?? 'todos'}
+            onChange={(e) => (e.target.form as HTMLFormElement).submit()}
+            className="bg-slate-900/60 border border-slate-800/70 rounded-lg px-3 py-2 text-[12px] text-slate-300 focus:outline-none focus:border-blue-500/60"
+          >
+            <option value="todos">Todos os perfis</option>
+            <option value="ADMIN">Admin</option>
+            <option value="CLIENT">Seller</option>
+          </select>
+          <button type="submit" className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700/50 rounded-lg text-[12px] font-medium text-slate-300 transition-colors">
+            Buscar
+          </button>
+          {(q || role) && (
+            <a href="/admin/usuarios" className="px-3 py-2 text-[12px] text-slate-500 hover:text-slate-300 transition-colors">
+              Limpar
+            </a>
+          )}
+        </form>
+
         {/* Table */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
-            <p className="text-[13px] font-semibold text-white">Todos os Usuários</p>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Todos os Usuários</p>
+              {(q || role) && (
+                <p className="text-[10.5px] text-slate-600 mt-0.5">{users.length} resultado{users.length !== 1 ? 's' : ''} encontrado{users.length !== 1 ? 's' : ''}</p>
+              )}
+            </div>
             <CreateAdminForm />
           </div>
           <div className="overflow-x-auto">

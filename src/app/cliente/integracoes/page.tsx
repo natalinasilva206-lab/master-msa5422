@@ -64,13 +64,22 @@ export default async function IntegracoesPage() {
             {[
               { label: 'Merchant ID',     value: merchantId,    hint: 'Identificador único da sua empresa' },
               { label: 'API Key (Live)',   value: apiKey,        hint: 'Chave para produção — mantenha em segredo' },
-              { label: 'Webhook Secret',  value: webhookSecret ?? '—', hint: webhookSecret ? 'Secret do seu primeiro endpoint ativo — valide a assinatura HMAC-SHA256' : 'Configure um endpoint de webhook no painel para obter o secret' },
+              { label: 'Webhook Secret',  value: webhookSecret ?? '—', hint: webhookSecret ? 'Secret do seu primeiro endpoint ativo — valide a assinatura HMAC-SHA256' : null },
             ].map((row) => (
               <div key={row.label} className="px-5 py-3.5 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{row.label}</p>
                   <p className="text-[12px] text-slate-300 font-mono mt-1 truncate">{row.value}</p>
-                  <p className="text-[10px] text-slate-700 mt-0.5">{row.hint}</p>
+                  {row.hint
+                    ? <p className="text-[10px] text-slate-700 mt-0.5">{row.hint}</p>
+                    : row.label === 'Webhook Secret' && (
+                      <p className="text-[10px] text-slate-700 mt-0.5">
+                        Configure um endpoint em{' '}
+                        <a href="/cliente/minha-conta" className="text-blue-500 hover:underline">Minha Conta → Webhooks</a>
+                        {' '}para obter o secret
+                      </p>
+                    )
+                  }
                 </div>
                 <CopyButton value={row.value} />
               </div>

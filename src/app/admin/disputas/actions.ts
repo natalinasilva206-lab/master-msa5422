@@ -518,6 +518,19 @@ export async function addDisputeDocument(
   }
 }
 
+export async function assignDispute(disputeId: string): Promise<{ error?: string; name?: string }> {
+  try {
+    const admin = await getAdminSession()
+    await prisma.dispute.update({ where: { id: disputeId }, data: { assignedTo: admin.name } })
+    revalidatePath('/admin/disputas')
+    revalidatePath(`/admin/disputas/${disputeId}`)
+    return { name: admin.name }
+  } catch (e: any) {
+    if (e.message === 'Não autorizado') return { error: 'Não autorizado.' }
+    return { error: 'Erro interno.' }
+  }
+}
+
 export async function updateDisputeFields(
   disputeId: string,
   fields: { assignedTo?: string; deadline?: string; saleLogId?: string },
