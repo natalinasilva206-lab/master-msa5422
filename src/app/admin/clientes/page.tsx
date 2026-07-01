@@ -50,8 +50,10 @@ function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const PAGE_SIZE = 30
+
 interface PageProps {
-  searchParams: { q?: string; status?: string; type?: string }
+  searchParams: { q?: string; status?: string; type?: string; page?: string }
 }
 
 async function KpiCards() {
@@ -94,25 +96,29 @@ async function KpiCards() {
   )
 }
 
-async function MerchantsTable({ q, status, type }: { q?: string; status?: string; type?: string }) {
-  const merchants = await prisma.merchant.findMany({
-    where: {
-      AND: [
-        status ? { status } : {},
-        type ? { type } : {},
-        q
-          ? {
-              OR: [
-                { name: { contains: q, mode: 'insensitive' } },
-                { email: { contains: q, mode: 'insensitive' } },
-                { document: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {},
-      ],
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+async function MerchantsTable({ q, status, type, page }: { q?: string; status?: string; type?: string; page?: string }) {
+  const currentPage = Math.max(1, parseInt(page ?? '1'))
+  const where = {
+    AND: [
+      status ? { status } : {},
+      type ? { type } : {},
+      q ? { OR: [
+        { name: { contains: q, mode: 'insensitive' as const } },
+        { email: { contains: q, mode: 'insensitive' as const } },
+        { document: { contains: q, mode: 'insensitive' as const } },
+      ] } : {},
+    ],
+  }
+  const [merchants, total] = await Promise.all([
+    prisma.merchant.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (currentPage - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.merchant.count({ where }),
+  ])
+  const totalPages = Math.ceil(total / PAGE_SIZE)
 
   if (merchants.length === 0) {
     return (
@@ -196,13 +202,28 @@ async function MerchantsTable({ q, status, type }: { q?: string; status?: string
           ))}
         </tbody>
       </table>
-      <div className="px-5 py-3 border-t border-slate-800/50 flex items-center justify-between">
+      <div className="px-5 py-3 border-t border-slate-800/50 flex items-center justify-between gap-4 flex-wrap">
         <span className="text-[11px] text-slate-700">
-          {merchants.length} {merchants.length === 1 ? 'empresa encontrada' : 'empresas encontradas'}
+          {total} {total === 1 ? 'empresa encontrada' : 'empresas encontradas'}
+          {totalPages > 1 && ` · Página ${currentPage} de ${totalPages}`}
         </span>
-        <Link href="/admin/clientes/novo" className="text-[11px] font-medium text-slate-600 hover:text-blue-400 transition-colors">
-          + Nova empresa
-        </Link>
+        <div className="flex items-center gap-2">
+          {currentPage > 1 && (
+            <Link href={`?${new URLSearchParams({ ...(q ? { q } : {}), ...(status ? { status } : {}), ...(type ? { type } : {}), page: String(currentPage - 1) })}`}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-300 bg-slate-800 border border-slate-700/50 px-2.5 py-1 rounded-lg transition-colors">
+              ← Anterior
+            </Link>
+          )}
+          {currentPage < totalPages && (
+            <Link href={`?${new URLSearchParams({ ...(q ? { q } : {}), ...(status ? { status } : {}), ...(type ? { type } : {}), page: String(currentPage + 1) })}`}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-300 bg-slate-800 border border-slate-700/50 px-2.5 py-1 rounded-lg transition-colors">
+              Próxima →
+            </Link>
+          )}
+          <Link href="/admin/clientes/novo" className="text-[11px] font-medium text-slate-600 hover:text-blue-400 transition-colors ml-2">
+            + Nova empresa
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -249,7 +270,7 @@ export default function AdminClientesPage({ searchParams }: PageProps) {
             </div>
           </div>
           <Suspense fallback={<div className="py-16 text-center text-slate-600 text-sm">Carregando...</div>}>
-            <MerchantsTable q={q} status={status} type={type} />
+            <MerchantsTable q={q} status={status} type={type} page={searchParams.page} />
           </Suspense>
         </div>
       </div>

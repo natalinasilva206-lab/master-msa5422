@@ -122,12 +122,34 @@ export default async function IntegracoesPage() {
           </div>
         </section>
 
-        {/* Webhook */}
-        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl px-5 py-4">
-          <p className="text-[13px] font-semibold text-white mb-1">Webhooks</p>
-          <p className="text-[11px] text-slate-500">
-            Configure a URL do seu endpoint para receber notificações de eventos como aprovação de pagamentos, saques e atualizações de KYC. Use o Webhook Secret para validar a assinatura HMAC-SHA256 do payload.
-          </p>
+        {/* Webhook events */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <p className="text-[13px] font-semibold text-white">Eventos de Webhook</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Configure quais eventos seu endpoint receberá em tempo real</p>
+          </div>
+          <div className="divide-y divide-slate-800/40">
+            {[
+              { event: 'sale.created',         desc: 'Nova venda registrada via API',                  color: 'text-emerald-400 bg-emerald-500/10' },
+              { event: 'withdrawal.approved',  desc: 'Saque aprovado e liberado para o seller',        color: 'text-blue-400 bg-blue-500/10' },
+              { event: 'withdrawal.denied',    desc: 'Saque negado pela equipe',                       color: 'text-red-400 bg-red-500/10' },
+              { event: 'dispute.opened',       desc: 'Nova disputa ou chargeback aberto',              color: 'text-orange-400 bg-orange-500/10' },
+              { event: 'dispute.updated',      desc: 'Status de disputa atualizado',                   color: 'text-amber-400 bg-amber-500/10' },
+              { event: 'merchant.activated',   desc: 'Conta aprovada e ativada após KYC',             color: 'text-emerald-400 bg-emerald-500/10' },
+              { event: 'merchant.blocked',     desc: 'Conta bloqueada por risco ou disputa',           color: 'text-red-400 bg-red-500/10' },
+              { event: 'reserve.released',     desc: 'Reserva de risco liberada para saldo disponível', color: 'text-purple-400 bg-purple-500/10' },
+            ].map((e) => (
+              <div key={e.event} className="px-5 py-2.5 flex items-center gap-3">
+                <code className={`shrink-0 text-[11px] font-semibold font-mono px-2 py-0.5 rounded ${e.color}`}>{e.event}</code>
+                <span className="text-[12px] text-slate-500">{e.desc}</span>
+              </div>
+            ))}
+          </div>
+          <div className="px-5 py-3.5 border-t border-slate-800/60 bg-slate-800/20">
+            <p className="text-[11px] text-slate-600">
+              Use o <span className="text-slate-400 font-mono">Webhook Secret</span> para validar a assinatura <span className="text-slate-400">X-MasterPay-Signature</span> com HMAC-SHA256. Gerencie seus endpoints em <a href="/cliente/minha-conta" className="text-blue-400 hover:underline">Minha Conta → Webhooks</a>.
+            </p>
+          </div>
         </section>
 
       </div>

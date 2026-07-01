@@ -29,19 +29,44 @@ const riskMeta: Record<string, { label: string; color: string }> = {
   HIGH:   { label: 'Alto',   color: 'text-red-400     bg-red-500/10     border-red-500/20'     },
 }
 
-export default async function AntifaudePage() {
+const PRIORITY_PAGE_SIZE = 20
+
+interface AntifaudePageProps {
+  searchParams: { page?: string }
+}
+
+export default async function AntifaudePage({ searchParams }: AntifaudePageProps) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  const [allMerchants, kycLogs, openDisputes] = await Promise.all([
+  const currentPage = Math.max(1, parseInt(searchParams.page ?? '1'))
+
+  const priorityWhere = {
+    OR: [
+      { status: 'BLOCKED' as const },
+      { status: 'REVIEW' as const },
+      { riskLevel: 'HIGH' as const },
+      { disputes: { some: { status: 'ABERTO' } } },
+    ],
+  }
+
+  const [totalMerchants, blockedCount, reviewCount, highRiskCount, priorityMerchants, priorityTotal, kycLogs, openDisputes] = await Promise.all([
+    prisma.merchant.count().catch(() => 0),
+    prisma.merchant.count({ where: { status: 'BLOCKED' } }).catch(() => 0),
+    prisma.merchant.count({ where: { status: 'REVIEW' } }).catch(() => 0),
+    prisma.merchant.count({ where: { riskLevel: 'HIGH' } }).catch(() => 0),
     prisma.merchant.findMany({
+      where: priorityWhere,
       orderBy: [{ status: 'asc' }, { riskLevel: 'desc' }, { updatedAt: 'desc' }],
+      skip: (currentPage - 1) * PRIORITY_PAGE_SIZE,
+      take: PRIORITY_PAGE_SIZE,
       select: {
         id: true, name: true, email: true, status: true, riskLevel: true,
         blockedBalance: true, reservedBalance: true, createdAt: true,
         _count: { select: { disputes: { where: { status: 'ABERTO' } } } },
       },
     }).catch(() => []),
+    prisma.merchant.count({ where: priorityWhere }).catch(() => 0),
     prisma.auditLog.findMany({
       where: { action: { in: ['KYC_BLOCKED', 'KYC_APPROVED', 'MERCHANT_STATUS_CHANGE'] } },
       orderBy: { createdAt: 'desc' },
@@ -51,12 +76,9 @@ export default async function AntifaudePage() {
     prisma.dispute.count({ where: { status: 'ABERTO' } }).catch(() => 0),
   ])
 
-  const totalMerchants = allMerchants.length
-  const blockedCount   = allMerchants.filter((m) => m.status === 'BLOCKED').length
-  const reviewCount    = allMerchants.filter((m) => m.status === 'REVIEW').length
-  const highRiskCount  = allMerchants.filter((m) => m.riskLevel === 'HIGH').length
+  const totalPages = Math.ceil(priorityTotal / PRIORITY_PAGE_SIZE)
 
-  const rules = [
+  const rules: { name: string; status: string; desc: string }[] = [
     { name: 'Verificação KYC obrigatória',   status: 'Ativo',    desc: 'Todos os merchants devem passar por verificação de identidade antes de operar.' },
     { name: 'Limite de saque diário',         status: 'Ativo',    desc: 'Saques acima do limite do plano requerem aprovação manual da equipe.' },
     { name: 'Monitoramento de volume',        status: 'Ativo',    desc: 'Alertas automáticos para variações bruscas no volume de transações.' },
@@ -64,10 +86,6 @@ export default async function AntifaudePage() {
     { name: 'Detecção de IP suspeito',        status: 'Em breve', desc: 'Bloqueio automático de logins a partir de IPs sinalizados em listas negras.' },
     { name: 'Análise comportamental ML',      status: 'Em breve', desc: 'Motor de machine learning para detecção de padrões de fraude em tempo real.' },
   ]
-
-  const priorityMerchants = allMerchants.filter(
-    (m) => m.status === 'BLOCKED' || m.status === 'REVIEW' || m.riskLevel === 'HIGH' || m._count.disputes > 0
-  )
 
   return (
     <div>
@@ -110,18 +128,18 @@ export default async function AntifaudePage() {
               <p className="text-[13px] font-semibold text-white">Sellers em Atenção</p>
               <p className="text-[10.5px] text-slate-600 mt-0.5">Bloqueados, em revisão ou com alto risco / disputas abertas</p>
             </div>
-            {priorityMerchants.length > 0 && (
+            {priorityTotal > 0 && (
               <span className="flex items-center gap-1.5 text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2.5 py-1 rounded-full">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500" />
                 </span>
-                {priorityMerchants.length} requer{priorityMerchants.length === 1 ? '' : 'em'} atenção
+                {priorityTotal} requer{priorityTotal === 1 ? '' : 'em'} atenção
               </span>
             )}
           </div>
 
-          {priorityMerchants.length === 0 ? (
+          {priorityTotal === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-slate-700">
               <svg className="w-10 h-10 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -188,6 +206,25 @@ export default async function AntifaudePage() {
                   })}
                 </tbody>
               </table>
+              {totalPages > 1 && (
+                <div className="px-5 py-3 border-t border-slate-800/50 flex items-center justify-between gap-4 flex-wrap">
+                  <span className="text-[11px] text-slate-700">
+                    {priorityTotal} seller{priorityTotal !== 1 ? 's' : ''} em atenção · Página {currentPage} de {totalPages}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {currentPage > 1 && (
+                      <Link href={`?page=${currentPage - 1}`} className="text-[11px] font-medium text-slate-500 hover:text-slate-300 bg-slate-800 border border-slate-700/50 px-2.5 py-1 rounded-lg transition-colors">
+                        ← Anterior
+                      </Link>
+                    )}
+                    {currentPage < totalPages && (
+                      <Link href={`?page=${currentPage + 1}`} className="text-[11px] font-medium text-slate-500 hover:text-slate-300 bg-slate-800 border border-slate-700/50 px-2.5 py-1 rounded-lg transition-colors">
+                        Próxima →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
