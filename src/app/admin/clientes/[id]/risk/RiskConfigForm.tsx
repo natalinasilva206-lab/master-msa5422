@@ -20,6 +20,7 @@ export default function RiskConfigForm({ merchantId, initial }: Props) {
   const [msg, setMsg] = useState<{ ok?: boolean; text: string } | null>(null)
 
   const [form, setForm] = useState(initial)
+  const [reason, setReason] = useState('')
 
   function set(k: keyof typeof form, v: string | number) {
     setForm((p) => ({ ...p, [k]: v }))
@@ -27,11 +28,12 @@ export default function RiskConfigForm({ merchantId, initial }: Props) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!reason.trim()) { setMsg({ text: 'Motivo da alteração é obrigatório.' }); return }
     setMsg(null)
     startTransition(async () => {
-      const res = await saveRiskConfig(merchantId, form)
+      const res = await saveRiskConfig(merchantId, { ...form, reason })
       if (res.error) setMsg({ text: res.error })
-      else setMsg({ ok: true, text: 'Configuração salva com sucesso.' })
+      else { setMsg({ ok: true, text: 'Configuração salva com sucesso.' }); setReason('') }
     })
   }
 
@@ -130,6 +132,22 @@ export default function RiskConfigForm({ merchantId, initial }: Props) {
           placeholder="Notas internas sobre o perfil de risco deste seller..."
           className={`${fieldCls} resize-none`}
         />
+      </div>
+
+      {/* Motivo da alteração — obrigatório para histórico */}
+      <div>
+        <label className={labelCls}>
+          Motivo da alteração <span className="text-red-400">*</span>
+        </label>
+        <input
+          type="text"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Ex: Chargeback recebido, perfil de alto risco identificado..."
+          className={fieldCls}
+          required
+        />
+        <p className="text-[11px] text-slate-600 mt-1">Registrado no histórico de auditoria junto ao ADM responsável.</p>
       </div>
 
       {msg && (

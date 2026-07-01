@@ -169,7 +169,23 @@ export async function createClientAccess(merchantId: string, formData: FormData)
 export async function saveMerchantNotes(id: string, notes: string) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role !== 'ADMIN') redirect('/login')
-  await prisma.merchant.update({ where: { id }, data: { merchantNotes: notes } as any })
+  const before = await prisma.merchant.findUnique({ where: { id }, select: { merchantNotes: true } as any })
+  await prisma.$transaction([
+    prisma.merchant.update({ where: { id }, data: { merchantNotes: notes } as any }),
+    prisma.auditLog.create({
+      data: {
+        userId:   session.user.id,
+        action:   'MERCHANT_NOTES_UPDATE',
+        entity:   'Merchant',
+        entityId: id,
+        metadata: JSON.stringify({
+          before: (before as any)?.merchantNotes ?? '',
+          after:  notes,
+          adminEmail: session.user.email,
+        }),
+      },
+    }),
+  ])
   revalidatePath(`/admin/clientes/${id}`)
 }
 

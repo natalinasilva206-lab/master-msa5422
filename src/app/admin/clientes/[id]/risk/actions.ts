@@ -205,6 +205,7 @@ export interface RiskConfigInput {
   riskReserveMin:     number
   riskReserveMax:     number
   riskNotes:          string
+  reason:             string
 }
 
 export async function saveRiskConfig(
@@ -222,6 +223,7 @@ export async function saveRiskConfig(
     if (config.riskReserveMin > 0 && config.riskReserveMax > 0 && config.riskReserveMin > config.riskReserveMax) {
       return { error: 'Valor mínimo de reserva não pode ser maior que o máximo.' }
     }
+    if (!config.reason.trim()) return { error: 'Motivo da alteração é obrigatório.' }
 
     const merchant = await prisma.merchant.findUnique({ where: { id: merchantId } })
     if (!merchant) return { error: 'Seller não encontrado.' }
@@ -257,6 +259,7 @@ export async function saveRiskConfig(
             action: 'RISK_CONFIG_UPDATE', entity: 'Merchant', entityId: merchantId,
             before,
             after: { ...config },
+            reason: config.reason,
             extra: { merchantName: merchant.name },
           }, admin, ip),
         },

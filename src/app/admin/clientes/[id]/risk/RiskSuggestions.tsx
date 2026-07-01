@@ -109,6 +109,7 @@ export default function RiskSuggestions({
         riskReserveMin:     currentMin,
         riskReserveMax:     currentMax,
         riskNotes:          currentNotes,
+        reason:             `Sugestão automática aplicada pelo ADM: ${s.title}`,
       })
 
       if (res.error) {
