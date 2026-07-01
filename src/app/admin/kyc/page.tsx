@@ -283,6 +283,7 @@ export default async function KycPage({ searchParams }: PageProps) {
                       userName: m.userName,
                       userEmail: m.userEmail,
                       auditHistory: m.auditHistory,
+                      kycDocumentUrls: m.kycDocumentUrls,
                     }
 
                     return (
