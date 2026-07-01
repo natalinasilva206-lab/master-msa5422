@@ -55,13 +55,14 @@ model Merchant {
   segment              String?
   address              String?
   legalRepresentative  String?
-  users           User[]
-  reserveReleases ReserveRelease[]
-  disputes        Dispute[]
-  saleLogs        SaleLog[]
-  masterScore     MasterScore?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  users              User[]
+  reserveReleases    ReserveRelease[]
+  disputes           Dispute[]
+  saleLogs           SaleLog[]
+  masterScore        MasterScore?
+  masterScoreAudits  MasterScoreAudit[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model FeePlan {
@@ -171,7 +172,6 @@ model MasterScore {
 
   // Histórico de alterações
   history              MasterScoreHistory[]
-  audits               MasterScoreAudit[]
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -213,7 +213,7 @@ model MasterScoreHistory {
 model MasterScoreAudit {
   id          String   @id @default(cuid())
   merchantId  String
-  masterScore MasterScore @relation(fields: [merchantId], references: [merchantId])
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
   adminEmail  String
   adminName   String
   acao        String   // OBSERVACAO | MONITORADO | ESTRATEGICO | NIVEL_MANUAL | SUGESTAO_IGNORADA | SUGESTAO_APLICADA | BENEFICIO_CONGELADO | BENEFICIO_DESCONGELADO

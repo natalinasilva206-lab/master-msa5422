@@ -288,7 +288,7 @@ export function scoreToReservaSugerida(scoreTotal: number, reservaAtual: number)
       reservaPercMin: 5, reservaPercMax: 8,
       prazoMin: 45,      prazoMax: 60,
       riskLevelSugerido: 'MEDIUM',
-      acaoSugerida: reservaAtual < 5 ? 'aumentar' : reservaAtual > 8 ? 'manter' : 'manter',
+      acaoSugerida: reservaAtual < 5 ? 'aumentar' : reservaAtual > 8 ? 'reduzir' : 'manter',
       descricao: 'Score Prata — atenção necessária. Reserva intermediária e prazo estendido.',
     }
   } else {

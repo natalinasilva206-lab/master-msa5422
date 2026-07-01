@@ -310,6 +310,16 @@ async function registrarAuditControle(opts: {
   })
 }
 
+// ─── Helper: garante que MasterScore existe antes de atualizar campos de controle ──
+
+async function upsertControle(merchantId: string, data: Record<string, unknown>) {
+  return prisma.masterScore.upsert({
+    where:  { merchantId },
+    create: { merchantId, ...data },
+    update: { ...data, updatedAt: new Date() },
+  })
+}
+
 // ─── Controles manuais do ADM ─────────────────────────────────────────────────
 
 /** Marcar / desmarcar seller como monitorado */
@@ -322,13 +332,11 @@ export async function setMonitorado(merchantId: string, valor: boolean, motivo: 
 
   try {
     const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { monitorado: true } })
-    if (!anterior) return { ok: false, error: 'Score não encontrado' }
-
-    await prisma.masterScore.update({ where: { merchantId }, data: { monitorado: valor, updatedAt: new Date() } })
+    await upsertControle(merchantId, { monitorado: valor })
     await registrarAuditControle({
       merchantId, adminEmail, adminName,
       acao: 'MONITORADO',
-      valorAntes:  String(anterior.monitorado),
+      valorAntes:  anterior ? String(anterior.monitorado) : 'false',
       valorDepois: String(valor),
       motivo,
     })
@@ -348,13 +356,11 @@ export async function setEstrategico(merchantId: string, valor: boolean, motivo:
 
   try {
     const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { estrategico: true } })
-    if (!anterior) return { ok: false, error: 'Score não encontrado' }
-
-    await prisma.masterScore.update({ where: { merchantId }, data: { estrategico: valor, updatedAt: new Date() } })
+    await upsertControle(merchantId, { estrategico: valor })
     await registrarAuditControle({
       merchantId, adminEmail, adminName,
       acao: 'ESTRATEGICO',
-      valorAntes:  String(anterior.estrategico),
+      valorAntes:  anterior ? String(anterior.estrategico) : 'false',
       valorDepois: String(valor),
       motivo,
     })
@@ -374,13 +380,11 @@ export async function setNivelManual(merchantId: string, nivel: string | null, m
 
   try {
     const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { nivelManual: true } })
-    if (!anterior) return { ok: false, error: 'Score não encontrado' }
-
-    await prisma.masterScore.update({ where: { merchantId }, data: { nivelManual: nivel, updatedAt: new Date() } })
+    await upsertControle(merchantId, { nivelManual: nivel })
     await registrarAuditControle({
       merchantId, adminEmail, adminName,
       acao: 'NIVEL_MANUAL',
-      valorAntes:  anterior.nivelManual ?? 'automático',
+      valorAntes:  anterior?.nivelManual ?? 'automático',
       valorDepois: nivel ?? 'automático',
       motivo,
     })
@@ -400,13 +404,11 @@ export async function setBeneficioCongelado(merchantId: string, congelar: boolea
 
   try {
     const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { beneficioCongelado: true } })
-    if (!anterior) return { ok: false, error: 'Score não encontrado' }
-
-    await prisma.masterScore.update({ where: { merchantId }, data: { beneficioCongelado: congelar, updatedAt: new Date() } })
+    await upsertControle(merchantId, { beneficioCongelado: congelar })
     await registrarAuditControle({
       merchantId, adminEmail, adminName,
       acao: congelar ? 'BENEFICIO_CONGELADO' : 'BENEFICIO_DESCONGELADO',
-      valorAntes:  anterior.beneficioCongelado ? 'congelado' : 'ativo',
+      valorAntes:  anterior ? (anterior.beneficioCongelado ? 'congelado' : 'ativo') : 'ativo',
       valorDepois: congelar ? 'congelado' : 'ativo',
       motivo,
     })
@@ -426,13 +428,11 @@ export async function ignorarSugestaoScore(merchantId: string, motivo: string): 
 
   try {
     const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { sugestaoStatus: true } })
-    if (!anterior) return { ok: false, error: 'Score não encontrado' }
-
-    await prisma.masterScore.update({ where: { merchantId }, data: { sugestaoStatus: 'ignorada', updatedAt: new Date() } })
+    await upsertControle(merchantId, { sugestaoStatus: 'ignorada' })
     await registrarAuditControle({
       merchantId, adminEmail, adminName,
       acao: 'SUGESTAO_IGNORADA',
-      valorAntes:  anterior.sugestaoStatus,
+      valorAntes:  anterior?.sugestaoStatus ?? 'pendente',
       valorDepois: 'ignorada',
       motivo,
     })
@@ -452,13 +452,11 @@ export async function aplicarSugestaoScore(merchantId: string, motivo: string): 
 
   try {
     const anterior = await prisma.masterScore.findUnique({ where: { merchantId }, select: { sugestaoStatus: true } })
-    if (!anterior) return { ok: false, error: 'Score não encontrado' }
-
-    await prisma.masterScore.update({ where: { merchantId }, data: { sugestaoStatus: 'aplicada', updatedAt: new Date() } })
+    await upsertControle(merchantId, { sugestaoStatus: 'aplicada' })
     await registrarAuditControle({
       merchantId, adminEmail, adminName,
       acao: 'SUGESTAO_APLICADA',
-      valorAntes:  anterior.sugestaoStatus,
+      valorAntes:  anterior?.sugestaoStatus ?? 'pendente',
       valorDepois: 'aplicada',
       motivo,
     })

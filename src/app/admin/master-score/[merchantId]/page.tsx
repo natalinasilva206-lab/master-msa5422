@@ -126,9 +126,8 @@ export default async function MasterScoreDetalhe({ params }: Props) {
       balance: true, pendingBalance: true, reservedBalance: true,
       riskReservePercent: true, riskReleaseDays: true,
       createdAt: true,
-      masterScore: {
-        include: { audits: { orderBy: { createdAt: 'desc' }, take: 50 } },
-      },
+      masterScore: true,
+      masterScoreAudits: { orderBy: { createdAt: 'desc' }, take: 50 },
     },
   })
 
@@ -626,7 +625,7 @@ export default async function MasterScoreDetalhe({ params }: Props) {
         )}
 
         {/* ── Auditoria de Ações Manuais ── */}
-        {ms && (ms as any).audits && (ms as any).audits.length > 0 && (
+        {merchant.masterScoreAudits.length > 0 && (
           <div className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between">
               <div>
@@ -634,11 +633,11 @@ export default async function MasterScoreDetalhe({ params }: Props) {
                 <p className="text-[10.5px] text-slate-500 mt-0.5">Registro completo de intervenções do ADM neste seller</p>
               </div>
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-slate-700/40 bg-slate-800/60 text-slate-400">
-                {(ms as any).audits.length} registro{(ms as any).audits.length !== 1 ? 's' : ''}
+                {merchant.masterScoreAudits.length} registro{merchant.masterScoreAudits.length !== 1 ? 's' : ''}
               </span>
             </div>
             <div className="divide-y divide-slate-800/40">
-              {((ms as any).audits as any[]).map((a: any) => {
+              {merchant.masterScoreAudits.map((a: any) => {
                 const acaoMeta: Record<string, { label: string; cls: string; icon: string }> = {
                   OBSERVACAO:            { label: 'Observação',        cls: 'text-slate-300 bg-slate-700/40 border-slate-600/30', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
                   MONITORADO:            { label: 'Monitorado',        cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20',    icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' },
