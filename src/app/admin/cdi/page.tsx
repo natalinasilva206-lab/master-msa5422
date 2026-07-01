@@ -82,7 +82,7 @@ export default async function CdiPage({ searchParams }: PageProps) {
   const q = searchParams.q?.trim().toLowerCase() ?? ''
 
   const [allMerchants, prazoLogs, earlyRequests, earlyResolved, cdiHistory, lastCredit, irIofConfigValue, webhookDeliveries, cdiCycles] = await Promise.all([
-    prisma.merchant.findMany({ orderBy: { balance: 'desc' } }),
+    prisma.merchant.findMany({ orderBy: { balance: 'desc' }, take: 500 }),
     prisma.auditLog.findMany({
       where: { action: { in: ['CDI_LIMIT_SET', 'CDI_LOCK_SET'] } },
       orderBy: { createdAt: 'desc' },
@@ -399,7 +399,7 @@ export default async function CdiPage({ searchParams }: PageProps) {
                           {m.balance > 0 && (() => {
                             const locked = merchantLockedMap.get(m.id) ?? 0
                             const early  = merchantEarlyMap.get(m.id) ?? 0
-                            const free   = Math.max(0, m.balance - locked)
+                            const free   = Math.max(0, m.balance - locked - early)
                             const bloq   = Math.max(0, locked - early)
                             return (
                               <div className="mt-1 space-y-0.5 text-right">

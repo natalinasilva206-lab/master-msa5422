@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { generateCdiPreview, approveCdiCycle, cancelCdiCycle } from './actions'
+import { generateCdiPreview, approveCdiCycle, cancelCdiCycle, recoverCdiCycle } from './actions'
 import type { CdiCyclePreviewData } from './actions'
 
 function formatBRL(v: number) {
@@ -17,7 +17,7 @@ function formatDate(d: string | Date) {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
   PENDING:   { label: 'Aguardando aprovação', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',   dot: 'bg-amber-400' },
-  APPROVED:  { label: 'Aprovado',             color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',     dot: 'bg-blue-400' },
+  APPROVED:  { label: 'Aprovado — execução pendente', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20', dot: 'bg-blue-400' },
   CREDITED:  { label: 'Creditado',            color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', dot: 'bg-emerald-400' },
   CANCELLED: { label: 'Cancelado',            color: 'text-slate-500 bg-slate-800/60 border-slate-700/40',  dot: 'bg-slate-500' },
   ERROR:     { label: 'Erro',                 color: 'text-red-400 bg-red-500/10 border-red-500/20',        dot: 'bg-red-400' },
@@ -67,6 +67,17 @@ export function CdiCyclePanel({ cycles }: Props) {
         await approveCdiCycle(cycleId)
       } catch (e: any) {
         setError(e?.message ?? 'Erro ao creditar.')
+      }
+    })
+  }
+
+  function handleRecover(cycleId: string) {
+    setError('')
+    start(async () => {
+      try {
+        await recoverCdiCycle(cycleId)
+      } catch (e: any) {
+        setError(e?.message ?? 'Erro ao recuperar ciclo.')
       }
     })
   }
@@ -170,6 +181,17 @@ export function CdiCyclePanel({ cycles }: Props) {
                     className="text-[10.5px] font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-700/60 border border-slate-700/40 px-2.5 py-1 rounded-lg transition-colors"
                   >
                     {expanded ? 'Ocultar detalhes' : `Ver ${preview.sellers.length} sellers`}
+                  </button>
+                )}
+
+                {/* Recover APPROVED cycle stuck between approve and credit */}
+                {cycle.status === 'APPROVED' && (
+                  <button
+                    onClick={() => handleRecover(cycle.id)}
+                    disabled={isPending}
+                    className="text-[10.5px] font-bold text-white bg-blue-700 hover:bg-blue-600 border border-blue-600/40 px-3 py-1 rounded-lg transition-colors disabled:opacity-40"
+                  >
+                    {isPending ? 'Executando…' : 'Executar crédito'}
                   </button>
                 )}
 

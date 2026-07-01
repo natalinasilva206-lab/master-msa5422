@@ -117,9 +117,20 @@ export async function applyGlobalRate(rate: number, plan?: string) {
   revalidatePath('/admin/cdi')
 }
 
-export async function creditCdiToAll(): Promise<{ count: number; totalCredited: number }> {
+export async function creditCdiToAll(skipCycleCheck = false): Promise<{ count: number; totalCredited: number }> {
   const session = await requireAdminSession()
   const userId = (session.user as any)?.id as string
+
+  if (!skipCycleCheck) {
+    const activeCycle = await prisma.cdiCycle.findFirst({
+      where: { status: { in: ['PENDING', 'APPROVED'] } },
+    })
+    if (activeCycle) {
+      throw new Error(
+        'Existe um ciclo CDI ativo no fluxo de aprovação. Use "Aprovar e Creditar" no painel de ciclos, ou cancele o ciclo pendente antes de usar o crédito manual.'
+      )
+    }
+  }
 
   const merchants = await prisma.merchant.findMany({
     where: { balance: { gt: 0 }, status: 'ACTIVE' },
@@ -296,8 +307,7 @@ export async function approveCdiCycle(cycleId: string): Promise<{ count: number;
   })
 
   try {
-    // Run the actual CDI credit (same logic as creditCdiToAll)
-    const result = await creditCdiToAll()
+    const result = await creditCdiToAll(true) // skip cycle check — called from approved cycle
 
     await prisma.cdiCycle.update({
       where: { id: cycleId },
@@ -310,6 +320,31 @@ export async function approveCdiCycle(cycleId: string): Promise<{ count: number;
       },
     })
 
+    revalidatePath('/admin/cdi')
+    return result
+  } catch (err: unknown) {
+    await prisma.cdiCycle.update({
+      where: { id: cycleId },
+      data: { status: 'ERROR', errorMessage: err instanceof Error ? err.message : String(err) },
+    })
+    throw err
+  }
+}
+
+export async function recoverCdiCycle(cycleId: string): Promise<{ count: number; totalCredited: number }> {
+  const session = await requireAdminSession()
+  const userId = (session.user as any)?.id as string
+
+  const cycle = await prisma.cdiCycle.findUnique({ where: { id: cycleId } })
+  if (!cycle) throw new Error('Ciclo não encontrado.')
+  if (cycle.status !== 'APPROVED') throw new Error('Apenas ciclos em estado APPROVED podem ser recuperados.')
+
+  try {
+    const result = await creditCdiToAll(true)
+    await prisma.cdiCycle.update({
+      where: { id: cycleId },
+      data: { status: 'CREDITED', creditedAt: new Date(), creditedById: userId, count: result.count, totalCredited: result.totalCredited },
+    })
     revalidatePath('/admin/cdi')
     return result
   } catch (err: unknown) {

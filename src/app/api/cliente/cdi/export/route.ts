@@ -42,10 +42,10 @@ type ExtratoRow = {
   descricao: string
 }
 
-function buildExtrato(logs: LogRow[], currentBalance: number): ExtratoRow[] {
+function buildExtrato(logs: LogRow[], initialBalance: number): ExtratoRow[] {
   const ordered = [...logs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
-  let running = 0
+  let running = initialBalance
   const rows: ExtratoRow[] = []
 
   for (const log of ordered) {
@@ -265,7 +265,31 @@ export async function GET(req: NextRequest) {
     select: { id: true, action: true, metadata: true, createdAt: true },
   })
 
-  const rows = buildExtrato(logs, merchant.balance)
+  // Compute the CDI balance at the start of the requested period by replaying
+  // all balance-affecting logs that occurred BEFORE the filter window.
+  let initialBalance = 0
+  if (dateFrom) {
+    const priorLogs = await prisma.auditLog.findMany({
+      where: {
+        entityId: merchant.id,
+        action: { in: ['ADD_TO_CDI', 'CDI_WITHDRAW', 'CDI_CREDIT', 'CDI_EARLY_APPROVED'] },
+        createdAt: { lt: dateFrom },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { action: true, metadata: true },
+    })
+    for (const l of priorLogs) {
+      try {
+        const m = JSON.parse(l.metadata ?? '{}')
+        const amt = parseFloat(m.amount || 0)
+        if (l.action === 'ADD_TO_CDI' || l.action === 'CDI_CREDIT') initialBalance += amt
+        else if (l.action === 'CDI_WITHDRAW' || l.action === 'CDI_EARLY_APPROVED') initialBalance -= amt
+      } catch {}
+    }
+    initialBalance = Math.max(0, Math.round(initialBalance * 100) / 100)
+  }
+
+  const rows = buildExtrato(logs, initialBalance)
   const fileName = `extrato-cdi-${now.toISOString().slice(0, 10)}`
 
   if (format === 'pdf') {
