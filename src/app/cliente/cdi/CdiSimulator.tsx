@@ -63,7 +63,9 @@ export function CdiSimulator({ cdiRate, initialBalance }: Props) {
       <div className="px-5 py-3.5 border-b border-slate-800/60 flex items-center justify-between flex-wrap gap-2">
         <div>
           <p className="text-[13px] font-semibold text-white">Simulador CDI</p>
-          <p className="text-[10.5px] text-slate-500 mt-0.5">Digite qualquer valor e veja a projeção de rendimento</p>
+          <p className="text-[10.5px] text-slate-500 mt-0.5">
+            {initialBalance === 0 ? 'Simulação com valor exemplo — aporte saldo para ver sua projeção real' : 'Projeção de rendimento sobre seu saldo atual'}
+          </p>
         </div>
         {/* Period selector */}
         <div className="flex items-center gap-1 bg-slate-800/60 border border-slate-700/40 rounded-lg p-0.5">
@@ -82,6 +84,18 @@ export function CdiSimulator({ cdiRate, initialBalance }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Simulation notice when no real balance */}
+      {initialBalance === 0 && (
+        <div className="mx-5 mt-4 flex items-start gap-2 bg-blue-500/5 border border-blue-500/15 rounded-xl px-3.5 py-2.5">
+          <svg className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-[10.5px] text-slate-500">
+            Você ainda não tem saldo em CDI. Os valores abaixo são uma simulação. Aporte saldo para ver sua projeção real.
+          </p>
+        </div>
+      )}
 
       {/* Amount input */}
       <div className="px-5 pt-4 pb-3 flex items-center gap-3">

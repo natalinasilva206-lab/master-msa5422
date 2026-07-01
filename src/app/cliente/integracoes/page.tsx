@@ -113,6 +113,37 @@ export default async function IntegracoesPage() {
           </div>
         </section>
 
+        {/* Payload example */}
+        <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-800/60">
+            <p className="text-[13px] font-semibold text-white">Exemplo de Payload — Registrar Venda</p>
+            <p className="text-[10.5px] text-slate-500 mt-0.5">Corpo JSON para <code className="font-mono text-emerald-400">POST /api/v1/sales</code></p>
+          </div>
+          <div className="px-5 py-4">
+            <pre className="text-[11.5px] font-mono text-slate-300 bg-slate-950/60 rounded-xl p-4 overflow-x-auto border border-slate-800/40">
+{`{
+  "merchantId": "${merchantId}",
+  "amount": 150.00,
+  "currency": "BRL",
+  "paymentMethod": "credit_card",
+  "description": "Plano Mensal — Acesso Premium",
+  "customer": {
+    "name": "João Silva",
+    "email": "joao@exemplo.com",
+    "document": "123.456.789-00"
+  },
+  "metadata": {
+    "orderId": "ORD-2024-001",
+    "productId": "prod_abc123"
+  }
+}`}
+            </pre>
+            <p className="text-[10.5px] text-slate-600 mt-2.5">
+              Campos obrigatórios: <code className="font-mono text-slate-400">merchantId</code>, <code className="font-mono text-slate-400">amount</code>, <code className="font-mono text-slate-400">paymentMethod</code>. O campo <code className="font-mono text-slate-400">metadata</code> é livre para rastreamento interno.
+            </p>
+          </div>
+        </section>
+
         {/* Endpoints */}
         <section className="bg-slate-900/60 border border-slate-800/70 rounded-xl overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800/60">
