@@ -334,6 +334,20 @@ model SystemConfig {
   updatedAt DateTime @updatedAt
 }
 
+model FaqItem {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String
+  category  String   @default("Geral")
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive, order])
+}
+
 // Status: PENDING | CREDITED | CANCELLED | ERROR
 model CdiCycle {
   id            String    @id @default(cuid())

@@ -11,6 +11,7 @@ import { calcSlaDueAt } from '@/lib/sla'
 export async function sendSupportTicket(
   subject: string,
   message: string,
+  category?: string,
 ): Promise<{ error?: string; ok?: boolean; ticketId?: string }> {
   const session = await getServerSession(authOptions)
   if (!session) redirect('/login')
@@ -35,7 +36,7 @@ export async function sendSupportTicket(
       merchantId: user.merchant.id,
       userId,
       subject:    subject.trim(),
-      category:   subject.trim(),
+      category:   (category ?? subject).trim(),
       status:     'ABERTO',
       priority:   'MEDIA',
       slaDueAt,
