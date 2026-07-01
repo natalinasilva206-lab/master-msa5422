@@ -40,9 +40,14 @@ const metaCdi: Record<string, { label: string; color: string; bg: string; sign: 
   ANTECIPACAO_REQUEST:{ label: 'Antecipação',             color: 'text-blue-400',    bg: 'bg-blue-500/10 text-blue-400',     sign: '+' },
 }
 
-export default async function ExtratoPage() {
+const VENDA_PAGE_SIZE = 30
+
+interface PageProps { searchParams: { page?: string } }
+
+export default async function ExtratoPage({ searchParams }: PageProps) {
   const session = await getServerSession(authOptions)
   const userId  = (session?.user as any)?.id as string | undefined
+  const vendaPage = Math.max(1, parseInt(searchParams?.page ?? '1'))
 
   const user = userId
     ? await prisma.user.findUnique({ where: { id: userId }, include: { merchant: true } })
@@ -52,7 +57,7 @@ export default async function ExtratoPage() {
   const pendente  = merchant?.pendingBalance ?? 0
   const cdiSaldo  = merchant?.balance        ?? 0
 
-  const [allLogs, vendaLogs] = merchant
+  const [allLogs, vendaLogs, vendaCount, vendaAggregate] = merchant
     ? await Promise.all([
         prisma.auditLog.findMany({
           where: {
@@ -61,19 +66,24 @@ export default async function ExtratoPage() {
             action:   { in: [...SAQUE_ACTIONS, ...CDI_ACTIONS] },
           },
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          take: 500,
         }),
         prisma.saleLog.findMany({
           where: { merchantId: merchant.id },
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          skip: (vendaPage - 1) * VENDA_PAGE_SIZE,
+          take: VENDA_PAGE_SIZE,
         }),
+        prisma.saleLog.count({ where: { merchantId: merchant.id } }),
+        prisma.saleLog.aggregate({ where: { merchantId: merchant.id, type: 'VENDA' }, _sum: { amount: true } }),
       ])
-    : [[], []]
+    : [[], [], 0, { _sum: { amount: 0 } }]
+
+  const vendaTotalPages = Math.ceil((vendaCount as number) / VENDA_PAGE_SIZE)
 
   const saqueLogs = allLogs.filter((l) => SAQUE_ACTIONS.includes(l.action))
   const cdiLogs   = allLogs.filter((l) => CDI_ACTIONS.includes(l.action))
-  const totalVendas = vendaLogs.filter((v) => v.type === 'VENDA').reduce((s, v) => s + v.amount, 0)
+  const totalVendas = (vendaAggregate as any)?._sum?.amount ?? 0
 
   const totalSacado    = saqueLogs
     .filter((l) => l.action === 'WITHDRAW_APPROVED')
@@ -106,7 +116,7 @@ export default async function ExtratoPage() {
           {[
             { label: 'Saldo Disponível',  value: `R$ ${formatBRL(pendente)}`,          color: 'text-emerald-400', border: 'border-emerald-500/20', sub: 'livre para saque' },
             { label: 'Saldo em CDI',      value: `R$ ${formatBRL(cdiSaldo)}`,          color: 'text-amber-400',   border: 'border-amber-500/20',   sub: 'rendendo agora' },
-            { label: 'Total em Vendas',   value: `R$ ${formatBRL(totalVendas)}`,       color: 'text-blue-400',    border: 'border-blue-500/15',    sub: `${vendaLogs.filter(v => v.type === 'VENDA').length} transações` },
+            { label: 'Total em Vendas',   value: `R$ ${formatBRL(totalVendas)}`,       color: 'text-blue-400',    border: 'border-blue-500/15',    sub: `${vendaCount as number} transações` },
             { label: 'Rendimento CDI',    value: `R$ ${formatBRL(totalCdiRendido)}`,   color: 'text-violet-400',  border: 'border-slate-800/70',   sub: 'total acumulado' },
             { label: 'Total Sacado',      value: `R$ ${formatBRL(totalSacado)}`,       color: 'text-slate-300',   border: 'border-slate-800/70',   sub: 'saques aprovados' },
             { label: 'Total Antecipado',  value: `R$ ${formatBRL(totalAntecipado)}`,   color: 'text-purple-400',  border: 'border-slate-800/70',   sub: 'antecipações cartão' },
@@ -236,9 +246,9 @@ export default async function ExtratoPage() {
               <p className="text-[13px] font-semibold text-white">Histórico de Transações</p>
               <p className="text-[10.5px] text-slate-500 mt-0.5">Vendas, estornos e devoluções processados pela API</p>
             </div>
-            <span className="text-[10px] text-slate-600">{vendaLogs.length} registros</span>
+            <span className="text-[10px] text-slate-600">{vendaCount as number} registros</span>
           </div>
-          {vendaLogs.length === 0 ? (
+          {(vendaCount as number) === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-slate-700">
               <svg className="w-9 h-9 mb-3 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
@@ -247,7 +257,8 @@ export default async function ExtratoPage() {
               <p className="text-[11px] text-slate-800 mt-1">Vendas processadas via API aparecerão aqui.</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-800/40 max-h-[480px] overflow-y-auto">
+            <>
+            <div className="divide-y divide-slate-800/40">
               {vendaLogs.map((venda) => {
                 const typeColor: Record<string, string> = {
                   VENDA:         'text-emerald-400 bg-emerald-500/10',
@@ -280,6 +291,20 @@ export default async function ExtratoPage() {
                 )
               })}
             </div>
+            {vendaTotalPages > 1 && (
+              <div className="px-5 py-3 border-t border-slate-800/40 flex items-center justify-between text-[12px] text-slate-500">
+                <span>Página {vendaPage} de {vendaTotalPages}</span>
+                <div className="flex gap-2">
+                  {vendaPage > 1 && (
+                    <a href={`?page=${vendaPage - 1}`} className="px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-slate-300">← Anterior</a>
+                  )}
+                  {vendaPage < vendaTotalPages && (
+                    <a href={`?page=${vendaPage + 1}`} className="px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-slate-300">Próxima →</a>
+                  )}
+                </div>
+              </div>
+            )}
+            </>
           )}
         </section>
 

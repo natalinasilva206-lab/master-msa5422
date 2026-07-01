@@ -12,36 +12,46 @@ function fmtDate(d: Date | string) {
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+const PAGE_SIZE = 20
+
 interface PageProps {
-  searchParams: { status?: string; type?: string; q?: string }
+  searchParams: { status?: string; type?: string; q?: string; page?: string }
 }
 
 export default async function DisputasPage({ searchParams }: PageProps) {
   const filterStatus = searchParams.status && searchParams.status !== 'todos' ? searchParams.status : undefined
   const filterType   = searchParams.type   && searchParams.type   !== 'todos' ? searchParams.type   : undefined
+  const page         = Math.max(1, parseInt(searchParams.page ?? '1'))
 
   let disputes: Awaited<ReturnType<typeof prisma.dispute.findMany<{ include: { merchant: { select: { id: true; name: true } } } }>>> = []
   let byStatus: Record<string, number> = {}
+  let totalFiltered = 0
 
   try {
-    const [rows, counts] = await Promise.all([
+    const where = {
+      ...(filterStatus ? { status: filterStatus } : {}),
+      ...(filterType   ? { type:   filterType   } : {}),
+    }
+    const [rows, counts, total] = await Promise.all([
       prisma.dispute.findMany({
-        where: {
-          ...(filterStatus ? { status: filterStatus } : {}),
-          ...(filterType   ? { type:   filterType   } : {}),
-        },
+        where,
         include: { merchant: { select: { id: true, name: true } } },
         orderBy: { openedAt: 'desc' },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
       }),
       prisma.dispute.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.dispute.count({ where }),
     ])
     disputes = rows
+    totalFiltered = total
     counts.forEach((c) => { byStatus[c.status] = c._count.id })
   } catch (e) {
     console.error('[DisputasPage] DB error:', e)
   }
 
-  const total = Object.values(byStatus).reduce((a, b) => a + b, 0)
+  const total     = Object.values(byStatus).reduce((a, b) => a + b, 0)
+  const totalPages = Math.ceil(totalFiltered / PAGE_SIZE)
 
   const openCases  = (byStatus['ABERTO'] ?? 0) + (byStatus['EM_ANALISE'] ?? 0) + (byStatus['AGUARDANDO_DOCUMENTO'] ?? 0)
   const blocked    = byStatus['BLOQUEADO'] ?? 0
@@ -209,6 +219,32 @@ export default async function DisputasPage({ searchParams }: PageProps) {
             </div>
           </div>
         )}
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-[12px] text-slate-500">
+            <span>{totalFiltered} caso{totalFiltered !== 1 ? 's' : ''} encontrado{totalFiltered !== 1 ? 's' : ''} · Página {page} de {totalPages}</span>
+            <div className="flex gap-2">
+              {page > 1 && (
+                <Link
+                  href={`?status=${filterStatus ?? 'todos'}&type=${filterType ?? 'todos'}&page=${page - 1}`}
+                  className="px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-slate-300"
+                >
+                  ← Anterior
+                </Link>
+              )}
+              {page < totalPages && (
+                <Link
+                  href={`?status=${filterStatus ?? 'todos'}&type=${filterType ?? 'todos'}&page=${page + 1}`}
+                  className="px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-slate-300"
+                >
+                  Próxima →
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   )

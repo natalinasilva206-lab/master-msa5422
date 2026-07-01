@@ -36,15 +36,21 @@ const subjectColor: Record<string, string> = {
   'Outro':                           'text-slate-400  bg-slate-700/40  border-slate-700/40',
 }
 
-export default async function AdminSuportePage() {
+const PAGE_SIZE = 25
+
+interface PageProps { searchParams: { page?: string; tab?: string } }
+
+export default async function AdminSuportePage({ searchParams }: PageProps) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== 'ADMIN') redirect('/cliente/dashboard')
 
-  const [tickets, respondidos] = await Promise.all([
+  const page    = Math.max(1, parseInt(searchParams.page ?? '1'))
+  const tab     = searchParams.tab ?? 'abertos'
+
+  const [allTickets, respondidos] = await Promise.all([
     prisma.auditLog.findMany({
       where: { action: 'SUPPORT_TICKET' },
       orderBy: { createdAt: 'desc' },
-      take: 100,
       include: { user: { select: { name: true, email: true, merchant: { select: { id: true, name: true, plan: true } } } } },
     }).catch(() => []),
     prisma.auditLog.findMany({
@@ -53,20 +59,27 @@ export default async function AdminSuportePage() {
     }).catch(() => []),
   ])
 
+  const tickets = allTickets
+
   const respondidoIds = new Set<string>()
   for (const r of respondidos) {
     try { const m = JSON.parse(r.metadata ?? '{}'); if (m.ticketId) respondidoIds.add(m.ticketId) } catch {}
   }
 
-  const pendentes  = tickets.filter((t) => !respondidoIds.has(t.id))
-  const fechados   = tickets.filter((t) => respondidoIds.has(t.id))
+  const allPendentes = tickets.filter((t) => !respondidoIds.has(t.id))
+  const allFechados  = tickets.filter((t) => respondidoIds.has(t.id))
+
+  const lista = tab === 'respondidos' ? allFechados : allPendentes
+  const totalPages = Math.ceil(lista.length / PAGE_SIZE)
+  const pendentes  = allPendentes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const fechados   = allFechados.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div>
       <Topbar
         title="Central de Suporte"
         breadcrumb="Casa › Gestão"
-        subtitle={`${pendentes.length} ticket${pendentes.length !== 1 ? 's' : ''} aberto${pendentes.length !== 1 ? 's' : ''} · ${fechados.length} respondido${fechados.length !== 1 ? 's' : ''}`}
+        subtitle={`${allPendentes.length} ticket${allPendentes.length !== 1 ? 's' : ''} aberto${allPendentes.length !== 1 ? 's' : ''} · ${allFechados.length} respondido${allFechados.length !== 1 ? 's' : ''}`}
       />
 
       <div className="p-4 xl:p-6 space-y-4">
@@ -74,9 +87,9 @@ export default async function AdminSuportePage() {
         {/* KPIs */}
         <section className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Total de Tickets',  value: tickets.length,   color: 'text-white',        border: 'border-slate-800/70' },
-            { label: 'Aguardando',        value: pendentes.length, color: 'text-amber-400',    border: 'border-amber-500/20' },
-            { label: 'Respondidos',       value: fechados.length,  color: 'text-emerald-400',  border: 'border-emerald-500/20' },
+            { label: 'Total de Tickets',  value: tickets.length,        color: 'text-white',        border: 'border-slate-800/70' },
+            { label: 'Aguardando',        value: allPendentes.length,   color: 'text-amber-400',    border: 'border-amber-500/20' },
+            { label: 'Respondidos',       value: allFechados.length,    color: 'text-emerald-400',  border: 'border-emerald-500/20' },
           ].map((c) => (
             <div key={c.label} className={`bg-slate-900/60 border ${c.border} rounded-xl p-4`}>
               <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">{c.label}</p>
@@ -196,6 +209,21 @@ export default async function AdminSuportePage() {
               })}
             </div>
           </section>
+        )}
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-[12px] text-slate-500">
+            <span>Página {page} de {totalPages} · {lista.length} ticket{lista.length !== 1 ? 's' : ''}</span>
+            <div className="flex gap-2">
+              {page > 1 && (
+                <a href={`?tab=${tab}&page=${page - 1}`} className="px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-slate-300">← Anterior</a>
+              )}
+              {page < totalPages && (
+                <a href={`?tab=${tab}&page=${page + 1}`} className="px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors text-slate-300">Próxima →</a>
+              )}
+            </div>
+          </div>
         )}
 
       </div>

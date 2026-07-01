@@ -36,19 +36,24 @@ export async function dispatchWebhook(
       })
       .map(async (ep) => {
         const sig = signWebhookPayload(ep.secret, payload)
-        try {
-          await fetch(ep.url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-MasterPay-Signature': sig,
-              'X-MasterPay-Event': event,
-            },
-            body: payload,
-            signal: AbortSignal.timeout(8000),
-          })
-        } catch {
-          // Fire-and-forget: log failure silently, never throw
+        const init: RequestInit = {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MasterPay-Signature': sig,
+            'X-MasterPay-Event': event,
+          },
+          body: payload,
+          signal: AbortSignal.timeout(8000),
+        }
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const res = await fetch(ep.url, init)
+            if (res.status < 500) return  // success or 4xx (don't retry client errors)
+          } catch {
+            // network error — retry
+          }
+          if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
         }
       }),
   )
